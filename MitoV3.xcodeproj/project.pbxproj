@@ -19,7 +19,6 @@
 		100000000000000000000008 /* FlashcardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000018 /* FlashcardsView.swift */; };
 		100000000000000000000009 /* CollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000019 /* CollectionView.swift */; };
 		10000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001A /* Assets.xcassets */; };
-		10000000000000000000000C /* PixelArtScreens.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001B /* PixelArtScreens.swift */; };
 		10000000000000000000000D /* Silkscreen-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001C /* Silkscreen-Regular.ttf */; };
 		10000000000000000000000E /* Silkscreen-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001D /* Silkscreen-Bold.ttf */; };
 		10000000000000000000000F /* PixelifySans.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001E /* PixelifySans.ttf */; };
@@ -41,7 +40,6 @@
 		100000000000000000000018 /* FlashcardsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardsView.swift; sourceTree = "<group>"; };
 		100000000000000000000019 /* CollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionView.swift; sourceTree = "<group>"; };
 		10000000000000000000001A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		10000000000000000000001B /* PixelArtScreens.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PixelArtScreens.swift; sourceTree = "<group>"; };
 		10000000000000000000001C /* Silkscreen-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Regular.ttf"; sourceTree = "<group>"; };
 		10000000000000000000001D /* Silkscreen-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Bold.ttf"; sourceTree = "<group>"; };
 		10000000000000000000001E /* PixelifySans.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/PixelifySans.ttf"; sourceTree = "<group>"; };
@@ -82,7 +80,6 @@
 				100000000000000000000036 /* ShopView.swift */,
 				100000000000000000000018 /* FlashcardsView.swift */,
 				100000000000000000000019 /* CollectionView.swift */,
-				10000000000000000000001B /* PixelArtScreens.swift */,
 				10000000000000000000001F /* MitoBackend.swift */,
 				10000000000000000000001A /* Assets.xcassets */,
 				10000000000000000000001C /* Silkscreen-Regular.ttf */,
@@ -190,7 +187,6 @@
 				100000000000000000000008 /* FlashcardsView.swift in Sources */,
 				100000000000000000000009 /* CollectionView.swift in Sources */,
 				100000000000000000000010 /* MitoBackend.swift in Sources */,
-				10000000000000000000000C /* PixelArtScreens.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
