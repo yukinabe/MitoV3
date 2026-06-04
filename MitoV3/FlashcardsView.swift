@@ -9,6 +9,7 @@ struct CardsScreen: View {
     @State private var showingNewDeck = false
     @State private var newDeckName = ""
     @State private var didLoad = false
+    @State private var didDeepLink = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -160,6 +161,12 @@ struct CardsScreen: View {
             t.disablesAnimations = true
             withTransaction(t) { route = .editor(deckID: d.id, cardID: c.id) }
         }
+        // Deep-link into the deck with the most cards so its tag row is visible.
+        if !didDeepLink, ProcessInfo.processInfo.arguments.contains("-uitestDeck"),
+           let d = decks.max(by: { cardsByDeckID[$0.id, default: []].count < cardsByDeckID[$1.id, default: []].count }) {
+            didDeepLink = true
+            route = .detail(deckID: d.id)
+        }
         #endif
     }
 
@@ -306,6 +313,17 @@ struct DeckDetailScreen: View {
     let onDeleteDeck: () -> Void
     @State private var confirmingDelete = false
 
+    /// Every distinct tag used by this deck's cards (placeholder "new" hidden).
+    private var deckTags: [String] {
+        var seen = Set<String>()
+        var out: [String] = []
+        for tag in cards.flatMap(\.tags) where tag != "new" && !seen.contains(tag) {
+            seen.insert(tag)
+            out.append(tag)
+        }
+        return out
+    }
+
     var body: some View {
         ZStack {
             DottedDarkBackground()
@@ -332,6 +350,26 @@ struct DeckDetailScreen: View {
                 HStack {
                     SmallToggle("ALL", active: true)
                     SmallToggle("NEW", active: false)
+                }
+
+                if deckTags.isEmpty {
+                    Text("No tags yet — add tags when you create cards.")
+                        .font(.custom(MitoFont.regular, size: 13))
+                        .foregroundStyle(Color(hex: "8A6B42"))
+                } else {
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 6) {
+                            ForEach(deckTags, id: \.self) { tag in
+                                Text(tag.uppercased())
+                                    .pixelText(size: 8, color: Color(hex: "3A2A18"))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 5)
+                                    .background(Color(hex: "F4E6C0"))
+                                    .overlay(Rectangle().stroke(Color(hex: "B89868"), lineWidth: 1))
+                            }
+                        }
+                        .padding(.vertical, 1)
+                    }
                 }
 
                 if cards.isEmpty {
@@ -570,18 +608,16 @@ struct FlashcardEditorScreen: View {
                     .disabled(!canSave)
                 }
 
-                ScrollView(showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 12) {
-                        FlashcardSideTabs(activeSide: $activeSide)
-                        FlippingFlashcardEditor(activeSide: activeSide, front: $front, back: $back)
-                            .frame(minHeight: 340)
-                            .animation(.spring(response: 0.42, dampingFraction: 0.82), value: activeSide)
+                VStack(alignment: .leading, spacing: 12) {
+                    FlashcardSideTabs(activeSide: $activeSide)
+                    FlippingFlashcardEditor(activeSide: activeSide, front: $front, back: $back)
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .animation(.spring(response: 0.42, dampingFraction: 0.82), value: activeSide)
 
-                        tagEditor
-                    }
-                    .padding(14)
-                    .padding(.bottom, 18)
+                    tagEditor
                 }
+                .padding(14)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color(hex: "EAD4A4"))
                 .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
 

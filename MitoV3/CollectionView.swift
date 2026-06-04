@@ -3,12 +3,20 @@ import SwiftUI
 struct TeamScreen: View {
     @Binding var atp: Int
     @Binding var gold: Int
+    @Binding var biomass: Int
     @State private var activePartySlots: [String?] = ["mito", "cloro", "astro", "dendri"]
     @State private var selectedHeroID: String?
     @State private var infoHero: Hero?
     @State private var characterProgress: [String: CharacterProgress] = [:]
     private let maxPartySize = 4
-    private let upgradeCost = 340
+
+    /// Gold cost to level a hero, rising with its current level.
+    private func goldCost(for hero: Hero) -> Int { 150 + hero.level * 30 }
+    /// Biomass (farmed material) cost — rises with level so you must farm bosses.
+    private func bioCost(for hero: Hero) -> Int { 5 + hero.level / 2 }
+    private func canUpgrade(_ hero: Hero) -> Bool {
+        gold >= goldCost(for: hero) && biomass >= bioCost(for: hero)
+    }
 
     private var heroes: [Hero] {
         DataSet.heroes.map { hero in
@@ -185,8 +193,10 @@ struct TeamScreen: View {
                     CharacterInfoModal(
                         hero: infoHero,
                         inParty: activePartySlots.contains { $0 == infoHero.id },
-                        upgradeCost: upgradeCost,
-                        canUpgrade: gold >= upgradeCost,
+                        goldCost: goldCost(for: infoHero),
+                        bioCost: bioCost(for: infoHero),
+                        ownedBio: biomass,
+                        canUpgrade: canUpgrade(infoHero),
                         onClose: {
                             self.infoHero = nil
                             selectedHeroID = nil
@@ -231,8 +241,9 @@ struct TeamScreen: View {
     }
 
     private func upgrade(hero: Hero) {
-        guard gold >= upgradeCost else { return }
-        gold -= upgradeCost
+        guard canUpgrade(hero) else { return }
+        gold -= goldCost(for: hero)
+        biomass -= bioCost(for: hero)
 
         var progress = characterProgress[hero.id] ?? CharacterProgress(hero: hero)
         progress.levelUp()
@@ -468,7 +479,9 @@ struct InlineCharacterActions: View {
 struct CharacterInfoModal: View {
     let hero: Hero
     let inParty: Bool
-    let upgradeCost: Int
+    let goldCost: Int
+    let bioCost: Int
+    let ownedBio: Int
     let canUpgrade: Bool
     let onClose: () -> Void
     let onUpgrade: () -> Void
@@ -542,16 +555,25 @@ struct CharacterInfoModal: View {
                     Text("+5 HP · +3 ATK · +2 DEF")
                         .font(.custom(MitoFont.regular, size: 13))
                         .foregroundStyle(Color(hex: "6B4324"))
+                    HStack(spacing: 6) {
+                        Text("◎ \(goldCost)")
+                            .pixelText(size: 10, color: Color(hex: "8A6B42"))
+                        Text("🧬 \(bioCost)")
+                            .pixelText(size: 10, color: ownedBio >= bioCost ? Color(hex: "4A8A3C") : Color(hex: "C4452F"))
+                        Text("(have \(ownedBio))")
+                            .font(.custom(MitoFont.regular, size: 12))
+                            .foregroundStyle(Color(hex: "8A6B42"))
+                    }
                 }
                 Spacer()
                 Button(action: onUpgrade) {
                     VStack(spacing: 1) {
-                        Text("◎ \(upgradeCost)")
-                            .pixelText(size: 11, color: Color(hex: "18100A"))
                         Text("UPGRADE")
-                            .pixelText(size: 8, color: Color(hex: "3A2A18"))
+                            .pixelText(size: 10, color: Color(hex: "18100A"))
+                        Text(canUpgrade ? "LEVEL UP" : "NEED MATS")
+                            .pixelText(size: 7, color: Color(hex: "3A2A18"))
                     }
-                    .frame(width: 76, height: 39)
+                    .frame(width: 84, height: 39)
                     .background(canUpgrade ? Color(hex: "F7C943") : Color(hex: "8A6B42"))
                     .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                 }

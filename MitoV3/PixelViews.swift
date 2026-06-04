@@ -14,6 +14,12 @@ struct StudyWanderer: Identifiable {
         StudyWanderer(id: "chloro", asset: "hero-chloroplast-hop", size: 52, start: CGPoint(x: 0.31, y: 0.56), seed: 0xC410_0024),
         StudyWanderer(id: "neuro", asset: "hero-neuron-hop", size: 52, start: CGPoint(x: 0.55, y: 0.66), seed: 0xE900_0025)
     ]
+
+    // Distinct-id copies used by the full-screen focus session so they never
+    // collide with the home-screen wanderers in StudyCollisionRegistry.
+    static let focusSet: [StudyWanderer] = all.map {
+        StudyWanderer(id: $0.id + "-focus", asset: $0.asset, size: $0.size, start: $0.start, seed: $0.seed ^ 0x00F0_C500)
+    }
 }
 
 struct StudyWanderingCharacter: View {
@@ -53,6 +59,17 @@ struct StudyWanderingCharacter: View {
         return clamped * clamped * (3 - 2 * clamped)
     }
 
+    /// Fraction of a single hop's distance covered at a given cycle phase.
+    /// The mito sprite is grounded on frames 0-2, airborne on 3-5, and landing
+    /// on 6-7 — so it holds still on the ground and surges forward mid-air.
+    private func hopGait(_ phase: Double) -> Double {
+        let liftStart = 3.0 / Double(frameCount)   // leaves the ground (frame 3)
+        let landStart = 6.0 / Double(frameCount)   // back on the ground (frame 6)
+        if phase <= liftStart { return 0 }
+        if phase >= landStart { return 1 }
+        return smoothstep((phase - liftStart) / (landStart - liftStart))
+    }
+
     @MainActor
     private func runWanderLoop() async {
         let launchVariance = UInt64(Date().timeIntervalSinceReferenceDate * 1_000)
@@ -76,7 +93,12 @@ struct StudyWanderingCharacter: View {
                 continue
             }
 
-            let duration = min(max(distance * 16, 1.15), 3.4)
+            // Snap the trip to a whole number of hop cycles so horizontal travel
+            // advances in discrete hops instead of one continuous glide.
+            let hopPeriod = Double(frameCount) * secondsPerFrame
+            let roughDuration = min(max(distance * 16, 1.15), 3.4)
+            let hopCount = max(1, (roughDuration / hopPeriod).rounded())
+            let duration = hopCount * hopPeriod
             let startTime = Date().timeIntervalSinceReferenceDate
             isMoving = true
             isMovingRight = target.x > start.x
@@ -85,10 +107,16 @@ struct StudyWanderingCharacter: View {
                 let elapsed = Date().timeIntervalSinceReferenceDate - startTime
                 if elapsed >= duration { break }
 
-                let progress = smoothstep(elapsed / duration)
+                // Frame + horizontal advance share one phase so movement is
+                // locked to the hop: it surges while the sprite is airborne and
+                // holds while it is on the ground.
+                let cyclePos = elapsed / hopPeriod
+                let completedHops = floor(cyclePos)
+                let phase = cyclePos - completedHops
+                let progress = min(1, (completedHops + hopGait(phase)) / hopCount)
                 position = start.interpolated(to: target, progress: progress)
                 StudyCollisionRegistry.update(id: wanderer.id, position: position)
-                frame = Int(elapsed / secondsPerFrame) % frameCount
+                frame = Int(phase * Double(frameCount)) % frameCount
                 try? await Task.sleep(nanoseconds: UInt64(tick * 1_000_000_000))
             }
 
@@ -106,6 +134,10 @@ struct StudyWanderingCharacter: View {
 enum StudyWalkMap {
     static let characterSpacing = 0.11
 
+    /// Extra clearance around props so a wanderer's body never clips trees,
+    /// rocks, or the house — a "bubble" the character center must stay out of.
+    private static let obstacleMargin = 0.045
+
     private static let walkBounds = CGRect(x: 0.08, y: 0.20, width: 0.78, height: 0.54)
 
     private static let obstacles: [CGRect] = [
@@ -122,6 +154,18 @@ enum StudyWalkMap {
 
     static func clampedWalkable(_ point: CGPoint) -> CGPoint {
         if isWalkable(point) { return point }
+        // Start sits inside an obstacle bubble — spiral outward to the nearest
+        // walkable tile so each wanderer keeps a distinct spot (instead of every
+        // blocked character collapsing onto one shared fallback and freezing).
+        var radius = 0.03
+        while radius <= 0.45 {
+            for degrees in stride(from: 0, to: 360, by: 30) {
+                let angle = Double(degrees) * .pi / 180
+                let candidate = CGPoint(x: point.x + cos(angle) * radius, y: point.y + sin(angle) * radius)
+                if isWalkable(candidate) { return candidate }
+            }
+            radius += 0.03
+        }
         return CGPoint(x: 0.45, y: 0.50)
     }
 
@@ -147,7 +191,8 @@ enum StudyWalkMap {
 
     private static func isWalkable(_ point: CGPoint) -> Bool {
         guard walkBounds.contains(point) else { return false }
-        return !obstacles.contains { $0.contains(point) }
+        // Inflate each obstacle by the clearance bubble before testing.
+        return !obstacles.contains { $0.insetBy(dx: -obstacleMargin, dy: -obstacleMargin).contains(point) }
     }
 
     private static func clearsCharacters(_ point: CGPoint, avoiding occupied: [CGPoint]) -> Bool {

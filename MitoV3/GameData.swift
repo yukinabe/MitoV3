@@ -164,13 +164,55 @@ enum DataSet {
     ]
 
     static let stages: [Stage] = [
-        Stage(id: 1, name: "Petri Plain", status: .cleared, x: 0.50, y: 0.92, difficulty: "EASY"),
-        Stage(id: 2, name: "Membrane Marsh", status: .cleared, x: 0.80, y: 0.80, difficulty: "EASY"),
-        Stage(id: 3, name: "Nucleus Hollow", status: .cleared, x: 0.32, y: 0.70, difficulty: "NORMAL"),
-        Stage(id: 4, name: "Mitochondria Cave", status: .active, x: 0.65, y: 0.58, difficulty: "NORMAL"),
-        Stage(id: 5, name: "Ribosome Ridge", status: .locked, x: 0.30, y: 0.47, difficulty: "HARD"),
-        Stage(id: 6, name: "Lysosome Lair", status: .locked, x: 0.64, y: 0.35, difficulty: "HARD"),
-        Stage(id: 7, name: "Vacuole Vale", status: .locked, x: 0.32, y: 0.23, difficulty: "BOSS"),
-        Stage(id: 8, name: "Spike Citadel", status: .locked, x: 0.68, y: 0.10, difficulty: "BOSS")
+        Stage(id: 1, name: "Petri Plain", status: .cleared, x: 0.50, y: 0.84, difficulty: "EASY"),
+        Stage(id: 2, name: "Membrane Marsh", status: .cleared, x: 0.40, y: 0.775, difficulty: "EASY"),
+        Stage(id: 3, name: "Nucleus Hollow", status: .cleared, x: 0.55, y: 0.71, difficulty: "NORMAL"),
+        Stage(id: 4, name: "Mitochondria Cave", status: .active, x: 0.45, y: 0.645, difficulty: "NORMAL"),
+        Stage(id: 5, name: "Ribosome Ridge", status: .locked, x: 0.58, y: 0.58, difficulty: "NORMAL"),
+        Stage(id: 6, name: "Golgi Gorge", status: .locked, x: 0.42, y: 0.515, difficulty: "HARD"),
+        Stage(id: 7, name: "Lysosome Lair", status: .locked, x: 0.56, y: 0.45, difficulty: "HARD"),
+        Stage(id: 8, name: "Vacuole Vale", status: .locked, x: 0.44, y: 0.385, difficulty: "BOSS"),
+        Stage(id: 9, name: "Cytoskel Span", status: .locked, x: 0.57, y: 0.32, difficulty: "HARD"),
+        Stage(id: 10, name: "Plastid Pass", status: .locked, x: 0.43, y: 0.255, difficulty: "HARD"),
+        Stage(id: 11, name: "Vesicle Vault", status: .locked, x: 0.54, y: 0.19, difficulty: "HARD"),
+        Stage(id: 12, name: "Spike Citadel", status: .locked, x: 0.47, y: 0.125, difficulty: "BOSS")
     ]
+}
+
+extension Stage {
+    /// HP / damage multiplier applied on top of stage-index scaling.
+    var tierMultiplier: Double {
+        switch difficulty {
+        case "EASY": return 1.0
+        case "NORMAL": return 1.25
+        case "HARD": return 1.55
+        case "BOSS": return 1.9
+        default: return 1.0
+        }
+    }
+}
+
+/// Centralized difficulty scaling so endless waves and campaign stages stay
+/// challenging as the team levels up — no one-shotting, no brick walls.
+enum BattleScaling {
+    /// Player hits scale gently with team level so progression matters.
+    static func heroDamageMultiplier(teamLevel: Int) -> Double {
+        max(0.7, 1 + 0.05 * Double(teamLevel - 10))
+    }
+
+    /// Endless enemies grow each wave (and with team level), so later waves
+    /// take more cards to clear instead of dying in one hit.
+    static func endlessEnemyHP(teamLevel: Int, wave: Int) -> Int {
+        Int((110 + 22 * Double(wave)) * (1 + 0.08 * Double(teamLevel - 10)))
+    }
+
+    /// Endless loot scales with the wave reached.
+    static func endlessReward(wave: Int) -> (gold: Int, biomass: Int) {
+        (18 + wave * 5, 1 + wave / 4)
+    }
+
+    /// Campaign enemy HP scales with stage index and tier.
+    static func campaignEnemyHP(stageIndex: Int, tierMultiplier: Double, teamLevel: Int) -> Int {
+        Int((80 + 14 * Double(stageIndex)) * tierMultiplier * (1 + 0.06 * Double(teamLevel - 10)))
+    }
 }

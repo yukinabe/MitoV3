@@ -70,6 +70,8 @@ struct BattleScreen: View {
     @State private var selectedTags: Set<String> = []
     @State private var mobHP = 132
     @State private var teamHP = 164
+    @State private var enemyMaxHP = 132
+    @State private var wave = 1
     @State private var currentCard = 0
     @State private var showingAnswer = false
     @State private var reviewedCards = 15
@@ -77,6 +79,8 @@ struct BattleScreen: View {
     @State private var activeHeroIndex = 0
     @State private var lastActorIndex = 0
     @State private var lastAbility: BattleAbility?
+    @State private var attackToken = 0
+    @State private var lastDamage = 0
     @ObservedObject private var session = ReviewSession.shared
 
     var body: some View {
@@ -105,14 +109,21 @@ struct BattleScreen: View {
     @State private var didUITestJump = false
     private func maybeJumpToReviewForUITest() {
         #if DEBUG
+        if !didUITestJump, ProcessInfo.processInfo.arguments.contains("-uitestMap") {
+            didUITestJump = true
+            route = .map
+            return
+        }
         guard !didUITestJump,
               ProcessInfo.processInfo.arguments.contains("-uitestReview") else { return }
         didUITestJump = true
         battleMode = .endless
-        mobHP = 132
-        teamHP = 164
-        reviewedCards = 15
-        streak = 2
+        wave = 1
+        enemyMaxHP = BattleScaling.endlessEnemyHP(teamLevel: teamLevel, wave: 1)
+        mobHP = enemyMaxHP
+        teamHP = teamMaxHP
+        reviewedCards = 0
+        streak = 0
         session.start(deckIDs: [])
         showingAnswer = ProcessInfo.processInfo.arguments.contains("-uitestReveal")
         route = ProcessInfo.processInfo.arguments.contains("-uitestPicker") ? .reviewSetup : .combat
@@ -188,11 +199,13 @@ struct BattleScreen: View {
             onBack: { route = .landing },
             onStart: {
                 battleMode = .endless
-                mobHP = 132
-                teamHP = 164
+                wave = 1
+                enemyMaxHP = BattleScaling.endlessEnemyHP(teamLevel: teamLevel, wave: 1)
+                mobHP = enemyMaxHP
+                teamHP = teamMaxHP
                 currentCard = 0
-                reviewedCards = 15
-                streak = 2
+                reviewedCards = 0
+                streak = 0
                 activeHeroIndex = 0
                 lastActorIndex = 0
                 lastAbility = nil
@@ -229,7 +242,7 @@ struct BattleScreen: View {
                                         .resizable()
                                         .interpolation(.none)
                                         .scaledToFit()
-                                        .frame(width: 62, height: 62)
+                                        .frame(width: 50, height: 50)
                                     Text("\(stage.id)")
                                         .pixelText(size: 8, color: .white)
                                 }
@@ -246,6 +259,7 @@ struct BattleScreen: View {
 
     private var stageSetup: some View {
         CampaignStageSetup(
+            stage: selectedStage,
             decks: pickerDecks,
             selectedDecks: $selectedDecks,
             selectedTags: $selectedTags,
@@ -253,8 +267,14 @@ struct BattleScreen: View {
             onStart: {
                 guard !selectedDecks.isEmpty else { return }
                 battleMode = .campaign
-                mobHP = 110
-                teamHP = 164
+                wave = 1
+                enemyMaxHP = BattleScaling.campaignEnemyHP(
+                    stageIndex: selectedStage.id,
+                    tierMultiplier: selectedStage.tierMultiplier,
+                    teamLevel: teamLevel
+                )
+                mobHP = enemyMaxHP
+                teamHP = teamMaxHP
                 currentCard = 1
                 reviewedCards = 0
                 streak = 0
@@ -283,6 +303,11 @@ struct BattleScreen: View {
             activeHeroIndex: activeHeroIndex,
             lastActorIndex: lastActorIndex,
             lastAbility: lastAbility,
+            attackToken: attackToken,
+            lastDamage: lastDamage,
+            enemyMaxHP: enemyMaxHP,
+            wave: wave,
+            stageLabel: "STAGE \(selectedStage.id) · \(selectedStage.difficulty)",
             onReveal: { showingAnswer = true },
             onDone: { route = .landing },
             onGrade: grade
@@ -298,13 +323,13 @@ struct BattleScreen: View {
                 VStack(spacing: 16) {
                     Text(mobHP <= 0 ? "STAGE CLEAR" : "TEAM FAINTED")
                         .pixelText(size: 18, color: Color(hex: "3A2A18"))
-                    Text(mobHP <= 0 ? "+120 gold  +8 biomass" : "Review more cards and try again.")
+                    Text(mobHP <= 0 ? "+\(clearGold) gold  +\(clearBiomass) biomass" : "Review more cards and try again.")
                         .font(.custom(MitoFont.regular, size: 18))
                         .foregroundStyle(Color(hex: "4A2F1C"))
                     PixelButton(title: "CONTINUE") {
                         if mobHP <= 0 {
-                            gold += 120
-                            biomass += 8
+                            gold += clearGold
+                            biomass += clearBiomass
                         }
                         route = .landing
                     }
@@ -314,6 +339,10 @@ struct BattleScreen: View {
             .padding(22)
         }
     }
+
+    /// Campaign clear reward scales with the cleared stage's tier.
+    private var clearGold: Int { Int(100 * selectedStage.tierMultiplier) }
+    private var clearBiomass: Int { Int(6 * selectedStage.tierMultiplier) }
 
     private var selectedCardCount: Int {
         pickerDecks.filter { selectedDecks.contains($0.id) }.reduce(0) { $0 + $1.cards }
@@ -348,6 +377,22 @@ struct BattleScreen: View {
         }
     }
 
+    /// Active battle party (endless fields 3, campaign fields 4).
+    private var activeTeam: [Hero] {
+        Array(DataSet.heroes.prefix(battleMode == .endless ? 3 : 4))
+    }
+
+    /// Average level of the active team, used to scale enemy difficulty.
+    private var teamLevel: Int {
+        let levels = activeTeam.map(\.level)
+        return levels.isEmpty ? 10 : levels.reduce(0, +) / levels.count
+    }
+
+    /// Team max HP is the sum of the party's HP pools.
+    private var teamMaxHP: Int {
+        activeTeam.map(\.hp).reduce(0, +)
+    }
+
     private func grade(_ rating: BattleRating) {
         // Schedule the current card with FSRS and persist before advancing.
         session.grade(rating.fsrs)
@@ -357,10 +402,16 @@ struct BattleScreen: View {
         }
 
         let ability = battleMode == .endless ? rollEndlessAbility() : nil
-        let damage = ability?.damage ?? rating.damage
-        let recoil = battleMode == .campaign ? rating.recoil : 0
+        // Player damage scales with team level so leveling up matters.
+        let damageMult = BattleScaling.heroDamageMultiplier(teamLevel: teamLevel)
+        let damage = max(1, Int(Double(ability?.damage ?? rating.damage) * damageMult))
+        // Campaign mistakes hurt more on harder stages.
+        let recoil = battleMode == .campaign ? Int(Double(rating.recoil) * selectedStage.tierMultiplier) : 0
         let enemyDefeated = mobHP - damage <= 0
         let teamDefeated = teamHP - recoil <= 0
+        // Drive the combat juice (hit flash, shake, floating number, lunge).
+        lastDamage = damage
+        attackToken += 1
         mobHP = max(0, mobHP - damage)
         teamHP = max(0, teamHP - recoil)
         reviewedCards += 1
@@ -368,9 +419,13 @@ struct BattleScreen: View {
         currentCard += 1
         showingAnswer = false
         if battleMode == .endless, enemyDefeated {
-            mobHP = 132
-            gold += 30
-            biomass += 2
+            // Next wave: stronger enemy + bigger loot.
+            wave += 1
+            enemyMaxHP = BattleScaling.endlessEnemyHP(teamLevel: teamLevel, wave: wave)
+            mobHP = enemyMaxHP
+            let reward = BattleScaling.endlessReward(wave: wave)
+            gold += reward.gold
+            biomass += reward.biomass
         } else if enemyDefeated || teamDefeated {
             route = .result
         }
@@ -412,16 +467,32 @@ struct BattleCombatView: View {
     let activeHeroIndex: Int
     let lastActorIndex: Int
     let lastAbility: BattleAbility?
+    let attackToken: Int
+    let lastDamage: Int
+    let enemyMaxHP: Int
+    let wave: Int
+    let stageLabel: String
     let onReveal: () -> Void
     let onDone: () -> Void
     let onGrade: (BattleRating) -> Void
 
+    // Combat juice + pause state.
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var enemyShakeX: CGFloat = 0
+    @State private var enemyFlash: Double = 0
+    @State private var enemyHitScale: CGFloat = 1
+    @State private var screenShakeX: CGFloat = 0
+    @State private var lungeY: CGFloat = 0
+    @State private var displayedMobHP = 0
+    @State private var damagePopupID = 0
+    @State private var showDamage = false
+    @State private var damageRise: CGFloat = 0
+    @State private var damageFade: Double = 0
+    @State private var paused = false
+    @AppStorage("battleVolume") private var volume = 0.8
+
     private var enemyName: String {
         mode == .endless ? "Mutagem" : "Spikevyrus"
-    }
-
-    private var enemyMaxHP: Int {
-        mode == .endless ? 132 : 110
     }
 
     private var enemyRarity: String? {
@@ -481,34 +552,157 @@ struct BattleCombatView: View {
                     )
                     .padding(.horizontal, 12)
 
-                    Text(showingAnswer ? "Grade honestly - ability RNG is separate" : "Recall the answer, then reveal")
-                        .font(.custom(MitoFont.regular, size: 14))
-                        .foregroundStyle(Color(hex: "F4E6C0").opacity(0.86))
-                        .shadow(color: .black.opacity(0.65), radius: 0, x: 1, y: 1)
-                        .padding(.top, 8)
-                        .padding(.bottom, 7)
-
                     gradeRow
                         .padding(.horizontal, 12)
+                        .padding(.top, 12)
                         .padding(.bottom, 82)
 
                     Spacer(minLength: 0)
                 }
+                .offset(x: screenShakeX)
+
+                if paused {
+                    pauseOverlay
+                }
+            }
+            .onAppear { displayedMobHP = mobHP }
+            .onChange(of: attackToken) { _, _ in runHitAnimation() }
+            .onChange(of: scenePhase) { _, phase in
+                if phase != .active { paused = true }
             }
         }
+    }
+
+    /// One satisfying hit: enemy flash + recoil shake + scale punch, attacker
+    /// lunge, a floating damage number, and a quick screen shake.
+    /// Travel time of the lunge before it "connects" with the enemy.
+    private let impactDelay: TimeInterval = 0.22
+
+    private func runHitAnimation() {
+        guard !paused else { return }
+
+        // 1) Attacker lunges forward toward the enemy.
+        withAnimation(.easeOut(duration: 0.18)) { lungeY = -22 }
+
+        // 2) On contact: hero springs back and the enemy reacts (shake, flash,
+        //    HP drop, damage number) — held off until the lunge connects.
+        DispatchQueue.main.asyncAfter(deadline: .now() + impactDelay) {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { lungeY = 0 }
+            applyImpact()
+        }
+    }
+
+    private func applyImpact() {
+        // HP bar drains on impact (snap up instantly if a new enemy spawned).
+        if mobHP < displayedMobHP {
+            withAnimation(.easeOut(duration: 0.40)) { displayedMobHP = mobHP }
+        } else {
+            displayedMobHP = mobHP
+        }
+
+        // Flash + scale punch.
+        enemyFlash = 0.8
+        enemyHitScale = 1.16
+        withAnimation(.easeOut(duration: 0.45)) { enemyFlash = 0 }
+        withAnimation(.spring(response: 0.5, dampingFraction: 0.5)) { enemyHitScale = 1 }
+
+        // Recoil: one shove + a slow underdamped settle (weighty, not jittery).
+        enemyShakeX = -14
+        screenShakeX = -6
+        withAnimation(.spring(response: 0.55, dampingFraction: 0.4)) {
+            enemyShakeX = 0
+            screenShakeX = 0
+        }
+
+        // Floating damage number rises and fades.
+        damagePopupID += 1
+        showDamage = true
+        damageRise = 0
+        damageFade = 1
+        withAnimation(.easeOut(duration: 1.05)) {
+            damageRise = -64
+            damageFade = 0
+        }
+    }
+
+    private var pauseOverlay: some View {
+        ZStack {
+            Color.black.opacity(0.72)
+                .ignoresSafeArea()
+                .onTapGesture { paused = false }
+
+            VStack(spacing: 16) {
+                Text("PAUSED")
+                    .pixelText(size: 22, color: Color(hex: "F4E6C0"))
+
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text("VOLUME")
+                            .pixelText(size: 10, color: Color(hex: "3A2A18"))
+                        Spacer()
+                        Text("\(Int(volume * 100))%")
+                            .pixelText(size: 10, color: Color(hex: "6B4324"))
+                    }
+                    Slider(value: $volume, in: 0...1)
+                        .tint(Color(hex: "4A8A3C"))
+                }
+                .padding(12)
+                .background(Color(hex: "EAD4A4"))
+                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+
+                Button { paused = false } label: {
+                    Text("RESUME")
+                        .pixelText(size: 15, color: Color(hex: "F4E6C0"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color(hex: "4A8A3C"))
+                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                }
+                .buttonStyle(.plain)
+
+                Button {
+                    paused = false
+                    onDone()
+                } label: {
+                    Text("EXIT BATTLE")
+                        .pixelText(size: 13, color: Color(hex: "F4E6C0"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color(hex: "C84A3A"))
+                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(20)
+            .frame(width: 270)
+            .background(Color(hex: "2A1B0E"))
+            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 4))
+        }
+        .zIndex(20)
     }
 
     private var statusRow: some View {
         HStack(spacing: 7) {
             if mode == .endless {
-                BattleStatusChip("WAVE 5")
+                BattleStatusChip("WAVE \(wave)")
                 BattleStatusChip("REVIEWED \(reviewedCards)")
                 BattleStatusChip("CHAIN \(streak)")
             } else {
-                BattleStatusChip("STAGE 4 · WAVE 1/2")
+                BattleStatusChip(stageLabel)
             }
 
             Spacer(minLength: 0)
+
+            Button { paused = true } label: {
+                Image(systemName: "pause.fill")
+                    .font(.system(size: 12, weight: .black))
+                    .foregroundStyle(Color(hex: "F4E6C0"))
+                    .frame(width: 30, height: 28)
+                    .background(Color(hex: "182116").opacity(0.88))
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Pause")
 
             Button(action: onDone) {
                 Text(mode == .endless ? "DONE" : "FLEE")
@@ -537,20 +731,44 @@ struct BattleCombatView: View {
                 }
                 if mode == .campaign {
                     Spacer(minLength: 0)
-                    Text("\(mobHP)/\(enemyMaxHP)")
+                    Text("\(displayedMobHP)/\(enemyMaxHP)")
                         .pixelText(size: 9, color: Color(hex: "F4E6C0"))
                 }
             }
 
-            HPBar(value: mobHP, max: enemyMaxHP, tint: Color(hex: "58C054"))
+            HPBar(value: displayedMobHP, max: enemyMaxHP, tint: Color(hex: "58C054"))
                 .frame(height: mode == .endless ? 15 : 13)
 
-            Image("mob_1")
-                .resizable()
-                .interpolation(.none)
-                .scaledToFit()
-                .frame(width: mode == .endless ? 124 : 118, height: mode == .endless ? 124 : 118)
-                .shadow(color: .black.opacity(0.34), radius: 0, x: 4, y: 5)
+            ZStack {
+                Image("mob_1")
+                    .resizable()
+                    .interpolation(.none)
+                    .scaledToFit()
+                    .frame(width: mode == .endless ? 124 : 118, height: mode == .endless ? 124 : 118)
+                    .shadow(color: .black.opacity(0.34), radius: 0, x: 4, y: 5)
+                    .overlay(
+                        Image("mob_1")
+                            .resizable()
+                            .interpolation(.none)
+                            .scaledToFit()
+                            .frame(width: mode == .endless ? 124 : 118, height: mode == .endless ? 124 : 118)
+                            .colorMultiply(.white)
+                            .opacity(enemyFlash)
+                            .blendMode(.plusLighter)
+                    )
+                    .scaleEffect(enemyHitScale)
+                    .offset(x: enemyShakeX)
+
+                if showDamage {
+                    Text("-\(lastDamage)")
+                        .font(.custom(MitoFont.bold, size: 26))
+                        .foregroundStyle(Color(hex: "FFE14D"))
+                        .shadow(color: .black.opacity(0.8), radius: 0, x: 2, y: 2)
+                        .offset(x: 42, y: -28 + damageRise)
+                        .opacity(damageFade)
+                        .id(damagePopupID)
+                }
+            }
         }
     }
 
@@ -566,38 +784,45 @@ struct BattleCombatView: View {
                         .lineLimit(1)
                 }
                 .frame(maxWidth: .infinity)
+                .offset(y: index == lastActorIndex ? lungeY : 0)
                 .animation(.spring(response: 0.22, dampingFraction: 0.68), value: lastActorIndex)
             }
         }
     }
 
     private var abilityBanner: some View {
-        let hero = DataSet.heroes[min(max(lastActorIndex, 0), DataSet.heroes.count - 1)]
-        let ability = lastAbility
+        let attacker = DataSet.heroes[min(max(lastActorIndex, 0), DataSet.heroes.count - 1)]
+        let upNext = DataSet.heroes[min(max(activeHeroIndex, 0), DataSet.heroes.count - 1)]
 
         return HStack(spacing: 7) {
-            Text(ability == nil ? "NEXT" : hero.name.uppercased())
-                .pixelText(size: 8, color: Color(hex: "F4E6C0"))
-                .frame(width: 58)
-                .padding(.vertical, 5)
-                .background((ability?.color ?? hero.color).opacity(0.88))
-                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+            if let ability = lastAbility {
+                Text(attacker.name.uppercased())
+                    .pixelText(size: 8, color: Color(hex: "F4E6C0"))
+                    .frame(width: 58)
+                    .padding(.vertical, 5)
+                    .background(ability.color.opacity(0.88))
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(ability?.name.uppercased() ?? "RANDOM ABILITY READY")
+                Text(ability.name.uppercased())
                     .pixelText(size: 9, color: Color(hex: "F4E6C0"))
                     .lineLimit(1)
-                Text(ability?.detail ?? "Endless rolls one of the active hero's three abilities after each card.")
-                    .font(.custom(MitoFont.regular, size: 10))
-                    .foregroundStyle(Color(hex: "F4E6C0").opacity(0.88))
-                    .lineLimit(1)
-            }
 
-            Spacer(minLength: 0)
+                Spacer(minLength: 0)
 
-            if let ability {
                 Text("-\(ability.damage)")
-                    .pixelText(size: 9, color: Color(hex: "FFD24D"))
+                    .pixelText(size: 11, color: Color(hex: "FFD24D"))
+            } else {
+                Text(upNext.name.uppercased())
+                    .pixelText(size: 8, color: Color(hex: "F4E6C0"))
+                    .frame(width: 58)
+                    .padding(.vertical, 5)
+                    .background(upNext.color.opacity(0.88))
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+
+                Text("UP NEXT")
+                    .pixelText(size: 9, color: Color(hex: "F4E6C0").opacity(0.9))
+
+                Spacer(minLength: 0)
             }
         }
         .padding(.horizontal, 8)
@@ -614,8 +839,11 @@ struct BattleCombatView: View {
         mode == .endless && index == highlightedHeroIndex ? 1.08 : 1
     }
 
+    /// The enlarged hero is always the one about to act next. `activeHeroIndex`
+    /// is advanced to the upcoming attacker after each grade, so it is the
+    /// correct "on deck" hero (the previous code highlighted whoever just hit).
     private var highlightedHeroIndex: Int {
-        lastAbility == nil ? activeHeroIndex : lastActorIndex
+        activeHeroIndex
     }
 
     private var teamHPBar: some View {
@@ -685,7 +913,7 @@ struct BattleFlashcardPanel: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 10) {
             HStack {
                 BattlePanelTag(label)
                 Spacer()
@@ -698,15 +926,10 @@ struct BattleFlashcardPanel: View {
                 .multilineTextAlignment(.leading)
                 .lineSpacing(7)
                 .minimumScaleFactor(0.72)
-                .frame(maxWidth: .infinity, minHeight: 112, alignment: .leading)
-                .padding(.horizontal, 12)
-                .padding(.top, 24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .padding(.horizontal, 4)
 
-            if showingAnswer {
-                Rectangle()
-                    .fill(Color.clear)
-                    .frame(height: 18)
-            } else {
+            if !showingAnswer {
                 Button(action: onReveal) {
                     Text("SHOW ANSWER")
                         .pixelText(size: 16, color: Color(hex: "F4E6C0"))
@@ -716,12 +939,11 @@ struct BattleFlashcardPanel: View {
                         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                 }
                 .buttonStyle(.plain)
-                .padding(.horizontal, 8)
-                .padding(.bottom, 8)
             }
         }
-        .padding(8)
-        .frame(height: 188)
+        .padding(12)
+        .frame(maxWidth: .infinity)
+        .frame(height: 224)
         .background(Color(hex: "EAD4A4"))
         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 4))
         .overlay(alignment: .bottomTrailing) {
@@ -771,6 +993,7 @@ struct BattleGradeButton: View {
 }
 
 struct CampaignStageSetup: View {
+    let stage: Stage
     let decks: [Deck]
     @Binding var selectedDecks: Set<String>
     @Binding var selectedTags: Set<String>
@@ -811,7 +1034,7 @@ struct CampaignStageSetup: View {
                             .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     }
                     .buttonStyle(.plain)
-                    Text("STAGE 4 · NORMAL")
+                    Text("STAGE \(stage.id) · \(stage.difficulty)")
                         .pixelText(size: 16, color: Color(hex: "FFD24D"))
                     Spacer()
                 }
@@ -825,14 +1048,14 @@ struct CampaignStageSetup: View {
                         .background(Color(hex: "F4E6C0"))
                         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     VStack(alignment: .leading, spacing: 4) {
-                        Text("MITOCHONDRIA CAVE")
+                        Text(stage.name.uppercased())
                             .pixelText(size: 13, color: Color(hex: "3A2A18"))
-                        Text("Spikevyrus · 3 waves")
+                        Text("Spikevyrus · \(stage.difficulty == "BOSS" ? "boss fight" : "3 waves")")
                             .font(.custom(MitoFont.regular, size: 15))
                             .foregroundStyle(Color(hex: "6B4324"))
                     }
                     Spacer()
-                    Text("NORMAL")
+                    Text(stage.difficulty)
                         .pixelText(size: 8, color: .white)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 5)

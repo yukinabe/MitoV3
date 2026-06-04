@@ -5,6 +5,9 @@ struct ContentView: View {
     @State private var selectedTab: AppTab = {
         #if DEBUG
         if ProcessInfo.processInfo.arguments.contains("-uitestReview") { return .battle }
+        if ProcessInfo.processInfo.arguments.contains("-uitestMap") { return .battle }
+        if ProcessInfo.processInfo.arguments.contains("-uitestShop") { return .shop }
+        if ProcessInfo.processInfo.arguments.contains("-uitestTeam") { return .team }
         if ProcessInfo.processInfo.arguments.contains("-uitestCards") { return .cards }
         #endif
         return .home
@@ -26,9 +29,9 @@ struct ContentView: View {
                         .zIndex(2)
                     
                     TabView(selection: $selectedTab) {
-                        ShopScreen(gold: $gold, gems: $gems, biomass: $biomass, shards: $shards)
+                        ShopScreen(atp: $atp, gold: $gold, gems: $gems, biomass: $biomass, shards: $shards)
                             .tag(AppTab.shop)
-                        TeamScreen(atp: $atp, gold: $gold)
+                        TeamScreen(atp: $atp, gold: $gold, biomass: $biomass)
                             .tag(AppTab.team)
                         HomeScreen(atp: $atp, backend: backend)
                             .tag(AppTab.home)
