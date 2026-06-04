@@ -507,25 +507,6 @@ private struct BottomTray: View {
 
 
 
-private struct CardEditor: View {
-    @Environment(\.dismiss) private var dismiss
-
-    var body: some View {
-        VStack(spacing: 14) {
-            Text("FLASHCARD")
-                .pixelText(size: 16, color: Color(hex: "3A2A18"))
-            TextField("Front", text: .constant("What is the powerhouse of the cell?"))
-                .textFieldStyle(.roundedBorder)
-            TextField("Back", text: .constant("Mitochondria produces ATP."))
-                .textFieldStyle(.roundedBorder)
-            PixelButton(title: "SAVE") {
-                dismiss()
-            }
-        }
-        .padding(20)
-        .background(Color(hex: "EAD4A4"))
-    }
-}
 
 
 
@@ -543,63 +524,5 @@ private struct CardEditor: View {
 
 
 
-private struct ResourceRow: View {
-    let label: String
-    let value: Int
-    let color: Color
 
-    var body: some View {
-        HStack {
-            Text(label.uppercased())
-                .pixelText(size: 10, color: Color(hex: "F4E6C0"))
-            Spacer()
-            Text("\(value)")
-                .pixelText(size: 13, color: color)
-        }
-        .padding(12)
-        .background(Color.black.opacity(0.32))
-        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
-    }
-}
 
-private struct ToggleRow: View {
-    let title: String
-    let detail: String
-    let isOn: Bool
-
-    var body: some View {
-        ParchmentBox {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(title.uppercased())
-                        .pixelText(size: 10, color: Color(hex: "3A2A18"))
-                    Text(detail)
-                        .font(.custom(MitoFont.regular, size: 14))
-                        .foregroundStyle(Color(hex: "6B4324"))
-                }
-                Spacer()
-                Rectangle()
-                    .fill(isOn ? Color(hex: "4A8A3C") : Color(hex: "888894"))
-                    .frame(width: 42, height: 24)
-                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
-            }
-        }
-    }
-}
-
-private struct AnswerButton: View {
-    let asset: String
-    let title: String
-    let action: () -> Void
-
-    var body: some View {
-        Button(action: action) {
-            Image(asset)
-                .resizable()
-                .interpolation(.none)
-                .scaledToFit()
-                .overlay(Text(title).pixelText(size: 10, color: Color(hex: "3A2A18")).opacity(0.001))
-        }
-        .buttonStyle(.plain)
-    }
-}
