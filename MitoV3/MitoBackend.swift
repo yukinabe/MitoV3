@@ -125,6 +125,29 @@ final class MitoBackend: ObservableObject {
             .execute()
     }
 
+    // MARK: - Waitlist / invite
+
+    /// Capture a waitlist/invite submission against the current (anon) user.
+    /// Best-effort: returns true on a successful write, false on failure so the
+    /// gate can still admit a valid code even if the network is down.
+    @discardableResult
+    func submitWaitlist(email: String, referral: String, inviteCode: String, cohort: String) async -> Bool {
+        guard let session = try? await authenticatedSession() else { return false }
+        let payload = WaitlistInsert(
+            userID: session.user.id,
+            email: email.isEmpty ? nil : email,
+            referralSource: referral.isEmpty ? nil : referral,
+            inviteCode: inviteCode.isEmpty ? nil : inviteCode,
+            cohort: cohort
+        )
+        do {
+            try await client.from("waitlist").upsert(payload, onConflict: "user_id").execute()
+            return true
+        } catch {
+            return false
+        }
+    }
+
     // MARK: - Activation events
 
     /// Fire-and-forget analytics event. Never throws — telemetry must not break
@@ -514,6 +537,22 @@ private struct EventInsert: Encodable {
         case userID = "user_id"
         case name
         case props
+    }
+}
+
+private struct WaitlistInsert: Encodable {
+    let userID: UUID
+    let email: String?
+    let referralSource: String?
+    let inviteCode: String?
+    let cohort: String
+
+    enum CodingKeys: String, CodingKey {
+        case userID = "user_id"
+        case email
+        case referralSource = "referral_source"
+        case inviteCode = "invite_code"
+        case cohort
     }
 }
 
