@@ -1212,9 +1212,19 @@ enum MiniZip {
 /// Returns nil for the newer zstd `.anki21b` format or unreadable packages.
 enum AnkiImporter {
     static func parse(_ data: Data) -> [ParsedCard]? {
-        guard let dbData = MiniZip.extract(["collection.anki2", "collection.anki21"], from: data) else {
-            return nil
+        // Legacy: collection.anki2 / .anki21 is plain SQLite inside the zip.
+        if let dbData = MiniZip.extract(["collection.anki2", "collection.anki21"], from: data) {
+            return readNotes(dbData)
         }
+        // Modern (Anki 2.1.50+): collection.anki21b is zstd-compressed SQLite.
+        if let compressed = MiniZip.extract(["collection.anki21b"], from: data),
+           let dbData = zstdDecompress(compressed) {
+            return readNotes(dbData)
+        }
+        return nil
+    }
+
+    private static func readNotes(_ dbData: Data) -> [ParsedCard]? {
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("mito_anki_\(UUID().uuidString).anki2")
         guard (try? dbData.write(to: tmp)) != nil else { return nil }
@@ -1240,6 +1250,22 @@ enum AnkiImporter {
             cards.append(ParsedCard(front: front, back: back, tags: CardImporter.tagList(tagsStr)))
         }
         return cards.isEmpty ? nil : cards
+    }
+
+    /// Decompress a single zstd frame via the vendored zstd decoder.
+    private static func zstdDecompress(_ src: Data) -> Data? {
+        let bytes = [UInt8](src)
+        let contentSize = bytes.withUnsafeBytes { ZSTD_getFrameContentSize($0.baseAddress, bytes.count) }
+        // Reject the ZSTD_CONTENTSIZE_UNKNOWN / _ERROR sentinels (huge values).
+        guard contentSize > 0, contentSize < 300_000_000 else { return nil }
+        var dst = [UInt8](repeating: 0, count: Int(contentSize))
+        let written = dst.withUnsafeMutableBytes { d in
+            bytes.withUnsafeBytes { s in
+                ZSTD_decompress(d.baseAddress, Int(contentSize), s.baseAddress, bytes.count)
+            }
+        }
+        guard ZSTD_isError(written) == 0 else { return nil }
+        return Data(dst[0..<written])
     }
 }
 
@@ -1436,7 +1462,7 @@ struct ImportSheet: View {
                 return
             }
             guard let cards = AnkiImporter.parse(data), !cards.isEmpty else {
-                importMessage = "Couldn't read this .apkg. In Anki, re-export the deck with “Support older Anki versions (.anki2)” checked."
+                importMessage = "Couldn't read this file as an Anki deck. Make sure it's a .apkg exported from Anki."
                 return
             }
             let name = creatingNew ? url.deletingPathExtension().lastPathComponent : nil
