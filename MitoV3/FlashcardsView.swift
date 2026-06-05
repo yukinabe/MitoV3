@@ -136,27 +136,6 @@ struct CardsScreen: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 12)
 
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 8) {
-                        Text("STARTER DECKS")
-                            .pixelText(size: 8, color: Color(hex: "EAD4A4"))
-                        ForEach(DeckTemplate.all) { template in
-                            Button {
-                                Task { await addTemplate(template) }
-                            } label: {
-                                Text(template.name.uppercased())
-                                    .pixelText(size: 8, color: Color(hex: "3A2A18"))
-                                    .padding(.horizontal, 9)
-                                    .padding(.vertical, 7)
-                                    .background(Color(hex: "EAD4A4"))
-                                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(.horizontal, 18)
-                }
-
                 ScrollView(showsIndicators: false) {
                     VStack(spacing: 9) {
                         ForEach(decks) { deck in
@@ -301,14 +280,6 @@ struct CardsScreen: View {
         cardsByDeckID[deckID] = existing
         refreshDeckMeta(deckID: deckID)
         await backend.logEvent("deck_imported", props: ["count": "\(parsed.count)", "source": source])
-    }
-
-    /// One-tap starter deck.
-    private func addTemplate(_ template: DeckTemplate) async {
-        let deckID = await makeDeck(named: template.name)
-        await backend.logEvent("deck_created", props: ["name": template.name, "via": "template"])
-        await importCards(into: deckID, parsed: template.cards, source: "template")
-        route = .detail(deckID: deckID)
     }
 
     private func saveCard(deckID: String, cardID: String?, front: String, back: String, tags: [String]) async {
