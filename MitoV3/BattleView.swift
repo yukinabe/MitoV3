@@ -1095,7 +1095,8 @@ struct CampaignStageSetup: View {
                         .pixelText(size: 12, color: Color(hex: "F4E6C0"))
                     Spacer()
                     Button {
-                        selectedDecks = Set(decks.map(\.id))
+                        let all = Set(decks.map(\.id))
+                        selectedDecks = all.isSubset(of: selectedDecks) ? [] : all
                     } label: {
                         Text("SELECT ALL")
                             .pixelText(size: 10, color: Color(hex: "3A2A18"))
@@ -1174,7 +1175,7 @@ struct CampaignStageSetup: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
-            .padding(.bottom, 90)
+            .padding(.bottom, 14)
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
@@ -1244,7 +1245,8 @@ struct EndlessReviewSetup: View {
                         .pixelText(size: 12, color: Color(hex: "F4E6C0"))
                     Spacer()
                     Button {
-                        selectedDecks = Set(decks.map(\.id))
+                        let all = Set(decks.map(\.id))
+                        selectedDecks = all.isSubset(of: selectedDecks) ? [] : all
                     } label: {
                         Text("SELECT ALL")
                             .pixelText(size: 10, color: Color(hex: "3A2A18"))
@@ -1384,7 +1386,7 @@ struct TagFilterSection: View {
                     }
                     .padding(.vertical, 2)
                 }
-                .frame(maxHeight: 78)
+                .frame(maxHeight: 56)
             }
         }
         .padding(10)
@@ -1464,99 +1466,5 @@ struct EndlessDeckRow: View {
             .overlay(Rectangle().stroke(isSelected && highlightSelected ? Color(hex: "FFD24D") : Color(hex: "18100A"), lineWidth: isSelected && highlightSelected ? 4 : 3))
         }
         .buttonStyle(.plain)
-    }
-}
-
-struct SetupScreen<Content: View>: View {
-    let title: String
-    let subtitle: String
-    let back: () -> Void
-    @ViewBuilder let content: Content
-
-    var body: some View {
-        ZStack {
-            Image("map-bg")
-                .screenBackground()
-            Color.black.opacity(0.44).ignoresSafeArea()
-            ScrollView {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack(spacing: 8) {
-                        BackButton(action: back)
-                        ScreenTitle(title, subtitle: subtitle)
-                        Spacer()
-                    }
-                    content
-                }
-                .padding(14)
-                .padding(.bottom, 18)
-            }
-        }
-    }
-}
-
-struct DeckPicker: View {
-    @Binding var selectedDecks: Set<String>
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("CHOOSE DECKS")
-            ForEach(DataSet.decks) { deck in
-                Button {
-                    if selectedDecks.contains(deck.id) {
-                        selectedDecks.remove(deck.id)
-                    } else {
-                        selectedDecks.insert(deck.id)
-                    }
-                } label: {
-                    HStack(spacing: 10) {
-                        Rectangle()
-                            .fill(selectedDecks.contains(deck.id) ? Color(hex: "4A8A3C") : Color(hex: "F4E6C0"))
-                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
-                            .frame(width: 22, height: 22)
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text(deck.name.uppercased())
-                                .pixelText(size: 10, color: Color(hex: "3A2A18"))
-                            HStack {
-                                ForEach(deck.tags.prefix(3), id: \.self) { tag in
-                                    SmallTag(tag.uppercased(), active: false)
-                                }
-                            }
-                        }
-                        Spacer()
-                        Text("\(deck.cards)")
-                            .pixelText(size: 13, color: Color(hex: "3A2A18"))
-                    }
-                    .padding(12)
-                    .background(selectedDecks.contains(deck.id) ? Color(hex: "F4E6C0") : Color(hex: "B89868"))
-                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-    }
-}
-
-struct TagPicker: View {
-    @Binding var selectedTags: Set<String>
-    private let tags = ["cell", "exam", "organelles", "vectors", "enzymes", "due"]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            SectionLabel("FILTER BY TAG")
-            FlowLayout(spacing: 6) {
-                ForEach(tags, id: \.self) { tag in
-                    Button {
-                        if selectedTags.contains(tag) {
-                            selectedTags.remove(tag)
-                        } else {
-                            selectedTags.insert(tag)
-                        }
-                    } label: {
-                        SmallTag(tag.uppercased(), active: selectedTags.contains(tag))
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-        }
     }
 }

@@ -166,7 +166,11 @@ struct TeamScreen: View {
                                 let selectedAnchor = anchors[selectedHeroID]
                             {
                                 let rect = overlayProxy[selectedAnchor]
-                                let showActionsAbove = rect.maxY > overlayProxy.size.height - 180
+                                // Only flip the popup above the card when there
+                                // genuinely isn't room below it (~70pt needed),
+                                // so reserves show their actions below like the
+                                // party row does.
+                                let showActionsAbove = rect.maxY > overlayProxy.size.height - 72
                                 InlineCharacterActions(
                                     inParty: activePartySlots.contains { $0 == selectedHeroID },
                                     canAdd: activePartyIDs.count < maxPartySize,
