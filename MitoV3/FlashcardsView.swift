@@ -177,6 +177,7 @@ struct CardsScreen: View {
                     .padding(.bottom, 96)
                 }
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
 
