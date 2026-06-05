@@ -180,6 +180,7 @@ struct CardsScreen: View {
             decks.append(Deck(id: deckID, name: name, cards: 0, tags: ["new"], color: Self.deckColor(deckID)))
         }
         cardsByDeckID[deckID] = []
+        await backend.logEvent("deck_created", props: ["name": name])
         route = .detail(deckID: deckID)
     }
 
@@ -215,6 +216,7 @@ struct CardsScreen: View {
                 resolvedID = record.id
             }
             cards.append(Flashcard(id: resolvedID.uuidString, front: cleanFront, back: cleanBack, tags: finalTags))
+            await backend.logEvent("card_created", props: ["deck": deckID, "tags": "\(finalTags.count)"])
         }
         cardsByDeckID[deckID] = cards
 

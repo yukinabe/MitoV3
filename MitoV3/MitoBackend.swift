@@ -101,6 +101,41 @@ final class MitoBackend: ObservableObject {
             .execute()
     }
 
+    // MARK: - Wallet (persisted on profiles)
+
+    /// Load the signed-in player's wallet. Returns nil pre-migration / offline.
+    func fetchWallet() async throws -> WalletRecord {
+        let session = try await authenticatedSession()
+        return try await client
+            .from("profiles")
+            .select("atp,gold,gems,biomass,shards")
+            .eq("id", value: session.user.id.uuidString)
+            .single()
+            .execute()
+            .value
+    }
+
+    /// Persist the wallet back onto the player's profile row.
+    func saveWallet(atp: Int, gold: Int, gems: Int, biomass: Int, shards: Int) async throws {
+        let session = try await authenticatedSession()
+        try await client
+            .from("profiles")
+            .update(WalletRecord(atp: atp, gold: gold, gems: gems, biomass: biomass, shards: shards))
+            .eq("id", value: session.user.id.uuidString)
+            .execute()
+    }
+
+    // MARK: - Activation events
+
+    /// Fire-and-forget analytics event. Never throws — telemetry must not break
+    /// the app, and it no-ops cleanly before the events table is migrated in.
+    /// Props are string-valued so call sites don't depend on the Supabase types.
+    func logEvent(_ name: String, props: [String: String] = [:]) async {
+        guard let session = try? await authenticatedSession() else { return }
+        let payload = EventInsert(userID: session.user.id, name: name, props: props)
+        _ = try? await client.from("events").insert(payload).execute()
+    }
+
     func fetchDecks() async throws -> [MitoDeckRecord] {
         try await client
             .from("decks")
@@ -458,6 +493,27 @@ struct CardStateRow: Decodable {
             reps: reps,
             lapses: lapses
         )
+    }
+}
+
+/// Round-trips the wallet columns on `profiles` (Codable both ways).
+struct WalletRecord: Codable {
+    let atp: Int
+    let gold: Int
+    let gems: Int
+    let biomass: Int
+    let shards: Int
+}
+
+private struct EventInsert: Encodable {
+    let userID: UUID
+    let name: String
+    let props: [String: String]
+
+    enum CodingKeys: String, CodingKey {
+        case userID = "user_id"
+        case name
+        case props
     }
 }
 

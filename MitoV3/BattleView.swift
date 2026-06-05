@@ -418,6 +418,14 @@ struct BattleScreen: View {
         streak = battleMode == .endless ? streak + 1 : (rating == .again ? 0 : streak + 1)
         currentCard += 1
         showingAnswer = false
+
+        let modeName = battleMode == .endless ? "endless" : "campaign"
+        Task {
+            await MitoBackend.shared.logEvent("review_graded", props: [
+                "rating": rating.title, "mode": modeName, "damage": "\(damage)"
+            ])
+        }
+
         if battleMode == .endless, enemyDefeated {
             // Next wave: stronger enemy + bigger loot.
             wave += 1
@@ -426,7 +434,18 @@ struct BattleScreen: View {
             let reward = BattleScaling.endlessReward(wave: wave)
             gold += reward.gold
             biomass += reward.biomass
+            let clearedWave = wave - 1
+            Task { await MitoBackend.shared.logEvent("battle_wave_cleared", props: ["wave": "\(clearedWave)", "mode": "endless"]) }
         } else if enemyDefeated || teamDefeated {
+            let outcome = enemyDefeated ? "win" : "loss"
+            let stageID = selectedStage.id
+            let reviewed = reviewedCards
+            Task {
+                await MitoBackend.shared.logEvent("battle_run", props: [
+                    "outcome": outcome, "mode": modeName,
+                    "stage": "\(stageID)", "reviewed": "\(reviewed)"
+                ])
+            }
             route = .result
         }
     }

@@ -58,6 +58,7 @@ struct HomeScreen: View {
                             start: { mode in
                                 showPicker = false
                                 sessionMode = mode
+                                Task { await backend.logEvent("study_start", props: ["mode": mode.rawValue]) }
                             }
                         )
                         .padding(.horizontal, 16)
@@ -121,8 +122,23 @@ struct HomeScreen: View {
                 }
             }
             .fullScreenCover(item: $sessionMode) { mode in
-                FocusSession(mode: mode, presented: $sessionMode) { reward in
+                FocusSession(mode: mode, presented: $sessionMode) { reward, seconds, completed in
                     atp += reward
+                    Task {
+                        try? await backend.recordStudySession(
+                            mode: mode.rawValue,
+                            durationMinutes: max(0, seconds / 60),
+                            completed: completed,
+                            focusEnergy: reward,
+                            coins: 0,
+                            gems: 0
+                        )
+                        await backend.logEvent("study_end", props: [
+                            "mode": mode.rawValue,
+                            "seconds": "\(seconds)",
+                            "atp": "\(reward)"
+                        ])
+                    }
                 }
             }
         }
@@ -241,7 +257,7 @@ struct ModePickerPanel: View {
 struct FocusSession: View {
     let mode: StudyMode
     @Binding var presented: StudyMode?
-    let onEnd: (Int) -> Void
+    let onEnd: (_ reward: Int, _ studiedSeconds: Int, _ completed: Bool) -> Void
 
     @State private var elapsed = 0          // seconds actually studied
     @State private var finished = false
@@ -318,7 +334,7 @@ struct FocusSession: View {
                 Text(earned > 0 ? "+\(earned) ATP" : "No reward (study 5+ min)")
                     .pixelText(size: 15, color: earned > 0 ? Color(hex: "C8881A") : Color(hex: "8A6A40"))
                 Button {
-                    onEnd(earned)
+                    onEnd(earned, elapsed, !mode.isCountUp && elapsed >= mode.durationSeconds)
                     presented = nil
                 } label: {
                     Text("DONE")
