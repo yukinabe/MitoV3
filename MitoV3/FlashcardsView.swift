@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct CardsScreen: View {
     @ObservedObject private var session = ReviewSession.shared
@@ -10,6 +11,8 @@ struct CardsScreen: View {
     @State private var newDeckName = ""
     @State private var didLoad = false
     @State private var didDeepLink = false
+    @State private var showingImport = false
+    @State private var importDeckID: String?   // nil = import into a new deck
 
     var body: some View {
         GeometryReader { proxy in
@@ -24,6 +27,7 @@ struct CardsScreen: View {
                         onBack: { route = .library },
                         onAdd: { route = .editor(deckID: deckID, cardID: nil) },
                         onEdit: { card in route = .editor(deckID: deckID, cardID: card.id) },
+                        onImport: { importDeckID = deckID; showingImport = true },
                         onDeleteDeck: { Task { await deleteDeck(deckID: deckID) } }
                     )
                 case .editor(let deckID, let cardID):
@@ -62,8 +66,31 @@ struct CardsScreen: View {
                     .frame(width: proxy.size.width * 0.82)
                     .position(x: proxy.size.width / 2, y: proxy.size.height * 0.40)
                 }
+
+                if showingImport {
+                    Color.black.opacity(0.66).ignoresSafeArea()
+                    ImportSheet(
+                        existingDeckName: importDeckID.flatMap { id in decks.first { $0.id == id }?.name },
+                        onCancel: { showingImport = false },
+                        onImport: { deckName, cards in
+                            showingImport = false
+                            Task { await runImport(targetDeckID: importDeckID, newDeckName: deckName, cards: cards, source: "paste") }
+                        }
+                    )
+                    .frame(width: proxy.size.width * 0.92)
+                    .position(x: proxy.size.width / 2, y: proxy.size.height * 0.46)
+                }
             }
             .task(id: backend.isReady) { await loadLibrary() }
+            .onAppear {
+                #if DEBUG
+                if !didDeepLink, ProcessInfo.processInfo.arguments.contains("-uitestImport") {
+                    didDeepLink = true
+                    importDeckID = nil
+                    showingImport = true
+                }
+                #endif
+            }
         }
     }
 
@@ -73,17 +100,31 @@ struct CardsScreen: View {
             .screenBackground()
         Color.black.opacity(0.20).ignoresSafeArea()
 
-        HStack {
+        HStack(spacing: 8) {
             Text("DECK LIBRARY")
-                .pixelText(size: 18, color: Color(hex: "F4E6C0"))
-            Spacer()
+                .pixelText(size: 16, color: Color(hex: "F4E6C0"))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Spacer(minLength: 0)
+            Button {
+                importDeckID = nil
+                showingImport = true
+            } label: {
+                Text("IMPORT")
+                    .pixelText(size: 10, color: Color(hex: "F4E6C0"))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 11)
+                    .background(Color(hex: "4A8A3C"))
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+            }
+            .buttonStyle(.plain)
             Button {
                 newDeckName = ""
                 showingNewDeck = true
             } label: {
-                Text("+ NEW DECK")
-                    .pixelText(size: 11, color: Color(hex: "18100A"))
-                    .padding(.horizontal, 12)
+                Text("+ NEW")
+                    .pixelText(size: 10, color: Color(hex: "18100A"))
+                    .padding(.horizontal, 10)
                     .padding(.vertical, 11)
                     .background(Color(hex: "F7C943"))
                     .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
@@ -93,6 +134,29 @@ struct CardsScreen: View {
         .padding(.horizontal, 18)
         .frame(width: proxy.size.width)
         .position(x: proxy.size.width / 2, y: 42)
+
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                Text("STARTER DECKS")
+                    .pixelText(size: 8, color: Color(hex: "EAD4A4"))
+                ForEach(DeckTemplate.all) { template in
+                    Button {
+                        Task { await addTemplate(template) }
+                    } label: {
+                        Text(template.name.uppercased())
+                            .pixelText(size: 8, color: Color(hex: "3A2A18"))
+                            .padding(.horizontal, 9)
+                            .padding(.vertical, 7)
+                            .background(Color(hex: "EAD4A4"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 18)
+        }
+        .frame(width: proxy.size.width)
+        .position(x: proxy.size.width / 2, y: 82)
 
         VStack(spacing: 9) {
             ForEach(decks) { deck in
@@ -181,6 +245,64 @@ struct CardsScreen: View {
         }
         cardsByDeckID[deckID] = []
         await backend.logEvent("deck_created", props: ["name": name])
+        route = .detail(deckID: deckID)
+    }
+
+    /// Create a deck (cloud when signed in) and return its id, without routing.
+    private func makeDeck(named name: String) async -> String {
+        var deckID = UUID().uuidString
+        if backend.isReady, let record = try? await backend.createDeck(named: name) {
+            deckID = record.id.uuidString
+        }
+        if !decks.contains(where: { $0.id == deckID }) {
+            decks.append(Deck(id: deckID, name: name, cards: 0, tags: ["new"], color: Self.deckColor(deckID)))
+        }
+        if cardsByDeckID[deckID] == nil { cardsByDeckID[deckID] = [] }
+        return deckID
+    }
+
+    /// Resolve the import target (existing deck or a freshly made one), bulk
+    /// add the cards, then open the deck.
+    private func runImport(targetDeckID: String?, newDeckName: String?, cards: [ParsedCard], source: String) async {
+        let deckID: String
+        if let targetDeckID {
+            deckID = targetDeckID
+        } else {
+            let name = (newDeckName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !name.isEmpty else { return }
+            deckID = await makeDeck(named: name)
+            await backend.logEvent("deck_created", props: ["name": name, "via": "import"])
+        }
+        await importCards(into: deckID, parsed: cards, source: source)
+        route = .detail(deckID: deckID)
+    }
+
+    /// Persist a batch of parsed cards into a deck (cloud + session + local).
+    private func importCards(into deckID: String, parsed: [ParsedCard], source: String) async {
+        var existing = cardsByDeckID[deckID, default: []]
+        let name = decks.first { $0.id == deckID }?.name ?? ""
+        let deckUUID = UUID(uuidString: deckID)
+        for card in parsed {
+            let tags = card.tags.isEmpty ? ["new"] : Array(Set(card.tags.map { $0.lowercased() })).sorted()
+            var resolvedID = UUID()
+            if backend.isReady, let deckUUID,
+               let record = try? await backend.createCard(deckID: deckUUID, front: card.front, back: card.back, tags: tags) {
+                resolvedID = record.id
+            }
+            existing.append(Flashcard(id: resolvedID.uuidString, front: card.front, back: card.back, tags: tags))
+            session.upsertContent(ReviewCard(id: resolvedID, deckID: deckID, deckName: name,
+                                             front: card.front, back: card.back, tags: tags))
+        }
+        cardsByDeckID[deckID] = existing
+        refreshDeckMeta(deckID: deckID)
+        await backend.logEvent("deck_imported", props: ["count": "\(parsed.count)", "source": source])
+    }
+
+    /// One-tap starter deck.
+    private func addTemplate(_ template: DeckTemplate) async {
+        let deckID = await makeDeck(named: template.name)
+        await backend.logEvent("deck_created", props: ["name": template.name, "via": "template"])
+        await importCards(into: deckID, parsed: template.cards, source: "template")
         route = .detail(deckID: deckID)
     }
 
@@ -312,6 +434,7 @@ struct DeckDetailScreen: View {
     let onBack: () -> Void
     let onAdd: () -> Void
     let onEdit: (Flashcard) -> Void
+    let onImport: () -> Void
     let onDeleteDeck: () -> Void
     @State private var confirmingDelete = false
 
@@ -397,15 +520,26 @@ struct DeckDetailScreen: View {
                     }
                 }
 
-                Button(action: onAdd) {
-                    Text("+ ADD FLASHCARD")
-                        .pixelText(size: 14, color: Color(hex: "3A2A18"))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                        .background(Color(hex: "EAD4A4"))
-                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                HStack(spacing: 8) {
+                    Button(action: onAdd) {
+                        Text("+ ADD CARD")
+                            .pixelText(size: 13, color: Color(hex: "3A2A18"))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color(hex: "EAD4A4"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+                    Button(action: onImport) {
+                        Text("IMPORT")
+                            .pixelText(size: 13, color: Color(hex: "F4E6C0"))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 14)
+                            .background(Color(hex: "4A8A3C"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
 
                 Button { confirmingDelete = true } label: {
                     Text("DELETE DECK")
@@ -896,5 +1030,274 @@ struct DeckLibraryRow: View {
         .background(Color(hex: "EAD4A4"))
         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
         .padding(.horizontal, 16)
+    }
+}
+
+// MARK: - Bulk import
+
+struct ParsedCard {
+    let front: String
+    let back: String
+    let tags: [String]
+}
+
+enum ImportFormat: String, CaseIterable, Identifiable {
+    case lines, csv, json
+    var id: String { rawValue }
+    var title: String {
+        switch self {
+        case .lines: "LINES"
+        case .csv: "CSV"
+        case .json: "JSON"
+        }
+    }
+    var hint: String {
+        switch self {
+        case .lines: "One card per line, front and back split by a tab, ; or ,"
+        case .csv: "front,back per row (a front,back header row is skipped)"
+        case .json: #"[{"front":"…","back":"…","tags":["…"]}]  (q/a also accepted)"#
+        }
+    }
+}
+
+enum CardImporter {
+    static func parse(_ text: String, format: ImportFormat) -> [ParsedCard] {
+        switch format {
+        case .lines: return parseLines(text)
+        case .csv: return parseCSV(text)
+        case .json: return parseJSON(text)
+        }
+    }
+
+    private static func parseLines(_ text: String) -> [ParsedCard] {
+        text.split(whereSeparator: \.isNewline).compactMap { raw in
+            let line = raw.trimmingCharacters(in: .whitespaces)
+            guard !line.isEmpty else { return nil }
+            for delimiter in ["\t", " | ", ";", " - ", ","] {
+                if let range = line.range(of: delimiter) {
+                    let front = String(line[..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
+                    let back = String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+                    if !front.isEmpty, !back.isEmpty {
+                        return ParsedCard(front: front, back: back, tags: [])
+                    }
+                }
+            }
+            return nil
+        }
+    }
+
+    private static func parseCSV(_ text: String) -> [ParsedCard] {
+        var rows = text.split(whereSeparator: \.isNewline).map(String.init)
+        if let header = rows.first?.lowercased().replacingOccurrences(of: " ", with: ""),
+           header.hasPrefix("front,back") {
+            rows.removeFirst()
+        }
+        return rows.compactMap { row in
+            let cols = splitCSVRow(row)
+            guard cols.count >= 2 else { return nil }
+            let front = cols[0].trimmingCharacters(in: .whitespaces)
+            let back = cols[1].trimmingCharacters(in: .whitespaces)
+            guard !front.isEmpty, !back.isEmpty else { return nil }
+            let tags = cols.count >= 3
+                ? cols[2].split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty }
+                : []
+            return ParsedCard(front: front, back: back, tags: tags)
+        }
+    }
+
+    private static func splitCSVRow(_ row: String) -> [String] {
+        var result: [String] = []
+        var current = ""
+        var inQuotes = false
+        for ch in row {
+            if ch == "\"" {
+                inQuotes.toggle()
+            } else if ch == ",", !inQuotes {
+                result.append(current)
+                current = ""
+            } else {
+                current.append(ch)
+            }
+        }
+        result.append(current)
+        return result
+    }
+
+    private static func parseJSON(_ text: String) -> [ParsedCard] {
+        guard let data = text.data(using: .utf8),
+              let array = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return [] }
+        return array.compactMap { obj in
+            let frontRaw = (obj["front"] ?? obj["q"] ?? obj["question"]) as? String
+            let backRaw = (obj["back"] ?? obj["a"] ?? obj["answer"]) as? String
+            guard let front = frontRaw?.trimmingCharacters(in: .whitespaces), !front.isEmpty,
+                  let back = backRaw?.trimmingCharacters(in: .whitespaces), !back.isEmpty else { return nil }
+            let tags = (obj["tags"] as? [String])?.map { $0.lowercased() } ?? []
+            return ParsedCard(front: front, back: back, tags: tags)
+        }
+    }
+}
+
+struct DeckTemplate: Identifiable {
+    let id: String
+    let name: String
+    let cards: [ParsedCard]
+
+    static let all: [DeckTemplate] = [
+        DeckTemplate(id: "tmpl-cell", name: "Cell Biology", cards: [
+            ParsedCard(front: "What organelle makes most ATP?", back: "The mitochondrion.", tags: ["cell"]),
+            ParsedCard(front: "What does the nucleus store?", back: "The cell's DNA.", tags: ["cell"]),
+            ParsedCard(front: "Where are proteins assembled?", back: "On ribosomes.", tags: ["cell"]),
+            ParsedCard(front: "What packages and ships proteins?", back: "The Golgi apparatus.", tags: ["cell"]),
+            ParsedCard(front: "What controls what enters the cell?", back: "The cell membrane.", tags: ["cell"])
+        ]),
+        DeckTemplate(id: "tmpl-es", name: "Spanish 101", cards: [
+            ParsedCard(front: "hello", back: "hola", tags: ["spanish"]),
+            ParsedCard(front: "thank you", back: "gracias", tags: ["spanish"]),
+            ParsedCard(front: "water", back: "agua", tags: ["spanish"]),
+            ParsedCard(front: "to eat", back: "comer", tags: ["spanish"]),
+            ParsedCard(front: "good morning", back: "buenos días", tags: ["spanish"])
+        ]),
+        DeckTemplate(id: "tmpl-cap", name: "World Capitals", cards: [
+            ParsedCard(front: "Japan", back: "Tokyo", tags: ["geography"]),
+            ParsedCard(front: "France", back: "Paris", tags: ["geography"]),
+            ParsedCard(front: "Brazil", back: "Brasília", tags: ["geography"]),
+            ParsedCard(front: "Egypt", back: "Cairo", tags: ["geography"]),
+            ParsedCard(front: "Canada", back: "Ottawa", tags: ["geography"])
+        ])
+    ]
+}
+
+struct ImportSheet: View {
+    let existingDeckName: String?
+    let onCancel: () -> Void
+    let onImport: (_ deckName: String?, _ cards: [ParsedCard]) -> Void
+
+    @State private var format: ImportFormat = .lines
+    @State private var text = ""
+    @State private var newDeckName = ""
+    @State private var showFileImporter = false
+
+    private var creatingNew: Bool { existingDeckName == nil }
+    private var parsed: [ParsedCard] { CardImporter.parse(text, format: format) }
+    private var canImport: Bool {
+        !parsed.isEmpty && (!creatingNew || !newDeckName.trimmingCharacters(in: .whitespaces).isEmpty)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack {
+                Text(creatingNew ? "IMPORT NEW DECK" : "IMPORT INTO \(existingDeckName!.uppercased())")
+                    .pixelText(size: 13, color: Color(hex: "3A2A18"))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                Spacer()
+                Button(action: onCancel) {
+                    Text("×")
+                        .font(.custom(MitoFont.regular, size: 26))
+                        .foregroundStyle(Color(hex: "3A2A18"))
+                }
+                .buttonStyle(.plain)
+            }
+
+            if creatingNew {
+                TextField("Deck name", text: $newDeckName)
+                    .font(.custom(MitoFont.regular, size: 17))
+                    .foregroundStyle(Color(hex: "3A2A18"))
+                    .padding(8)
+                    .background(Color.white)
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+            }
+
+            HStack(spacing: 6) {
+                ForEach(ImportFormat.allCases) { item in
+                    Button { format = item } label: {
+                        Text(item.title)
+                            .pixelText(size: 9, color: format == item ? Color(hex: "18100A") : Color(hex: "F4E6C0"))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                            .background(format == item ? Color(hex: "F7C943") : Color(hex: "6B4324"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            Text(format.hint)
+                .font(.custom(MitoFont.regular, size: 12))
+                .foregroundStyle(Color(hex: "6B4324"))
+                .fixedSize(horizontal: false, vertical: true)
+
+            ZStack(alignment: .topLeading) {
+                TextEditor(text: $text)
+                    .font(.custom(MitoFont.regular, size: 15))
+                    .foregroundStyle(Color(hex: "3A2A18"))
+                    .scrollContentBackground(.hidden)
+                    .padding(6)
+                    .frame(height: 132)
+                    .background(Color.white)
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+                if text.isEmpty {
+                    Text("Paste your cards here…")
+                        .font(.custom(MitoFont.regular, size: 15))
+                        .foregroundStyle(Color(hex: "8A6B42"))
+                        .padding(12)
+                        .allowsHitTesting(false)
+                }
+            }
+
+            HStack {
+                Button { showFileImporter = true } label: {
+                    Text("LOAD FILE")
+                        .pixelText(size: 9, color: Color(hex: "3A2A18"))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(Color(hex: "EAD4A4"))
+                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+                }
+                .buttonStyle(.plain)
+                Spacer()
+                Text(parsed.isEmpty ? "0 cards" : "✓ \(parsed.count) cards")
+                    .pixelText(size: 10, color: parsed.isEmpty ? Color(hex: "8A6B42") : Color(hex: "4A8A3C"))
+            }
+
+            HStack(spacing: 10) {
+                Button(action: onCancel) {
+                    Text("CANCEL")
+                        .pixelText(size: 11, color: Color(hex: "3A2A18"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color(hex: "EAD4A4"))
+                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                }
+                .buttonStyle(.plain)
+                Button {
+                    onImport(creatingNew ? newDeckName.trimmingCharacters(in: .whitespaces) : nil, parsed)
+                } label: {
+                    Text(parsed.isEmpty ? "IMPORT" : "IMPORT \(parsed.count)")
+                        .pixelText(size: 11, color: Color(hex: "F4E6C0"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(canImport ? Color(hex: "4A8A3C") : Color(hex: "8A6B42"))
+                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                }
+                .buttonStyle(.plain)
+                .disabled(!canImport)
+            }
+        }
+        .padding(14)
+        .background(Color(hex: "EAD4A4"))
+        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+        .fileImporter(isPresented: $showFileImporter, allowedContentTypes: [.commaSeparatedText, .json, .plainText, .text]) { result in
+            guard case .success(let url) = result else { return }
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            guard let loaded = try? String(contentsOf: url, encoding: .utf8) else { return }
+            text = loaded
+            switch url.pathExtension.lowercased() {
+            case "json": format = .json
+            case "csv": format = .csv
+            default: break
+            }
+        }
     }
 }
