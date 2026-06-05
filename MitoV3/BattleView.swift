@@ -114,6 +114,11 @@ struct BattleScreen: View {
             route = .map
             return
         }
+        if !didUITestJump, ProcessInfo.processInfo.arguments.contains("-uitestStage") {
+            didUITestJump = true
+            route = .stageSetup
+            return
+        }
         guard !didUITestJump,
               ProcessInfo.processInfo.arguments.contains("-uitestReview") else { return }
         didUITestJump = true
@@ -1089,43 +1094,33 @@ struct CampaignStageSetup: View {
                     Text("PICK YOUR DECKS")
                         .pixelText(size: 12, color: Color(hex: "F4E6C0"))
                     Spacer()
-                    Text("SELECT ALL")
-                        .pixelText(size: 10, color: Color(hex: "3A2A18"))
-                        .padding(.horizontal, 14)
-                        .padding(.vertical, 8)
-                        .background(Color(hex: "EAD4A4"))
-                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-                }
-
-                VStack(spacing: 8) {
-                    ForEach(decks) { deck in
-                        EndlessDeckRow(deck: deck, isSelected: selectedDecks.contains(deck.id), highlightSelected: true) {
-                            toggleDeck(deck)
-                        }
+                    Button {
+                        selectedDecks = Set(decks.map(\.id))
+                    } label: {
+                        Text("SELECT ALL")
+                            .pixelText(size: 10, color: Color(hex: "3A2A18"))
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 8)
+                            .background(Color(hex: "EAD4A4"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     }
+                    .buttonStyle(.plain)
                 }
 
-                Spacer(minLength: 0)
-
-                Text("FILTER BY TAG (optional)")
-                    .pixelText(size: 11, color: Color(hex: "F4E6C0"))
-                if availableTags.isEmpty {
-                    Text("Select a deck to reveal its tags.")
-                        .font(.custom(MitoFont.regular, size: 14))
-                        .foregroundStyle(Color(hex: "F4E6C0").opacity(0.78))
-                } else {
-                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 78), spacing: 8)], alignment: .leading, spacing: 8) {
-                        ForEach(availableTags, id: \.self) { tag in
-                            Button {
-                                toggleTag(tag)
-                            } label: {
-                                SmallTag(tag.uppercased(), active: selectedTags.contains(tag))
-                                    .frame(maxWidth: .infinity)
+                // Decks scroll only within this region; the page never shifts.
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 8) {
+                        ForEach(decks) { deck in
+                            EndlessDeckRow(deck: deck, isSelected: selectedDecks.contains(deck.id), highlightSelected: true) {
+                                toggleDeck(deck)
                             }
-                            .buttonStyle(.plain)
                         }
                     }
+                    .padding(.vertical, 2)
                 }
+                .frame(maxHeight: .infinity)
+
+                TagFilterSection(availableTags: availableTags, selectedTags: $selectedTags)
 
                 VStack(spacing: 8) {
                     HStack {
@@ -1179,7 +1174,8 @@ struct CampaignStageSetup: View {
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
-            .padding(.bottom, 12)
+            .padding(.bottom, 90)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
     }
 
@@ -1212,10 +1208,6 @@ struct EndlessReviewSetup: View {
         decks.filter { selectedDecks.contains($0.id) }.reduce(0) { $0 + $1.cards }
     }
 
-    private var allSelected: Bool {
-        !decks.isEmpty && selectedDecks.count == decks.count
-    }
-
     private var availableTags: [String] {
         var seen = Set<String>()
         var tags: [String] = []
@@ -1229,14 +1221,7 @@ struct EndlessReviewSetup: View {
     }
 
     var body: some View {
-        GeometryReader { proxy in
-            ZStack {
-                Image("map-bg")
-                    .screenBackground()
-                Color(hex: "123D2F").opacity(0.66).ignoresSafeArea()
-                LinearGradient(colors: [.clear, Color.black.opacity(0.30)], startPoint: .top, endPoint: .bottom)
-                    .ignoresSafeArea()
-
+            VStack(spacing: 10) {
                 HStack(spacing: 8) {
                     Button(action: onBack) {
                         Text("< BACK")
@@ -1247,28 +1232,19 @@ struct EndlessReviewSetup: View {
                             .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     }
                     .buttonStyle(.plain)
-
                     Text("ENDLESS REVIEW")
                         .pixelText(size: 17, color: Color(hex: "FFD24D"))
                         .lineLimit(1)
                         .minimumScaleFactor(0.75)
                     Spacer(minLength: 0)
                 }
-                .padding(.horizontal, 16)
-                .frame(width: proxy.size.width)
-                .position(x: proxy.size.width / 2, y: 24)
 
                 HStack {
                     Text("PICK YOUR DECKS")
                         .pixelText(size: 12, color: Color(hex: "F4E6C0"))
                     Spacer()
                     Button {
-                        if allSelected {
-                            selectedDecks.removeAll()
-                        } else {
-                            selectedDecks = Set(decks.map(\.id))
-                        }
-                        selectedTags.formIntersection(Set(availableTags))
+                        selectedDecks = Set(decks.map(\.id))
                     } label: {
                         Text("SELECT ALL")
                             .pixelText(size: 10, color: Color(hex: "3A2A18"))
@@ -1279,44 +1255,21 @@ struct EndlessReviewSetup: View {
                     }
                     .buttonStyle(.plain)
                 }
-                .padding(.horizontal, 16)
-                .frame(width: proxy.size.width)
-                .position(x: proxy.size.width / 2, y: 68)
 
-                VStack(spacing: 10) {
-                    ForEach(decks) { deck in
-                        EndlessDeckRow(deck: deck, isSelected: selectedDecks.contains(deck.id)) {
-                            toggleDeck(deck)
-                        }
-                    }
-                }
-                .padding(.horizontal, 16)
-                .position(x: proxy.size.width / 2, y: 216)
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("FILTER BY TAG (optional)")
-                        .pixelText(size: 11, color: Color(hex: "F4E6C0"))
-                    if availableTags.isEmpty {
-                        Text("Select a deck to reveal its tags.")
-                            .font(.custom(MitoFont.regular, size: 14))
-                            .foregroundStyle(Color(hex: "F4E6C0").opacity(0.80))
-                    } else {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 78), spacing: 8)], alignment: .leading, spacing: 8) {
-                            ForEach(availableTags, id: \.self) { tag in
-                                Button {
-                                    toggleTag(tag)
-                                } label: {
-                                    SmallTag(tag.uppercased(), active: selectedTags.contains(tag))
-                                        .frame(maxWidth: .infinity)
-                                }
-                                .buttonStyle(.plain)
+                // Decks scroll only within this region; the page never shifts.
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 10) {
+                        ForEach(decks) { deck in
+                            EndlessDeckRow(deck: deck, isSelected: selectedDecks.contains(deck.id)) {
+                                toggleDeck(deck)
                             }
                         }
                     }
+                    .padding(.vertical, 2)
                 }
-                .padding(.horizontal, 16)
-                .frame(width: proxy.size.width, alignment: .leading)
-                .position(x: proxy.size.width / 2, y: proxy.size.height - 168)
+                .frame(maxHeight: .infinity)
+
+                TagFilterSection(availableTags: availableTags, selectedTags: $selectedTags)
 
                 HStack {
                     Text("\(selectedDecks.count) decks · \(selectedCount) cards")
@@ -1334,9 +1287,6 @@ struct EndlessReviewSetup: View {
                 .padding(.vertical, 9)
                 .background(Color(hex: "EAD4A4"))
                 .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-                .padding(.horizontal, 16)
-                .frame(width: proxy.size.width)
-                .position(x: proxy.size.width / 2, y: proxy.size.height - 84)
 
                 Button(action: onStart) {
                     HStack(spacing: 12) {
@@ -1352,11 +1302,22 @@ struct EndlessReviewSetup: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(selectedDecks.isEmpty)
-                .padding(.horizontal, 16)
-                .frame(width: proxy.size.width)
-                .position(x: proxy.size.width / 2, y: proxy.size.height - 30)
             }
-        }
+            .padding(.horizontal, 16)
+            .padding(.top, 14)
+            .padding(.bottom, 16)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+            .background {
+                ZStack {
+                    Image("map-bg")
+                        .resizable()
+                        .interpolation(.none)
+                        .scaledToFill()
+                    Color(hex: "123D2F").opacity(0.66)
+                    LinearGradient(colors: [.clear, Color.black.opacity(0.30)], startPoint: .top, endPoint: .bottom)
+                }
+                .ignoresSafeArea()
+            }
     }
 
     private func toggleDeck(_ deck: Deck) {
@@ -1369,6 +1330,70 @@ struct EndlessReviewSetup: View {
     }
 
     private func toggleTag(_ tag: String) {
+        if selectedTags.contains(tag) {
+            selectedTags.remove(tag)
+        } else {
+            selectedTags.insert(tag)
+        }
+    }
+}
+
+/// Shared, self-contained tag filter for the battle setup screens: a tidy
+/// bordered panel whose chips wrap (FlowLayout) and scroll independently when
+/// there are many tags, so it never bloats or leaves dead space.
+struct TagFilterSection: View {
+    let availableTags: [String]
+    @Binding var selectedTags: Set<String>
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 6) {
+                Text("FILTER BY TAG")
+                    .pixelText(size: 10, color: Color(hex: "F4E6C0"))
+                Text("· OPTIONAL")
+                    .pixelText(size: 7, color: Color(hex: "F4E6C0").opacity(0.55))
+                Spacer(minLength: 0)
+                if !selectedTags.isEmpty {
+                    Button { selectedTags.removeAll() } label: {
+                        Text("CLEAR")
+                            .pixelText(size: 8, color: Color(hex: "3A2A18"))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 5)
+                            .background(Color(hex: "EAD4A4"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            if availableTags.isEmpty {
+                Text("Select a deck to reveal its tags.")
+                    .font(.custom(MitoFont.regular, size: 13))
+                    .foregroundStyle(Color(hex: "F4E6C0").opacity(0.7))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+            } else {
+                ScrollView(showsIndicators: false) {
+                    FlowLayout(spacing: 7) {
+                        ForEach(availableTags, id: \.self) { tag in
+                            Button { toggle(tag) } label: {
+                                SmallTag(tag.uppercased(), active: selectedTags.contains(tag))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.vertical, 2)
+                }
+                .frame(maxHeight: 78)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.black.opacity(0.30))
+        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+    }
+
+    private func toggle(_ tag: String) {
         if selectedTags.contains(tag) {
             selectedTags.remove(tag)
         } else {
