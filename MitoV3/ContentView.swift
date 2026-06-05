@@ -12,11 +12,14 @@ struct ContentView: View {
         #endif
         return .home
     }()
-    @State private var atp = 9999
-    @State private var gold = 9927
-    @State private var gems = 120
-    @State private var biomass = 60
-    @State private var shards = 24
+    // Players start empty and earn their way up; the real values load from the
+    // profile wallet once signed in (see loadWallet).
+    @State private var atp = 0
+    @State private var gold = 0
+    @State private var gems = 0
+    @State private var biomass = 0
+    @State private var shards = 0
+    @State private var walletSaveTask: Task<Void, Never>?
 
     var body: some View {
         GeometryReader { proxy in
@@ -56,6 +59,35 @@ struct ContentView: View {
             await backend.bootstrapExistingSession()
             // Load cloud decks/FSRS state and mirror future grades to Supabase.
             await backend.attachSync(to: .shared)
+            await loadWallet()
+            await backend.logEvent("app_open")
+        }
+        .onChange(of: atp) { _, _ in scheduleWalletSave() }
+        .onChange(of: gold) { _, _ in scheduleWalletSave() }
+        .onChange(of: gems) { _, _ in scheduleWalletSave() }
+        .onChange(of: biomass) { _, _ in scheduleWalletSave() }
+        .onChange(of: shards) { _, _ in scheduleWalletSave() }
+    }
+
+    /// Pull the persisted wallet once signed in; no-ops offline / pre-migration.
+    private func loadWallet() async {
+        guard backend.isReady, let w = try? await backend.fetchWallet() else { return }
+        atp = w.atp; gold = w.gold; gems = w.gems; biomass = w.biomass; shards = w.shards
+    }
+
+    /// Debounced wallet persist — coalesces rapid reward/spend changes into one
+    /// write ~1.2s after the last change.
+    private func scheduleWalletSave() {
+        guard backend.isReady else { return }
+        let snapshot = (atp, gold, gems, biomass, shards)
+        walletSaveTask?.cancel()
+        walletSaveTask = Task {
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            guard !Task.isCancelled else { return }
+            try? await backend.saveWallet(
+                atp: snapshot.0, gold: snapshot.1, gems: snapshot.2,
+                biomass: snapshot.3, shards: snapshot.4
+            )
         }
     }
 }
