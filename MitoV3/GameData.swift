@@ -216,3 +216,15 @@ enum BattleScaling {
         Int((80 + 14 * Double(stageIndex)) * tierMultiplier * (1 + 0.06 * Double(teamLevel - 10)))
     }
 }
+
+/// Single source of truth for team size + composition, shared by the Team
+/// screen and both battle modes. Three characters: support / striker / tank.
+enum BattleRules {
+    static let partySize = 3
+    static let defaultParty = ["mito", "cloro", "neuro"]
+
+    /// The active party as Hero records, in defaultParty order.
+    static var partyHeroes: [Hero] {
+        defaultParty.compactMap { id in DataSet.heroes.first { $0.id == id } }
+    }
+}

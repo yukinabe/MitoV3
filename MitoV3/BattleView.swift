@@ -69,7 +69,8 @@ struct BattleScreen: View {
     @State private var selectedDecks: Set<String> = ["bio"]
     @State private var selectedTags: Set<String> = []
     @State private var mobHP = 132
-    @State private var teamHP = 164
+    /// Per-character HP for Campaign (keyed by hero id). Endless has no player HP.
+    @State private var heroHP: [String: Int] = [:]
     @State private var enemyMaxHP = 132
     @State private var wave = 1
     @State private var currentCard = 0
@@ -119,6 +120,24 @@ struct BattleScreen: View {
             route = .stageSetup
             return
         }
+        if !didUITestJump, ProcessInfo.processInfo.arguments.contains("-uitestCampaign") {
+            didUITestJump = true
+            battleMode = .campaign
+            enemyMaxHP = BattleScaling.campaignEnemyHP(
+                stageIndex: selectedStage.id, tierMultiplier: selectedStage.tierMultiplier, teamLevel: teamLevel)
+            mobHP = enemyMaxHP
+            heroHP = Dictionary(uniqueKeysWithValues: activeTeam.map { ($0.id, $0.hp) })
+            currentCard = 1
+            reviewedCards = 0
+            streak = 0
+            activeHeroIndex = 0
+            lastActorIndex = 0
+            lastAbility = nil
+            showingAnswer = ProcessInfo.processInfo.arguments.contains("-uitestReveal")
+            session.start(deckIDs: [])
+            route = .combat
+            return
+        }
         guard !didUITestJump,
               ProcessInfo.processInfo.arguments.contains("-uitestReview") else { return }
         didUITestJump = true
@@ -126,7 +145,6 @@ struct BattleScreen: View {
         wave = 1
         enemyMaxHP = BattleScaling.endlessEnemyHP(teamLevel: teamLevel, wave: 1)
         mobHP = enemyMaxHP
-        teamHP = teamMaxHP
         reviewedCards = 0
         streak = 0
         session.start(deckIDs: [])
@@ -207,7 +225,6 @@ struct BattleScreen: View {
                 wave = 1
                 enemyMaxHP = BattleScaling.endlessEnemyHP(teamLevel: teamLevel, wave: 1)
                 mobHP = enemyMaxHP
-                teamHP = teamMaxHP
                 currentCard = 0
                 reviewedCards = 0
                 streak = 0
@@ -279,7 +296,7 @@ struct BattleScreen: View {
                     teamLevel: teamLevel
                 )
                 mobHP = enemyMaxHP
-                teamHP = teamMaxHP
+                heroHP = Dictionary(uniqueKeysWithValues: activeTeam.map { ($0.id, $0.hp) })
                 currentCard = 1
                 reviewedCards = 0
                 streak = 0
@@ -297,7 +314,7 @@ struct BattleScreen: View {
         BattleCombatView(
             mode: battleMode,
             mobHP: mobHP,
-            teamHP: teamHP,
+            heroHP: heroHP,
             reviewedCards: reviewedCards,
             streak: streak,
             currentCard: currentCard,
@@ -382,10 +399,8 @@ struct BattleScreen: View {
         }
     }
 
-    /// Active battle party (endless fields 3, campaign fields 4).
-    private var activeTeam: [Hero] {
-        Array(DataSet.heroes.prefix(battleMode == .endless ? 3 : 4))
-    }
+    /// The shared 3-character active party (same for both modes).
+    private var activeTeam: [Hero] { BattleRules.partyHeroes }
 
     /// Average level of the active team, used to scale enemy difficulty.
     private var teamLevel: Int {
@@ -393,9 +408,15 @@ struct BattleScreen: View {
         return levels.isEmpty ? 10 : levels.reduce(0, +) / levels.count
     }
 
-    /// Team max HP is the sum of the party's HP pools.
-    private var teamMaxHP: Int {
-        activeTeam.map(\.hp).reduce(0, +)
+    /// First living hero at or after `index` (campaign skips downed heroes).
+    private func nextLivingHeroIndex(after index: Int) -> Int {
+        let n = activeTeam.count
+        guard n > 0 else { return 0 }
+        for offset in 1...n {
+            let i = (index + offset) % n
+            if (heroHP[activeTeam[i].id] ?? 0) > 0 { return i }
+        }
+        return index
     }
 
     private func grade(_ rating: BattleRating) {
@@ -410,19 +431,28 @@ struct BattleScreen: View {
         // Player damage scales with team level so leveling up matters.
         let damageMult = BattleScaling.heroDamageMultiplier(teamLevel: teamLevel)
         let damage = max(1, Int(Double(ability?.damage ?? rating.damage) * damageMult))
-        // Campaign mistakes hurt more on harder stages.
-        let recoil = battleMode == .campaign ? Int(Double(rating.recoil) * selectedStage.tierMultiplier) : 0
         let enemyDefeated = mobHP - damage <= 0
-        let teamDefeated = teamHP - recoil <= 0
         // Drive the combat juice (hit flash, shake, floating number, lunge).
         lastDamage = damage
         attackToken += 1
         mobHP = max(0, mobHP - damage)
-        teamHP = max(0, teamHP - recoil)
         reviewedCards += 1
         streak = battleMode == .endless ? streak + 1 : (rating == .again ? 0 : streak + 1)
         currentCard += 1
         showingAnswer = false
+
+        // Campaign only: recoil hits the active hero; the team is defeated when
+        // all three are down. Endless has no player HP and never fails.
+        var teamDefeated = false
+        if battleMode == .campaign {
+            let recoil = Int(Double(rating.recoil) * selectedStage.tierMultiplier)
+            if recoil > 0, activeTeam.indices.contains(activeHeroIndex) {
+                let id = activeTeam[activeHeroIndex].id
+                heroHP[id] = max(0, (heroHP[id] ?? 0) - recoil)
+            }
+            activeHeroIndex = nextLivingHeroIndex(after: activeHeroIndex)
+            teamDefeated = activeTeam.allSatisfy { (heroHP[$0.id] ?? 0) <= 0 }
+        }
 
         let modeName = battleMode == .endless ? "endless" : "campaign"
         Task {
@@ -456,7 +486,7 @@ struct BattleScreen: View {
     }
 
     private func rollEndlessAbility() -> BattleAbility {
-        let team = Array(DataSet.heroes.prefix(3))
+        let team = BattleRules.partyHeroes
         let boundedIndex = min(max(activeHeroIndex, 0), max(team.count - 1, 0))
         let hero = team[boundedIndex]
         let ability = BattleAbilityBook.abilities(for: hero).randomElement()
@@ -480,7 +510,7 @@ struct BattleScreen: View {
 struct BattleCombatView: View {
     let mode: BattleMode
     let mobHP: Int
-    let teamHP: Int
+    let heroHP: [String: Int]
     let reviewedCards: Int
     let streak: Int
     let currentCard: Int
@@ -523,9 +553,8 @@ struct BattleCombatView: View {
         mode == .endless ? "EPIC" : nil
     }
 
-    private var heroCount: Int {
-        mode == .endless ? 3 : 4
-    }
+    /// Shared 3-character active party (same in both modes).
+    private var team: [Hero] { BattleRules.partyHeroes }
 
     var body: some View {
         GeometryReader { proxy in
@@ -558,12 +587,6 @@ struct BattleCombatView: View {
                     abilityBanner
                         .padding(.horizontal, 34)
                         .padding(.bottom, 7)
-
-                    if mode == .campaign {
-                        teamHPBar
-                            .padding(.horizontal, 26)
-                            .padding(.bottom, 8)
-                    }
 
                     BattleFlashcardPanel(
                         mode: mode,
@@ -797,15 +820,25 @@ struct BattleCombatView: View {
     }
 
     private var partyRow: some View {
-        HStack(alignment: .bottom, spacing: mode == .endless ? 24 : 18) {
-            ForEach(Array(DataSet.heroes.prefix(heroCount).enumerated()), id: \.element.id) { index, hero in
-                VStack(spacing: -1) {
+        HStack(alignment: .bottom, spacing: mode == .endless ? 26 : 16) {
+            ForEach(Array(team.enumerated()), id: \.element.id) { index, hero in
+                let hp = heroHP[hero.id] ?? hero.hp
+                let down = mode == .campaign && hp <= 0
+                VStack(spacing: 2) {
                     SpriteView(asset: hero.asset, size: heroSize(for: index))
                         .scaleEffect(heroScale(for: index), anchor: .bottom)
+                        .saturation(down ? 0 : 1)
+                        .opacity(down ? 0.45 : 1)
                     Text(hero.name)
                         .pixelText(size: 7, color: Color(hex: "F4E6C0"))
                         .shadow(color: .black.opacity(0.85), radius: 0, x: 1, y: 1)
                         .lineLimit(1)
+                    // Campaign: each character has its own HP bar.
+                    if mode == .campaign {
+                        HPBar(value: hp, max: hero.hp, tint: Color(hex: "58C054"))
+                            .frame(width: 42, height: 5)
+                            .opacity(down ? 0.4 : 1)
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .offset(y: index == lastActorIndex ? lungeY : 0)
@@ -815,8 +848,8 @@ struct BattleCombatView: View {
     }
 
     private var abilityBanner: some View {
-        let attacker = DataSet.heroes[min(max(lastActorIndex, 0), DataSet.heroes.count - 1)]
-        let upNext = DataSet.heroes[min(max(activeHeroIndex, 0), DataSet.heroes.count - 1)]
+        let attacker = team[min(max(lastActorIndex, 0), max(team.count - 1, 0))]
+        let upNext = team[min(max(activeHeroIndex, 0), max(team.count - 1, 0))]
 
         return HStack(spacing: 7) {
             if let ability = lastAbility {
@@ -856,34 +889,19 @@ struct BattleCombatView: View {
     }
 
     private func heroSize(for index: Int) -> CGFloat {
-        mode == .endless ? (index == highlightedHeroIndex ? 49 : 43) : 40
+        let base: CGFloat = mode == .endless ? 43 : 42
+        let big: CGFloat = mode == .endless ? 49 : 48
+        return index == highlightedHeroIndex ? big : base
     }
 
     private func heroScale(for index: Int) -> CGFloat {
-        mode == .endless && index == highlightedHeroIndex ? 1.08 : 1
+        index == highlightedHeroIndex ? 1.08 : 1
     }
 
     /// The enlarged hero is always the one about to act next. `activeHeroIndex`
-    /// is advanced to the upcoming attacker after each grade, so it is the
-    /// correct "on deck" hero (the previous code highlighted whoever just hit).
+    /// is advanced to the upcoming attacker after each grade.
     private var highlightedHeroIndex: Int {
         activeHeroIndex
-    }
-
-    private var teamHPBar: some View {
-        HStack(spacing: 7) {
-            Text("♥ TEAM")
-                .pixelText(size: 9, color: Color(hex: "F4E6C0"))
-                .frame(width: 64, alignment: .leading)
-            HPBar(value: teamHP, max: 164, tint: Color(hex: "58C054"))
-            Text("\(teamHP)/164")
-                .pixelText(size: 8, color: Color(hex: "F4E6C0"))
-        }
-        .padding(.horizontal, 8)
-        .frame(height: 25)
-        .background(Color(hex: "18100A").opacity(0.90))
-        .frame(maxWidth: .infinity)
-        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
     }
 
     private var gradeRow: some View {

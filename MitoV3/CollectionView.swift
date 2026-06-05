@@ -4,11 +4,11 @@ struct TeamScreen: View {
     @Binding var atp: Int
     @Binding var gold: Int
     @Binding var biomass: Int
-    @State private var activePartySlots: [String?] = ["mito", "cloro", "astro", "dendri"]
+    @State private var activePartySlots: [String?] = BattleRules.defaultParty.map { Optional($0) }
     @State private var selectedHeroID: String?
     @State private var infoHero: Hero?
     @State private var characterProgress: [String: CharacterProgress] = [:]
-    private let maxPartySize = 4
+    private let maxPartySize = BattleRules.partySize
 
     /// Gold cost to level a hero, rising with its current level.
     private func goldCost(for hero: Hero) -> Int { 150 + hero.level * 30 }
@@ -88,7 +88,7 @@ struct TeamScreen: View {
                         .padding(.horizontal, 12)
                         .padding(.top, 6)
 
-                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: 2), alignment: .center, spacing: 8) {
+                        LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: 3), alignment: .center, spacing: 8) {
                             ForEach(0..<maxPartySize, id: \.self) { slotIndex in
                                 if
                                     slotIndex < activePartySlots.count,

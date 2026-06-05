@@ -7,6 +7,7 @@ struct ContentView: View {
         if ProcessInfo.processInfo.arguments.contains("-uitestReview") { return .battle }
         if ProcessInfo.processInfo.arguments.contains("-uitestMap") { return .battle }
         if ProcessInfo.processInfo.arguments.contains("-uitestStage") { return .battle }
+        if ProcessInfo.processInfo.arguments.contains("-uitestCampaign") { return .battle }
         if ProcessInfo.processInfo.arguments.contains("-uitestShop") { return .shop }
         if ProcessInfo.processInfo.arguments.contains("-uitestTeam") { return .team }
         if ProcessInfo.processInfo.arguments.contains("-uitestCards") { return .cards }
