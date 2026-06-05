@@ -96,84 +96,88 @@ struct CardsScreen: View {
 
     @ViewBuilder
     private func cardsLibrary(proxy: GeometryProxy) -> some View {
-        Image("library-bg")
-            .screenBackground()
-        Color.black.opacity(0.20).ignoresSafeArea()
+        ZStack {
+            Image("library-bg")
+                .screenBackground()
+            Color.black.opacity(0.20).ignoresSafeArea()
 
-        HStack(spacing: 8) {
-            Text("DECK LIBRARY")
-                .pixelText(size: 16, color: Color(hex: "F4E6C0"))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Spacer(minLength: 0)
-            Button {
-                importDeckID = nil
-                showingImport = true
-            } label: {
-                Text("IMPORT")
-                    .pixelText(size: 10, color: Color(hex: "F4E6C0"))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 11)
-                    .background(Color(hex: "4A8A3C"))
-                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-            }
-            .buttonStyle(.plain)
-            Button {
-                newDeckName = ""
-                showingNewDeck = true
-            } label: {
-                Text("+ NEW")
-                    .pixelText(size: 10, color: Color(hex: "18100A"))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 11)
-                    .background(Color(hex: "F7C943"))
-                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 18)
-        .frame(width: proxy.size.width)
-        .position(x: proxy.size.width / 2, y: 42)
-
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                Text("STARTER DECKS")
-                    .pixelText(size: 8, color: Color(hex: "EAD4A4"))
-                ForEach(DeckTemplate.all) { template in
+            VStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    Text("DECK LIBRARY")
+                        .pixelText(size: 16, color: Color(hex: "F4E6C0"))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Spacer(minLength: 0)
                     Button {
-                        Task { await addTemplate(template) }
+                        importDeckID = nil
+                        showingImport = true
                     } label: {
-                        Text(template.name.uppercased())
-                            .pixelText(size: 8, color: Color(hex: "3A2A18"))
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 7)
-                            .background(Color(hex: "EAD4A4"))
-                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+                        Text("IMPORT")
+                            .pixelText(size: 10, color: Color(hex: "F4E6C0"))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 11)
+                            .background(Color(hex: "4A8A3C"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        newDeckName = ""
+                        showingNewDeck = true
+                    } label: {
+                        Text("+ NEW")
+                            .pixelText(size: 10, color: Color(hex: "18100A"))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 11)
+                            .background(Color(hex: "F7C943"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     }
                     .buttonStyle(.plain)
                 }
-            }
-            .padding(.horizontal, 18)
-        }
-        .frame(width: proxy.size.width)
-        .position(x: proxy.size.width / 2, y: 82)
+                .padding(.horizontal, 18)
+                .padding(.top, 12)
 
-        VStack(spacing: 9) {
-            ForEach(decks) { deck in
-                Button {
-                    route = .detail(deckID: deck.id)
-                } label: {
-                    DeckLibraryRow(deck: deck, progress: progress(for: deck.id))
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        Text("STARTER DECKS")
+                            .pixelText(size: 8, color: Color(hex: "EAD4A4"))
+                        ForEach(DeckTemplate.all) { template in
+                            Button {
+                                Task { await addTemplate(template) }
+                            } label: {
+                                Text(template.name.uppercased())
+                                    .pixelText(size: 8, color: Color(hex: "3A2A18"))
+                                    .padding(.horizontal, 9)
+                                    .padding(.vertical, 7)
+                                    .background(Color(hex: "EAD4A4"))
+                                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(.horizontal, 18)
                 }
-                .buttonStyle(.plain)
-            }
 
-            Text("\(decks.count) decks · \(decks.reduce(0) { $0 + $1.cards }) cards")
-                .font(.custom(MitoFont.regular, size: 13))
-                .foregroundStyle(Color(hex: "EAD4A4"))
-                .padding(.top, 8)
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 9) {
+                        ForEach(decks) { deck in
+                            Button {
+                                route = .detail(deckID: deck.id)
+                            } label: {
+                                DeckLibraryRow(deck: deck, progress: progress(for: deck.id))
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        Text("\(decks.count) decks · \(decks.reduce(0) { $0 + $1.cards }) cards")
+                            .font(.custom(MitoFont.regular, size: 13))
+                            .foregroundStyle(Color(hex: "EAD4A4"))
+                            .padding(.top, 8)
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.bottom, 96)
+                }
+            }
         }
-        .position(x: proxy.size.width / 2, y: 300)
     }
 
     private enum CardsRoute {
