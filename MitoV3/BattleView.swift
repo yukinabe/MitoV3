@@ -1123,37 +1123,20 @@ struct CampaignStageSetup: View {
 
                 TagFilterSection(availableTags: availableTags, selectedTags: $selectedTags)
 
-                VStack(spacing: 8) {
-                    HStack {
-                        Text("\(selectedDecks.count) \(selectedDecks.count == 1 ? "deck" : "decks") · \(selectedCount) cards")
-                            .font(.custom(MitoFont.regular, size: 15))
-                            .foregroundStyle(Color(hex: "3A2A18"))
-                        Spacer()
-                        Text("FREE ENTRY")
-                            .pixelText(size: 10, color: Color(hex: "F4E6C0"))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 5)
-                            .background(Color(hex: "4A8A3C"))
-                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
-                    }
-                    HStack {
-                        Rectangle()
-                            .fill(Color.white)
-                            .frame(width: 22, height: 22)
-                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-                        Text("Focus Energy - better catch odds & bonus loot")
-                            .font(.custom(MitoFont.regular, size: 14))
-                            .foregroundStyle(Color(hex: "3A2A18"))
-                            .lineLimit(2)
-                        Spacer()
-                        Text("⚡ 20")
-                            .pixelText(size: 10, color: Color(hex: "3A2A18"))
-                    }
-                    .padding(8)
-                    .background(Color(hex: "F4E6C0"))
-                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                HStack {
+                    Text("\(selectedDecks.count) \(selectedDecks.count == 1 ? "deck" : "decks") · \(selectedCount) cards")
+                        .font(.custom(MitoFont.regular, size: 15))
+                        .foregroundStyle(Color(hex: "3A2A18"))
+                    Spacer()
+                    Text("FREE ENTRY")
+                        .pixelText(size: 10, color: Color(hex: "F4E6C0"))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 5)
+                        .background(Color(hex: "4A8A3C"))
+                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
                 }
-                .padding(8)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 9)
                 .background(Color(hex: "EAD4A4"))
                 .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
 
