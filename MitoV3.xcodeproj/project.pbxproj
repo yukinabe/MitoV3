@@ -16,9 +16,13 @@
 		100000000000000000000007 /* BattleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000017 /* BattleView.swift */; };
 		100000000000000000000033 /* GameData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000034 /* GameData.swift */; };
 		100000000000000000000035 /* ShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000036 /* ShopView.swift */; };
+		100000000000000000000097 /* zstddeclib.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000096 /* zstddeclib.c */; };
 		100000000000000000000008 /* FlashcardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000018 /* FlashcardsView.swift */; };
 		100000000000000000000009 /* CollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000019 /* CollectionView.swift */; };
 		10000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001A /* Assets.xcassets */; };
+		1000000000000000000000A3 /* AudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A2 /* AudioManager.swift */; };
+		1000000000000000000000A5 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A4 /* Haptics.swift */; };
+		1000000000000000000000A7 /* Sounds in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A6 /* Sounds */; };
 		10000000000000000000000D /* Silkscreen-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001C /* Silkscreen-Regular.ttf */; };
 		10000000000000000000000E /* Silkscreen-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001D /* Silkscreen-Bold.ttf */; };
 		10000000000000000000000F /* PixelifySans.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001E /* PixelifySans.ttf */; };
@@ -37,9 +41,13 @@
 		100000000000000000000017 /* BattleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleView.swift; sourceTree = "<group>"; };
 		100000000000000000000034 /* GameData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameData.swift; sourceTree = "<group>"; };
 		100000000000000000000036 /* ShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShopView.swift; sourceTree = "<group>"; };
+		100000000000000000000096 /* zstddeclib.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "Vendor/zstd/zstddeclib.c"; sourceTree = "<group>"; };
 		100000000000000000000018 /* FlashcardsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardsView.swift; sourceTree = "<group>"; };
 		100000000000000000000019 /* CollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionView.swift; sourceTree = "<group>"; };
 		10000000000000000000001A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		1000000000000000000000A2 /* AudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioManager.swift; sourceTree = "<group>"; };
+		1000000000000000000000A4 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
+		1000000000000000000000A6 /* Sounds */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Sounds; sourceTree = "<group>"; };
 		10000000000000000000001C /* Silkscreen-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Regular.ttf"; sourceTree = "<group>"; };
 		10000000000000000000001D /* Silkscreen-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Bold.ttf"; sourceTree = "<group>"; };
 		10000000000000000000001E /* PixelifySans.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/PixelifySans.ttf"; sourceTree = "<group>"; };
@@ -78,10 +86,14 @@
 				100000000000000000000017 /* BattleView.swift */,
 				100000000000000000000034 /* GameData.swift */,
 				100000000000000000000036 /* ShopView.swift */,
+				100000000000000000000096 /* zstddeclib.c */,
 				100000000000000000000018 /* FlashcardsView.swift */,
 				100000000000000000000019 /* CollectionView.swift */,
 				10000000000000000000001F /* MitoBackend.swift */,
+				1000000000000000000000A2 /* AudioManager.swift */,
+				1000000000000000000000A4 /* Haptics.swift */,
 				10000000000000000000001A /* Assets.xcassets */,
+				1000000000000000000000A6 /* Sounds */,
 				10000000000000000000001C /* Silkscreen-Regular.ttf */,
 				10000000000000000000001D /* Silkscreen-Bold.ttf */,
 				10000000000000000000001E /* PixelifySans.ttf */,
@@ -165,6 +177,7 @@
 				10000000000000000000000D /* Silkscreen-Regular.ttf in Resources */,
 				10000000000000000000000E /* Silkscreen-Bold.ttf in Resources */,
 				10000000000000000000000F /* PixelifySans.ttf in Resources */,
+				1000000000000000000000A7 /* Sounds in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -184,9 +197,12 @@
 				100000000000000000000007 /* BattleView.swift in Sources */,
 				100000000000000000000033 /* GameData.swift in Sources */,
 				100000000000000000000035 /* ShopView.swift in Sources */,
+				100000000000000000000097 /* zstddeclib.c in Sources */,
 				100000000000000000000008 /* FlashcardsView.swift in Sources */,
 				100000000000000000000009 /* CollectionView.swift in Sources */,
 				100000000000000000000010 /* MitoBackend.swift in Sources */,
+				1000000000000000000000A3 /* AudioManager.swift in Sources */,
+				1000000000000000000000A5 /* Haptics.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -338,6 +354,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.yukinabe.mitov3;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "MitoV3/Vendor/zstd/Mito-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -369,6 +386,7 @@
 				PRODUCT_BUNDLE_IDENTIFIER = com.yukinabe.mitov3;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "MitoV3/Vendor/zstd/Mito-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

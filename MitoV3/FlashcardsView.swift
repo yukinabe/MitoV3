@@ -1,5 +1,7 @@
 import SwiftUI
 import UniformTypeIdentifiers
+import Compression
+import SQLite3
 
 struct CardsScreen: View {
     @ObservedObject private var session = ReviewSession.shared
@@ -96,84 +98,68 @@ struct CardsScreen: View {
 
     @ViewBuilder
     private func cardsLibrary(proxy: GeometryProxy) -> some View {
-        Image("library-bg")
-            .screenBackground()
-        Color.black.opacity(0.20).ignoresSafeArea()
+        ZStack {
+            Image("library-bg")
+                .screenBackground()
+            Color.black.opacity(0.20).ignoresSafeArea()
 
-        HStack(spacing: 8) {
-            Text("DECK LIBRARY")
-                .pixelText(size: 16, color: Color(hex: "F4E6C0"))
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
-            Spacer(minLength: 0)
-            Button {
-                importDeckID = nil
-                showingImport = true
-            } label: {
-                Text("IMPORT")
-                    .pixelText(size: 10, color: Color(hex: "F4E6C0"))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 11)
-                    .background(Color(hex: "4A8A3C"))
-                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-            }
-            .buttonStyle(.plain)
-            Button {
-                newDeckName = ""
-                showingNewDeck = true
-            } label: {
-                Text("+ NEW")
-                    .pixelText(size: 10, color: Color(hex: "18100A"))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 11)
-                    .background(Color(hex: "F7C943"))
-                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 18)
-        .frame(width: proxy.size.width)
-        .position(x: proxy.size.width / 2, y: 42)
-
-        ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 8) {
-                Text("STARTER DECKS")
-                    .pixelText(size: 8, color: Color(hex: "EAD4A4"))
-                ForEach(DeckTemplate.all) { template in
+            VStack(spacing: 10) {
+                HStack(spacing: 8) {
+                    Text("DECK LIBRARY")
+                        .pixelText(size: 16, color: Color(hex: "F4E6C0"))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                    Spacer(minLength: 0)
                     Button {
-                        Task { await addTemplate(template) }
+                        importDeckID = nil
+                        showingImport = true
                     } label: {
-                        Text(template.name.uppercased())
-                            .pixelText(size: 8, color: Color(hex: "3A2A18"))
-                            .padding(.horizontal, 9)
-                            .padding(.vertical, 7)
-                            .background(Color(hex: "EAD4A4"))
-                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+                        Text("IMPORT")
+                            .pixelText(size: 10, color: Color(hex: "F4E6C0"))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 11)
+                            .background(Color(hex: "4A8A3C"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        newDeckName = ""
+                        showingNewDeck = true
+                    } label: {
+                        Text("+ NEW")
+                            .pixelText(size: 10, color: Color(hex: "18100A"))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 11)
+                            .background(Color(hex: "F7C943"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     }
                     .buttonStyle(.plain)
                 }
-            }
-            .padding(.horizontal, 18)
-        }
-        .frame(width: proxy.size.width)
-        .position(x: proxy.size.width / 2, y: 82)
+                .padding(.horizontal, 18)
+                .padding(.top, 12)
 
-        VStack(spacing: 9) {
-            ForEach(decks) { deck in
-                Button {
-                    route = .detail(deckID: deck.id)
-                } label: {
-                    DeckLibraryRow(deck: deck, progress: progress(for: deck.id))
+                ScrollView(showsIndicators: false) {
+                    VStack(spacing: 9) {
+                        ForEach(decks) { deck in
+                            Button {
+                                route = .detail(deckID: deck.id)
+                            } label: {
+                                DeckLibraryRow(deck: deck, progress: progress(for: deck.id))
+                            }
+                            .buttonStyle(.plain)
+                        }
+
+                        Text("\(decks.count) decks · \(decks.reduce(0) { $0 + $1.cards }) cards")
+                            .font(.custom(MitoFont.regular, size: 13))
+                            .foregroundStyle(Color(hex: "EAD4A4"))
+                            .padding(.top, 8)
+                    }
+                    .padding(.vertical, 4)
+                    .padding(.bottom, 96)
                 }
-                .buttonStyle(.plain)
             }
-
-            Text("\(decks.count) decks · \(decks.reduce(0) { $0 + $1.cards }) cards")
-                .font(.custom(MitoFont.regular, size: 13))
-                .foregroundStyle(Color(hex: "EAD4A4"))
-                .padding(.top, 8)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }
-        .position(x: proxy.size.width / 2, y: 300)
     }
 
     private enum CardsRoute {
@@ -296,14 +282,6 @@ struct CardsScreen: View {
         cardsByDeckID[deckID] = existing
         refreshDeckMeta(deckID: deckID)
         await backend.logEvent("deck_imported", props: ["count": "\(parsed.count)", "source": source])
-    }
-
-    /// One-tap starter deck.
-    private func addTemplate(_ template: DeckTemplate) async {
-        let deckID = await makeDeck(named: template.name)
-        await backend.logEvent("deck_created", props: ["name": template.name, "via": "template"])
-        await importCards(into: deckID, parsed: template.cards, source: "template")
-        route = .detail(deckID: deckID)
     }
 
     private func saveCard(deckID: String, cardID: String?, front: String, back: String, tags: [String]) async {
@@ -1072,11 +1050,20 @@ enum CardImporter {
     private static func parseLines(_ text: String) -> [ParsedCard] {
         text.split(whereSeparator: \.isNewline).compactMap { raw in
             let line = raw.trimmingCharacters(in: .whitespaces)
-            guard !line.isEmpty else { return nil }
-            for delimiter in ["\t", " | ", ";", " - ", ","] {
+            // Skip blanks and Anki plain-text headers (#separator:tab, #html:true…).
+            guard !line.isEmpty, !line.hasPrefix("#") else { return nil }
+            // Tab-separated (Anki "Notes in Plain Text"): front, back, [tags].
+            if line.contains("\t") {
+                let cols = line.components(separatedBy: "\t")
+                let front = clean(cols[0])
+                let back = cols.count > 1 ? clean(cols[1]) : ""
+                guard !front.isEmpty, !back.isEmpty else { return nil }
+                return ParsedCard(front: front, back: back, tags: cols.count > 2 ? tagList(cols[2]) : [])
+            }
+            for delimiter in [" | ", ";", " - ", ","] {
                 if let range = line.range(of: delimiter) {
-                    let front = String(line[..<range.lowerBound]).trimmingCharacters(in: .whitespaces)
-                    let back = String(line[range.upperBound...]).trimmingCharacters(in: .whitespaces)
+                    let front = clean(String(line[..<range.lowerBound]))
+                    let back = clean(String(line[range.upperBound...]))
                     if !front.isEmpty, !back.isEmpty {
                         return ParsedCard(front: front, back: back, tags: [])
                     }
@@ -1087,7 +1074,7 @@ enum CardImporter {
     }
 
     private static func parseCSV(_ text: String) -> [ParsedCard] {
-        var rows = text.split(whereSeparator: \.isNewline).map(String.init)
+        var rows = text.split(whereSeparator: \.isNewline).map(String.init).filter { !$0.hasPrefix("#") }
         if let header = rows.first?.lowercased().replacingOccurrences(of: " ", with: ""),
            header.hasPrefix("front,back") {
             rows.removeFirst()
@@ -1095,14 +1082,27 @@ enum CardImporter {
         return rows.compactMap { row in
             let cols = splitCSVRow(row)
             guard cols.count >= 2 else { return nil }
-            let front = cols[0].trimmingCharacters(in: .whitespaces)
-            let back = cols[1].trimmingCharacters(in: .whitespaces)
+            let front = clean(cols[0])
+            let back = clean(cols[1])
             guard !front.isEmpty, !back.isEmpty else { return nil }
-            let tags = cols.count >= 3
-                ? cols[2].split(separator: ";").map { $0.trimmingCharacters(in: .whitespaces).lowercased() }.filter { !$0.isEmpty }
-                : []
-            return ParsedCard(front: front, back: back, tags: tags)
+            return ParsedCard(front: front, back: back, tags: cols.count >= 3 ? tagList(cols[2]) : [])
         }
+    }
+
+    /// Split a tag field on spaces / semicolons / commas.
+    static func tagList(_ raw: String) -> [String] {
+        raw.split(whereSeparator: { $0 == " " || $0 == ";" || $0 == "," })
+            .map { $0.trimmingCharacters(in: .whitespaces).lowercased() }
+            .filter { !$0.isEmpty }
+    }
+
+    /// Strip HTML tags and decode common entities — Anki fields are HTML.
+    static func clean(_ raw: String) -> String {
+        var s = raw.replacingOccurrences(of: "(?i)<br\\s*/?>", with: " ", options: .regularExpression)
+        s = s.replacingOccurrences(of: "<[^>]+>", with: "", options: .regularExpression)
+        let entities = ["&nbsp;": " ", "&amp;": "&", "&lt;": "<", "&gt;": ">", "&quot;": "\"", "&#39;": "'", "&apos;": "'"]
+        for (key, value) in entities { s = s.replacingOccurrences(of: key, with: value) }
+        return s.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
     private static func splitCSVRow(_ row: String) -> [String] {
@@ -1129,11 +1129,143 @@ enum CardImporter {
         return array.compactMap { obj in
             let frontRaw = (obj["front"] ?? obj["q"] ?? obj["question"]) as? String
             let backRaw = (obj["back"] ?? obj["a"] ?? obj["answer"]) as? String
-            guard let front = frontRaw?.trimmingCharacters(in: .whitespaces), !front.isEmpty,
-                  let back = backRaw?.trimmingCharacters(in: .whitespaces), !back.isEmpty else { return nil }
+            guard let front = frontRaw.map(clean), !front.isEmpty,
+                  let back = backRaw.map(clean), !back.isEmpty else { return nil }
             let tags = (obj["tags"] as? [String])?.map { $0.lowercased() } ?? []
             return ParsedCard(front: front, back: back, tags: tags)
         }
+    }
+}
+
+/// Minimal read-only ZIP extractor (no dependency): finds one entry by name
+/// suffix and inflates stored/deflated data. Enough to crack open an .apkg.
+enum MiniZip {
+    static func extract(_ candidates: [String], from data: Data) -> Data? {
+        let bytes = [UInt8](data)
+        guard bytes.count > 22, let eocd = findEOCD(bytes) else { return nil }
+        let total = readU16(bytes, eocd + 10)
+        var p = Int(readU32(bytes, eocd + 16))   // central directory offset
+        for _ in 0..<total {
+            guard p + 46 <= bytes.count, readU32(bytes, p) == 0x02014b50 else { break }
+            let method = readU16(bytes, p + 10)
+            let compSize = Int(readU32(bytes, p + 20))
+            let uncompSize = Int(readU32(bytes, p + 24))
+            let fnLen = readU16(bytes, p + 28)
+            let extraLen = readU16(bytes, p + 30)
+            let commentLen = readU16(bytes, p + 32)
+            let localOff = Int(readU32(bytes, p + 42))
+            let nameStart = p + 46
+            guard nameStart + fnLen <= bytes.count else { break }
+            let name = String(bytes: bytes[nameStart..<nameStart + fnLen], encoding: .utf8) ?? ""
+            if candidates.contains(where: { name.hasSuffix($0) }) {
+                return readEntry(bytes, localOffset: localOff, method: method, compSize: compSize, uncompSize: uncompSize)
+            }
+            p = nameStart + fnLen + extraLen + commentLen
+        }
+        return nil
+    }
+
+    private static func readEntry(_ bytes: [UInt8], localOffset: Int, method: Int, compSize: Int, uncompSize: Int) -> Data? {
+        guard localOffset + 30 <= bytes.count, readU32(bytes, localOffset) == 0x04034b50 else { return nil }
+        let fnLen = readU16(bytes, localOffset + 26)
+        let extraLen = readU16(bytes, localOffset + 28)
+        let start = localOffset + 30 + fnLen + extraLen
+        guard start + compSize <= bytes.count else { return nil }
+        let comp = Array(bytes[start..<start + compSize])
+        if method == 0 { return Data(comp) }           // stored
+        if method == 8 { return inflate(comp, expected: uncompSize) }  // deflate
+        return nil
+    }
+
+    private static func inflate(_ src: [UInt8], expected: Int) -> Data? {
+        let cap = max(expected, 1)
+        var dst = [UInt8](repeating: 0, count: cap)
+        let written = src.withUnsafeBufferPointer { s in
+            dst.withUnsafeMutableBufferPointer { d in
+                compression_decode_buffer(d.baseAddress!, cap, s.baseAddress!, src.count, nil, COMPRESSION_ZLIB)
+            }
+        }
+        return written > 0 ? Data(dst[0..<written]) : nil
+    }
+
+    private static func findEOCD(_ b: [UInt8]) -> Int? {
+        var i = b.count - 22
+        let lower = max(0, b.count - 22 - 65_536)
+        while i >= lower {
+            if readU32(b, i) == 0x06054b50 { return i }
+            i -= 1
+        }
+        return nil
+    }
+
+    private static func readU16(_ b: [UInt8], _ o: Int) -> Int {
+        guard o + 1 < b.count else { return 0 }
+        return Int(b[o]) | (Int(b[o + 1]) << 8)
+    }
+    private static func readU32(_ b: [UInt8], _ o: Int) -> UInt32 {
+        guard o + 3 < b.count else { return 0 }
+        return UInt32(b[o]) | (UInt32(b[o + 1]) << 8) | (UInt32(b[o + 2]) << 16) | (UInt32(b[o + 3]) << 24)
+    }
+}
+
+/// Reads an Anki .apkg (legacy `collection.anki2` SQLite) into flashcards.
+/// Returns nil for the newer zstd `.anki21b` format or unreadable packages.
+enum AnkiImporter {
+    static func parse(_ data: Data) -> [ParsedCard]? {
+        // Legacy: collection.anki2 / .anki21 is plain SQLite inside the zip.
+        if let dbData = MiniZip.extract(["collection.anki2", "collection.anki21"], from: data) {
+            return readNotes(dbData)
+        }
+        // Modern (Anki 2.1.50+): collection.anki21b is zstd-compressed SQLite.
+        if let compressed = MiniZip.extract(["collection.anki21b"], from: data),
+           let dbData = zstdDecompress(compressed) {
+            return readNotes(dbData)
+        }
+        return nil
+    }
+
+    private static func readNotes(_ dbData: Data) -> [ParsedCard]? {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("mito_anki_\(UUID().uuidString).anki2")
+        guard (try? dbData.write(to: tmp)) != nil else { return nil }
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        var db: OpaquePointer?
+        guard sqlite3_open(tmp.path, &db) == SQLITE_OK else { sqlite3_close(db); return nil }
+        defer { sqlite3_close(db) }
+
+        var stmt: OpaquePointer?
+        // notes.flds = fields joined by the 0x1f unit separator; tags space-separated.
+        guard sqlite3_prepare_v2(db, "SELECT flds, tags FROM notes", -1, &stmt, nil) == SQLITE_OK else { return nil }
+        defer { sqlite3_finalize(stmt) }
+
+        var cards: [ParsedCard] = []
+        while sqlite3_step(stmt) == SQLITE_ROW {
+            guard let fldsC = sqlite3_column_text(stmt, 0) else { continue }
+            let fields = String(cString: fldsC).components(separatedBy: "\u{1f}")
+            let tagsStr = sqlite3_column_text(stmt, 1).map { String(cString: $0) } ?? ""
+            let front = CardImporter.clean(fields[0])
+            let back = fields.count > 1 ? CardImporter.clean(fields[1]) : ""
+            guard !front.isEmpty, !back.isEmpty else { continue }
+            cards.append(ParsedCard(front: front, back: back, tags: CardImporter.tagList(tagsStr)))
+        }
+        return cards.isEmpty ? nil : cards
+    }
+
+    /// Decompress a single zstd frame via the vendored zstd decoder.
+    private static func zstdDecompress(_ src: Data) -> Data? {
+        let bytes = [UInt8](src)
+        let contentSize = bytes.withUnsafeBytes { ZSTD_getFrameContentSize($0.baseAddress, bytes.count) }
+        // Reject the ZSTD_CONTENTSIZE_UNKNOWN / _ERROR sentinels (huge values).
+        guard contentSize > 0, contentSize < 300_000_000 else { return nil }
+        var dst = [UInt8](repeating: 0, count: Int(contentSize))
+        let written = dst.withUnsafeMutableBytes { d in
+            bytes.withUnsafeBytes { s in
+                ZSTD_decompress(d.baseAddress, Int(contentSize), s.baseAddress, bytes.count)
+            }
+        }
+        guard ZSTD_isError(written) == 0 else { return nil }
+        return Data(dst[0..<written])
     }
 }
 
@@ -1176,6 +1308,8 @@ struct ImportSheet: View {
     @State private var text = ""
     @State private var newDeckName = ""
     @State private var showFileImporter = false
+    @State private var showApkgImporter = false
+    @State private var importMessage = ""
 
     private var creatingNew: Bool { existingDeckName == nil }
     private var parsed: [ParsedCard] { CardImporter.parse(text, format: format) }
@@ -1260,6 +1394,26 @@ struct ImportSheet: View {
                     .pixelText(size: 10, color: parsed.isEmpty ? Color(hex: "8A6B42") : Color(hex: "4A8A3C"))
             }
 
+            Button {
+                importMessage = ""
+                showApkgImporter = true
+            } label: {
+                Text("⬇ IMPORT ANKI DECK (.apkg)")
+                    .pixelText(size: 10, color: Color(hex: "F4E6C0"))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                    .background(Color(hex: "6B4324"))
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+            }
+            .buttonStyle(.plain)
+
+            if !importMessage.isEmpty {
+                Text(importMessage)
+                    .font(.custom(MitoFont.regular, size: 12))
+                    .foregroundStyle(Color(hex: "C4452F"))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             HStack(spacing: 10) {
                 Button(action: onCancel) {
                     Text("CANCEL")
@@ -1298,6 +1452,21 @@ struct ImportSheet: View {
             case "csv": format = .csv
             default: break
             }
+        }
+        .fileImporter(isPresented: $showApkgImporter, allowedContentTypes: [UTType(filenameExtension: "apkg") ?? .data, .data]) { result in
+            guard case .success(let url) = result else { return }
+            let scoped = url.startAccessingSecurityScopedResource()
+            defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+            guard let data = try? Data(contentsOf: url) else {
+                importMessage = "Couldn't read that file."
+                return
+            }
+            guard let cards = AnkiImporter.parse(data), !cards.isEmpty else {
+                importMessage = "Couldn't read this file as an Anki deck. Make sure it's a .apkg exported from Anki."
+                return
+            }
+            let name = creatingNew ? url.deletingPathExtension().lastPathComponent : nil
+            onImport(name, cards)
         }
     }
 }
