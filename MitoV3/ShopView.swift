@@ -285,16 +285,24 @@ struct ShopScreen: View {
     }
 
     private func buyCoins(_ bundle: CoinBundle) {
-        guard gems >= bundle.gemCost else { showToast("Not enough gems"); return }
+        guard gems >= bundle.gemCost else {
+            AudioManager.shared.play(.uiBack); Haptics.warning()
+            showToast("Not enough gems"); return
+        }
         gems -= bundle.gemCost
         gold += bundle.coins
+        AudioManager.shared.play(.reward); Haptics.success()
         showToast("+\(bundle.coins.formatted()) ◎")
     }
 
     private func buyResource(cost: Int, grant: () -> Void) {
-        guard gold >= cost else { showToast("Not enough coins"); return }
+        guard gold >= cost else {
+            AudioManager.shared.play(.uiBack); Haptics.warning()
+            showToast("Not enough coins"); return
+        }
         gold -= cost
         grant()
+        AudioManager.shared.play(.reward); Haptics.success()
     }
 
     private func showToast(_ text: String) {

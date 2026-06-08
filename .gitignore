@@ -5,3 +5,4 @@ xcuserdata/
 
 # Local Claude Code settings
 .claude/
+build/

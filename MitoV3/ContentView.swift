@@ -24,9 +24,17 @@ struct ContentView: View {
     @State private var walletSaveTask: Task<Void, Never>?
     @AppStorage("mito.admitted") private var admitted = false
     @AppStorage("mito.onboarded") private var onboarded = false
+    @AppStorage("mito.tutorialSeen") private var tutorialSeen = false
     @AppStorage("mito.goal") private var goal = ""
 
     private var launchArgs: [String] { ProcessInfo.processInfo.arguments }
+    private var forceTutorial: Bool {
+        #if DEBUG
+        return launchArgs.contains("-uitestTutorial")
+        #else
+        return false
+        #endif
+    }
     private var forceGate: Bool {
         #if DEBUG
         return launchArgs.contains("-uitestGate")
@@ -54,11 +62,16 @@ struct ContentView: View {
     var body: some View {
         ZStack {
             appShell
-            if forceGate || (!bypassGate && !admitted && !forceOnboard) {
-                WaitlistGate(backend: backend) { withAnimation { admitted = true } }
-            } else if forceOnboard || (!bypassGate && !onboarded) {
+            // Waitlist / "private beta" gate removed — app opens straight in.
+            if forceOnboard || (!bypassGate && !onboarded) {
                 OnboardingView(backend: backend, goal: $goal) {
                     withAnimation { onboarded = true }
+                    selectedTab = .home
+                }
+            } else if forceTutorial || (!bypassGate && !tutorialSeen) {
+                // First-run tutorial for new users (skippable).
+                TutorialOverlay {
+                    withAnimation { tutorialSeen = true }
                     selectedTab = .home
                 }
             }
@@ -100,6 +113,7 @@ struct ContentView: View {
         }
         .statusBarHidden(true)
         .preferredColorScheme(.dark)
+        .onAppear { AudioManager.shared.startMusic(.home) }
         .task {
             await backend.bootstrapExistingSession()
             // Load cloud decks/FSRS state and mirror future grades to Supabase.
@@ -289,12 +303,90 @@ struct AuthSheet: View {
     }
 }
 
+// MARK: - First-run tutorial (skippable)
+
+private struct TutorialStep {
+    let icon: String
+    let title: String
+    let body: String
+}
+
+struct TutorialOverlay: View {
+    let onClose: () -> Void
+    @State private var step = 0
+
+    private let steps: [TutorialStep] = [
+        TutorialStep(icon: "📚", title: "WELCOME TO MITO",
+                     body: "A study RPG where reviewing flashcards powers a team of cell-heroes in battle."),
+        TutorialStep(icon: "🗂️", title: "STUDY = STRENGTH",
+                     body: "Tap STUDY to review your decks. Every card you answer fuels your heroes' attacks."),
+        TutorialStep(icon: "⚔️", title: "BATTLE",
+                     body: "Answer a card, then pick an ability. Support moves buff the team (⚡ATP charge); damage moves strike the enemy."),
+        TutorialStep(icon: "🗺️", title: "CAMPAIGN",
+                     body: "Clear a stage to unlock the next. Enemies grow stronger as you climb — so keep studying!"),
+        TutorialStep(icon: "🎉", title: "YOU'RE READY",
+                     body: "Build streaks, earn coins, and grow your team. Good luck, scholar!")
+    ]
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.8).ignoresSafeArea()
+            VStack(spacing: 14) {
+                Text(steps[step].icon).font(.system(size: 50))
+                Text(steps[step].title)
+                    .pixelText(size: 18, color: Color(hex: "3A2A18"))
+                Text(steps[step].body)
+                    .font(.custom(MitoFont.regular, size: 14))
+                    .foregroundStyle(Color(hex: "6B4324"))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                HStack(spacing: 6) {
+                    ForEach(0..<steps.count, id: \.self) { i in
+                        Circle()
+                            .fill(i == step ? Color(hex: "4A8A3C") : Color(hex: "C9B086"))
+                            .frame(width: 7, height: 7)
+                    }
+                }
+                .padding(.top, 2)
+                HStack(spacing: 10) {
+                    Button(action: onClose) {
+                        Text("SKIP")
+                            .pixelText(size: 12, color: Color(hex: "6B4324"))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color(hex: "D8C29A"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+                    }
+                    .buttonStyle(.plain)
+                    Button {
+                        if step < steps.count - 1 { withAnimation { step += 1 } } else { onClose() }
+                    } label: {
+                        Text(step < steps.count - 1 ? "NEXT" : "START")
+                            .pixelText(size: 12, color: .white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(Color(hex: "4A8A3C"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.top, 4)
+            }
+            .padding(22)
+            .frame(width: 300)
+            .background(Color(hex: "EAD4A4"))
+            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 4))
+        }
+    }
+}
+
 struct GeneralSettingsSheet: View {
     @ObservedObject var backend: MitoBackend
     @Binding var isPresented: Bool
     let showAuth: () -> Void
 
-    @State private var soundEnabled = true
+    @AppStorage("audio.sfx") private var soundEnabled = true
+    @AppStorage("audio.music") private var musicEnabled = true
     @State private var animationsEnabled = true
 
     var body: some View {
@@ -323,8 +415,16 @@ struct GeneralSettingsSheet: View {
                 )
 
                 SettingsToggleRow(title: "SOUND", detail: "Menu and battle effects.", isOn: $soundEnabled)
+                SettingsToggleRow(title: "MUSIC", detail: "Background music.", isOn: $musicEnabled)
                 SettingsToggleRow(title: "ANIMATION", detail: "Idle character movement.", isOn: $animationsEnabled)
             }
+        }
+        .onChange(of: soundEnabled) { _, on in
+            AudioManager.shared.sfxEnabled = on
+            if on { AudioManager.shared.play(.uiTap) }
+        }
+        .onChange(of: musicEnabled) { _, on in
+            AudioManager.shared.musicEnabled = on
         }
         .padding(16)
         .background(Color(hex: "EAD4A4"))
@@ -527,6 +627,10 @@ private struct BottomTray: View {
                 HStack(spacing: 0) {
                     ForEach(AppTab.allCases) { tab in
                         Button {
+                            if selectedTab != tab {
+                                AudioManager.shared.play(.uiTap, volume: 0.7)
+                                Haptics.select()
+                            }
                             withAnimation(.snappy(duration: 0.28)) {
                                 selectedTab = tab
                             }

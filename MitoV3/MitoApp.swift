@@ -5,6 +5,8 @@ import CoreText
 struct MitoV3App: App {
     init() {
         FontRegistrar.registerFonts()
+        AudioManager.shared.prepare()
+        Haptics.warm()
     }
 
     var body: some Scene {
