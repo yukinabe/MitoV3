@@ -57,6 +57,17 @@ enum BattleRating: CaseIterable, Equatable {
         }
     }
 
+    /// Build a battle grade from an FSRS rating produced by an answer mode
+    /// (multiple-choice speed mapping or the AI type-in grader).
+    init(_ rating: Rating) {
+        switch rating {
+        case .again: self = .again
+        case .hard: self = .hard
+        case .good: self = .good
+        case .easy: self = .easy
+        }
+    }
+
     /// Satisfying woody tick that rises in brightness from Again → Easy.
     var gradeSound: AudioManager.Sound {
         switch self {
@@ -105,7 +116,19 @@ struct BattleScreen: View {
     @State private var pendingRating: BattleRating?
     @State private var choosingAbility = false
     @State private var ultimateCharge: [String: Int] = [:]
+    /// Auto-battle: when on, the best ability (ult → skill → basic) is cast
+    /// automatically after each card is graded. Studying stays manual.
+    @AppStorage("battle.autoMode") private var autoMode = false
+    /// How the player answers cards this session (classic / multiple-choice /
+    /// type-in). Chosen on the setup screens; persisted for convenience.
+    @AppStorage("battle.answerMode") private var answerModeRaw = AnswerMode.classic.rawValue
+    private var answerMode: AnswerMode { AnswerMode(rawValue: answerModeRaw) ?? .classic }
     @ObservedObject private var session = ReviewSession.shared
+    /// A capturable wild creature offered after defeating it (campaign/endless).
+    @State private var captureOffer: Hero?
+    /// Creatures already offered this run, so a declined capture isn't re-offered
+    /// every wave. Cleared when a fresh battle starts.
+    @State private var offeredThisRun: Set<String> = []
 
     var body: some View {
         ZStack {
@@ -123,8 +146,48 @@ struct BattleScreen: View {
             case .result:
                 result
             }
+
+            if let creature = captureOffer {
+                CapturePopup(
+                    creature: creature,
+                    onCapture: {
+                        CaptureStore.shared.capture(creature.id)
+                        AudioManager.shared.play(.victory, volume: 0.8)
+                        Haptics.success()
+                        captureOffer = nil
+                    },
+                    onRelease: {
+                        Haptics.tap()
+                        captureOffer = nil
+                    }
+                )
+                .zIndex(50)
+            }
         }
         .onAppear(perform: maybeJumpToReviewForUITest)
+    }
+
+    /// The wild creature tied to the current enemy, if the player hasn't caught
+    /// it yet. Endless = Mutagem (Cytocrawler on every 4th wave); campaign =
+    /// Spikevyrus. Returns nil if already owned, so we never re-offer.
+    private func captureCandidate() -> Hero? {
+        let id: String
+        if battleMode == .endless {
+            id = (wave % 4 == 0) ? "wild-cytocrawler" : "wild-mutagem"
+        } else {
+            id = "wild-spikevyrus"
+        }
+        guard !CaptureStore.shared.isOwned(id) else { return nil }
+        return DataSet.capturable(id: id)
+    }
+
+    /// Show the capture popup for the defeated creature, unless it's already been
+    /// offered this run (so declining doesn't nag every wave).
+    private func offerCaptureIfWild() {
+        guard let creature = captureCandidate(), !offeredThisRun.contains(creature.id) else { return }
+        offeredThisRun.insert(creature.id)
+        // Let the victory beat land first.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { captureOffer = creature }
     }
 
     /// UI-test affordance only (DEBUG builds): with `-uitestReview`, drop
@@ -166,8 +229,20 @@ struct BattleScreen: View {
         mobHP = enemyMaxHP
         resetCombatFlow()
         session.start(deckIDs: [])
+        // UI-test: force an answer mode, e.g. -uitestAnswerMode=multipleChoice
+        if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-uitestAnswerMode=") }),
+           let mode = AnswerMode(rawValue: String(arg.dropFirst("-uitestAnswerMode=".count))) {
+            answerModeRaw = mode.rawValue
+        }
         showingAnswer = ProcessInfo.processInfo.arguments.contains("-uitestReveal")
         route = ProcessInfo.processInfo.arguments.contains("-uitestPicker") ? .reviewSetup : .combat
+
+        // UI-test: pop the capture offer so it can be screenshotted.
+        if ProcessInfo.processInfo.arguments.contains("-uitestCapture") {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                captureOffer = DataSet.capturable(id: "wild-mutagem")
+            }
+        }
 
         if ProcessInfo.processInfo.arguments.contains("-uitestCloudCheck") {
             Task {
@@ -184,6 +259,16 @@ struct BattleScreen: View {
                 let url = FileManager.default
                     .urls(for: .documentDirectory, in: .userDomainMask)[0]
                     .appendingPathComponent("uitest_cardeditor.txt")
+                try? result.write(to: url, atomically: true, encoding: .utf8)
+            }
+        }
+        if ProcessInfo.processInfo.arguments.contains("-uitestAI") {
+            Task {
+                await MitoBackend.shared.attachSync(to: session)
+                let result = await MitoBackend.shared.runAISelfTest()
+                let url = FileManager.default
+                    .urls(for: .documentDirectory, in: .userDomainMask)[0]
+                    .appendingPathComponent("uitest_ai.txt")
                 try? result.write(to: url, atomically: true, encoding: .utf8)
             }
         }
@@ -260,11 +345,26 @@ struct BattleScreen: View {
         }
     }
 
+    /// Bridge the persisted raw string to a typed binding for the pickers.
+    private var answerModeBinding: Binding<AnswerMode> {
+        Binding(get: { answerMode }, set: { answerModeRaw = $0.rawValue })
+    }
+
+    /// When the player chooses multiple-choice, pre-generate any missing
+    /// distractors in the background so options are AI-quality (best-effort;
+    /// a sibling-answer fallback covers anything not yet generated).
+    private func prepareAnswerMode() {
+        guard answerMode == .multipleChoice else { return }
+        let cards = session.allCards()
+        Task { await MitoBackend.shared.backfillDistractors(for: cards) }
+    }
+
     private var reviewSetup: some View {
         EndlessReviewSetup(
             decks: pickerDecks,
             selectedDecks: $selectedDecks,
             selectedTags: $selectedTags,
+            answerMode: answerModeBinding,
             onBack: { route = .landing },
             onStart: {
                 battleMode = .endless
@@ -273,6 +373,7 @@ struct BattleScreen: View {
                 mobHP = enemyMaxHP
                 resetCombatFlow()
                 session.start(deckIDs: selectedDecks, tags: selectedTags)
+                prepareAnswerMode()
                 route = .combat
             }
         )
@@ -334,6 +435,7 @@ struct BattleScreen: View {
             decks: pickerDecks,
             selectedDecks: $selectedDecks,
             selectedTags: $selectedTags,
+            answerMode: answerModeBinding,
             onBack: { route = .map },
             onStart: {
                 guard !selectedDecks.isEmpty else { return }
@@ -348,6 +450,7 @@ struct BattleScreen: View {
                 heroHP = Dictionary(uniqueKeysWithValues: activeTeam.map { ($0.id, $0.hp) })
                 resetCombatFlow()
                 session.start(deckIDs: selectedDecks, tags: selectedTags)
+                prepareAnswerMode()
                 route = .combat
             }
         )
@@ -381,6 +484,10 @@ struct BattleScreen: View {
             skillCooldownTurns: activeSkillCooldown,
             wave: wave,
             stageLabel: "STAGE \(selectedStage.id) · \(selectedStage.difficulty)",
+            autoMode: autoMode,
+            answerMode: answerMode,
+            answerCardID: session.current?.id,
+            mcOptions: session.current.map(answerOptions(for:)) ?? [],
             onReveal: {
                 showingAnswer = true
                 AudioManager.shared.play(.cardShow)
@@ -388,9 +495,20 @@ struct BattleScreen: View {
             },
             onDone: { route = .landing },
             onGrade: grade,
-            onAbility: useAbility
+            onAbility: useAbility,
+            onToggleAuto: {
+                autoMode.toggle()
+                Haptics.tap()
+            },
+            gradeTyped: { text, signals in await aiGradeTyped(text, signals) }
         )
         .onAppear(perform: scheduleUITestAutoCastIfNeeded)
+        // Flipping auto on while the ability picker is already showing should
+        // cast immediately rather than waiting for the next card.
+        .onChange(of: autoMode) { _, isOn in
+            guard isOn, choosingAbility, let ability = autoChosenAbility() else { return }
+            autoCast(ability)
+        }
     }
 
     private var result: some View {
@@ -453,6 +571,59 @@ struct BattleScreen: View {
                 tags: deck.tags,
                 color: known[deck.id] ?? palette[index % palette.count]
             )
+        }
+    }
+
+    // MARK: - Answer modes (multiple-choice / type-in)
+
+    /// The shuffled multiple-choice options for a card: the correct answer plus
+    /// up to three distractors (AI-cached on the card, or sampled from sibling
+    /// cards when none are generated yet). Order is deterministic per card so it
+    /// doesn't reshuffle on every redraw.
+    private func answerOptions(for card: ReviewCard) -> [String] {
+        let correct = card.back
+        let correctKey = AnswerGrading.normalize(correct)
+        let distractorSource = (card.choices?.isEmpty == false) ? card.choices! : siblingDistractors(for: card)
+        var seen: Set<String> = [correctKey]
+        var distractors: [String] = []
+        for d in distractorSource {
+            let key = AnswerGrading.normalize(d)
+            guard !key.isEmpty, !seen.contains(key) else { continue }
+            seen.insert(key)
+            distractors.append(d)
+            if distractors.count == 3 { break }
+        }
+        var rng = SeededGenerator(seed: card.id)
+        return ([correct] + distractors).shuffled(using: &rng)
+    }
+
+    /// Offline/no-AI fallback distractors: other cards' answers from the same
+    /// deck (then anywhere) so multiple-choice always has options to show.
+    private func siblingDistractors(for card: ReviewCard) -> [String] {
+        let all = session.allCards()
+        let correctKey = AnswerGrading.normalize(card.back)
+        func pick(_ pool: [ReviewCard]) -> [String] {
+            pool.filter { $0.id != card.id && AnswerGrading.normalize($0.back) != correctKey }
+                .map(\.back)
+        }
+        let sameDeck = pick(all.filter { $0.deckID == card.deckID })
+        let others = pick(all.filter { $0.deckID != card.deckID })
+        var rng = SeededGenerator(seed: card.id)
+        return (sameDeck.shuffled(using: &rng) + others.shuffled(using: &rng))
+    }
+
+    /// Grade a typed answer via the AI edge function, falling back to a local
+    /// similarity score when offline / the call fails. Returns a battle grade
+    /// plus optional learner feedback to surface.
+    private func aiGradeTyped(_ text: String, _ signals: TypingSignals) async -> (BattleRating, String?) {
+        guard let card = session.current else { return (.again, nil) }
+        do {
+            let g = try await MitoBackend.shared.gradeTypedAnswer(
+                cardID: card.id, userAnswer: text,
+                elapsedMs: signals.elapsedMs, signals: signals)
+            return (BattleRating(g.rating), g.feedback)
+        } catch {
+            return (BattleRating(AnswerGrading.localSimilarityRating(expected: card.back, answer: text)), nil)
         }
     }
 
@@ -562,6 +733,8 @@ struct BattleScreen: View {
         lastDamage = 0
         pendingRating = nil
         choosingAbility = false
+        captureOffer = nil
+        offeredThisRun = []
         combatBuffs = CombatBuffs()
         skillCooldown = [:]
         ultimateCharge = Dictionary(uniqueKeysWithValues: activeTeam.map { ($0.id, 0) })
@@ -604,6 +777,40 @@ struct BattleScreen: View {
             let required = activeHero.abilities.first { $0.kind == .ultimate }?.ultimateChargeRequired ?? 4
             ultimateCharge[activeHero.id] = min(required, (ultimateCharge[activeHero.id] ?? 0) + 1)
         }
+
+        // Auto-battle: skip the manual ability pick and fire the best option.
+        if autoMode, let ability = autoChosenAbility() {
+            autoCast(ability)
+        }
+    }
+
+    /// The ability auto-battle should cast for the active hero, following the
+    /// priority ultimate (if charged) → skill (if off cooldown) → basic.
+    private func autoChosenAbility() -> BattleAbility? {
+        guard let hero = activeHero else { return nil }
+        let abilities = hero.abilities
+        if let ult = abilities.first(where: { $0.kind == .ultimate }) {
+            let required = ult.ultimateChargeRequired ?? 4
+            if (ultimateCharge[hero.id] ?? 0) >= required { return ult }
+        }
+        if let skill = abilities.first(where: { $0.kind == .skill }),
+           (skillCooldown[hero.id] ?? 0) == 0 {
+            return skill
+        }
+        return abilities.first { $0.kind == .basic }
+            ?? abilities.first { $0.kind == .skill }
+            ?? abilities.first
+    }
+
+    /// Fire an auto-selected ability after a short beat so the player still
+    /// registers the grade and sees the cast land.
+    private func autoCast(_ ability: BattleAbility) {
+        let castRating = pendingRating
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+            // Bail if the flow moved on (manual tap, auto toggled off, new card).
+            guard autoMode, choosingAbility, pendingRating == castRating else { return }
+            useAbility(ability)
+        }
     }
 
     private func useAbility(_ ability: BattleAbility) {
@@ -624,8 +831,9 @@ struct BattleScreen: View {
         let damageMult = BattleScaling.heroDamageMultiplier(teamLevel: teamLevel)
         let buffed = Double(ability.damage) * damageMult
             * combatBuffs.damageMultiplier * combatBuffs.markMultiplier
-        let damage = max(1, Int(buffed))
-        let enemyDefeated = mobHP - damage <= 0
+        // Pure-support abilities (Cristae Surge, Present Antigen) deal no damage.
+        let damage = ability.dealsDamage ? max(1, Int(buffed)) : 0
+        let enemyDefeated = ability.dealsDamage && (mobHP - damage <= 0)
         // End of turn: existing buffs tick down, then this ability's grants apply.
         combatBuffs.tickAll()
         applyGrants(ability)
@@ -700,6 +908,9 @@ struct BattleScreen: View {
         }
 
         if battleMode == .endless, enemyDefeated {
+            DailyQuests.shared.noteBattleWon()
+            // Wild encounter: offer to capture the creature you just beat.
+            offerCaptureIfWild()
             // Next wave: stronger enemy + bigger loot.
             wave += 1
             enemyMaxHP = BattleScaling.endlessEnemyHP(teamLevel: teamLevel, wave: wave)
@@ -717,7 +928,9 @@ struct BattleScreen: View {
             if teamDefeated { Haptics.warning() } else { Haptics.success() }
             // Campaign progression: clearing a stage unlocks the next one.
             if battleMode == .campaign, enemyDefeated {
+                DailyQuests.shared.noteBattleWon()
                 clearedStage = max(clearedStage, selectedStage.id)
+                offerCaptureIfWild()
             }
             let outcome = enemyDefeated ? "win" : "loss"
             let stageID = selectedStage.id
@@ -830,10 +1043,16 @@ struct BattleCombatView: View {
     let skillCooldownTurns: Int
     let wave: Int
     let stageLabel: String
+    let autoMode: Bool
+    let answerMode: AnswerMode
+    let answerCardID: UUID?
+    let mcOptions: [String]
     let onReveal: () -> Void
     let onDone: () -> Void
     let onGrade: (BattleRating) -> Void
     let onAbility: (BattleAbility) -> Void
+    let onToggleAuto: () -> Void
+    let gradeTyped: (String, TypingSignals) async -> (BattleRating, String?)
 
     // Combat juice + pause state.
     @Environment(\.scenePhase) private var scenePhase
@@ -925,6 +1144,9 @@ struct BattleCombatView: View {
                         questionText: questionText,
                         answerText: answerText,
                         cardTag: cardTag,
+                        // In choice/type-in modes the answer is revealed by
+                        // answering, so hide the manual "SHOW ANSWER" button.
+                        allowManualReveal: answerMode == .classic && !choosingAbility,
                         onReveal: onReveal
                     )
                     .padding(.horizontal, 12)
@@ -1141,6 +1363,10 @@ struct BattleCombatView: View {
                 AudioManager.shared.play(ability.kind == .ultimate ? .castDamageUlt : .castDamage)
             }
         }
+
+        // Pure-support abilities (no damage) stop here — only the buff cast +
+        // team hop play; no strike, lunge, or enemy hit.
+        guard lastAbility?.dealsDamage ?? true else { return }
 
         // Launch the directed strike from the casting hero toward the enemy.
         if let ability = lastAbility {
@@ -1401,6 +1627,18 @@ struct BattleCombatView: View {
             }
 
             Spacer(minLength: 0)
+
+            Button(action: onToggleAuto) {
+                Text("AUTO")
+                    .pixelText(size: 10, color: autoMode ? Color(hex: "1A130A") : Color(hex: "F4E6C0"))
+                    .padding(.horizontal, 10)
+                    .frame(height: 28)
+                    .background(autoMode ? Color(hex: "FFD24D") : Color(hex: "182116").opacity(0.88))
+                    .overlay(Rectangle().stroke(autoMode ? Color(hex: "FFD24D") : Color(hex: "18100A"), lineWidth: 3))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Auto battle")
+            .accessibilityValue(autoMode ? "On" : "Off")
 
             Button { paused = true } label: {
                 Image(systemName: "pause.fill")
@@ -1701,11 +1939,13 @@ struct BattleCombatView: View {
         activeHeroIndex
     }
 
+    @ViewBuilder
     private var gradeRow: some View {
-        Group {
-            if choosingAbility {
-                abilityActionRow
-            } else {
+        if choosingAbility {
+            abilityActionRow
+        } else {
+            switch answerMode {
+            case .classic:
                 HStack(spacing: 10) {
                     ForEach(BattleRating.allCases, id: \.self) { rating in
                         BattleGradeButton(rating: rating, enabled: showingAnswer) {
@@ -1714,6 +1954,22 @@ struct BattleCombatView: View {
                     }
                 }
                 .opacity(showingAnswer ? 1 : 0.48)
+            case .multipleChoice:
+                MultipleChoicePanel(
+                    options: mcOptions,
+                    correctAnswer: answerText,
+                    onReveal: onReveal,
+                    onResolved: { onGrade($0) }
+                )
+                .id(answerCardID)
+            case .typeIn:
+                TypeInPanel(
+                    correctAnswer: answerText,
+                    onReveal: onReveal,
+                    grade: gradeTyped,
+                    onResolved: { onGrade($0) }
+                )
+                .id(answerCardID)
             }
         }
     }
@@ -1802,9 +2058,12 @@ struct AbilityActionButton: View {
                         .pixelText(size: 6, color: Color(hex: "F4E6C0").opacity(0.7))
                     Text("\(cooldown) TURN\(cooldown == 1 ? "" : "S")")
                         .pixelText(size: 8, color: Color(hex: "6DA6FF"))
-                } else {
+                } else if ability.dealsDamage {
                     Text("DMG \(ability.damage)")
                         .pixelText(size: 6, color: Color(hex: "F4E6C0").opacity(0.88))
+                } else {
+                    Text("SUPPORT")
+                        .pixelText(size: 6, color: Color(hex: "BFE3FF"))
                 }
             }
             .frame(width: width, height: 58)
@@ -2151,6 +2410,7 @@ struct BattleFlashcardPanel: View {
     let questionText: String
     let answerText: String
     let cardTag: String
+    var allowManualReveal: Bool = true
     let onReveal: () -> Void
 
     private var label: String {
@@ -2180,7 +2440,7 @@ struct BattleFlashcardPanel: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(.horizontal, 4)
 
-            if !showingAnswer {
+            if !showingAnswer && allowManualReveal {
                 Button(action: onReveal) {
                     Text("SHOW ANSWER")
                         .pixelText(size: 16, color: Color(hex: "F4E6C0"))
@@ -2243,11 +2503,242 @@ struct BattleGradeButton: View {
     }
 }
 
+// MARK: - Multiple-choice answer panel
+
+/// Multiple-choice answering: tap an option, see correct/wrong, and a grade is
+/// derived from correctness + speed (no AI needed at review time). Re-created per
+/// card via `.id(cardID)`, so its timer and selection reset each card.
+struct MultipleChoicePanel: View {
+    let options: [String]
+    let correctAnswer: String
+    let onReveal: () -> Void
+    let onResolved: (BattleRating) -> Void
+
+    @State private var start = Date()
+    @State private var selected: String?
+    @State private var resolved = false
+
+    private func isCorrect(_ option: String) -> Bool {
+        AnswerGrading.normalize(option) == AnswerGrading.normalize(correctAnswer)
+    }
+
+    private func background(for option: String) -> Color {
+        guard resolved else { return Color(hex: "6B4324") }
+        if isCorrect(option) { return Color(hex: "4A9B3F") }            // always reveal the right one
+        if option == selected { return Color(hex: "C84535") }           // your wrong pick
+        return Color(hex: "6B4324").opacity(0.5)
+    }
+
+    private func tap(_ option: String) {
+        guard !resolved else { return }
+        selected = option
+        resolved = true
+        let correct = isCorrect(option)
+        onReveal()
+        AudioManager.shared.play(correct ? .gradeGood : .gradeAgain)
+        Haptics.select()
+        let rating = BattleRating(AnswerGrading.multipleChoiceRating(
+            correct: correct, elapsed: Date().timeIntervalSince(start)))
+        // Hold the correct/wrong reveal briefly before handing off to the ability row.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { onResolved(rating) }
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            ForEach(options, id: \.self) { option in
+                Button { tap(option) } label: {
+                    Text(option)
+                        .pixelText(size: 12, color: Color(hex: "F4E6C0"))
+                        .multilineTextAlignment(.center)
+                        .minimumScaleFactor(0.6)
+                        .lineLimit(2)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 44)
+                        .padding(.horizontal, 8)
+                        .background(background(for: option))
+                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                }
+                .buttonStyle(.plain)
+                .disabled(resolved)
+            }
+        }
+    }
+}
+
+// MARK: - Type-in answer panel
+
+/// Type-in answering: the player types a free answer; the AI grader (with a
+/// local-similarity fallback) turns it into a battle grade. Tracks timing and
+/// hesitation signals to feed the grader. Re-created per card via `.id(cardID)`.
+struct TypeInPanel: View {
+    let correctAnswer: String
+    let onReveal: () -> Void
+    let grade: (String, TypingSignals) async -> (BattleRating, String?)
+    let onResolved: (BattleRating) -> Void
+
+    @State private var text = ""
+    @State private var start = Date()
+    @State private var firstKeystroke: Date?
+    @State private var deletions = 0
+    @State private var keystrokes = 0
+    @State private var lastLength = 0
+    @State private var grading = false
+    @State private var feedback: String?
+    @FocusState private var focused: Bool
+
+    private func track(_ newValue: String) {
+        if firstKeystroke == nil && !newValue.isEmpty { firstKeystroke = Date() }
+        let delta = newValue.count - lastLength
+        if delta > 0 { keystrokes += delta } else if delta < 0 { deletions += -delta }
+        lastLength = newValue.count
+    }
+
+    private func submit() {
+        let answer = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !answer.isEmpty, !grading else { return }
+        grading = true
+        focused = false
+        onReveal()
+        let now = Date()
+        let signals = TypingSignals(
+            elapsedMs: Int(now.timeIntervalSince(start) * 1000),
+            timeToFirstKeystrokeMs: Int((firstKeystroke ?? now).timeIntervalSince(start) * 1000),
+            deletions: deletions,
+            keystrokes: keystrokes)
+        Task {
+            let (rating, fb) = await grade(answer, signals)
+            await MainActor.run {
+                feedback = fb
+                grading = false
+                AudioManager.shared.play(rating.gradeSound)
+                Haptics.select()
+            }
+            // Let the player read the AI feedback before the ability row takes over.
+            try? await Task.sleep(nanoseconds: fb == nil ? 600_000_000 : 1_400_000_000)
+            await MainActor.run { onResolved(rating) }
+        }
+    }
+
+    var body: some View {
+        VStack(spacing: 8) {
+            if let feedback {
+                Text(feedback)
+                    .font(.custom(MitoFont.regular, size: 14))
+                    .foregroundStyle(Color(hex: "F4E6C0"))
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+                    .padding(8)
+                    .background(Color(hex: "2A1A0D").opacity(0.85))
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+            }
+
+            TextField("", text: $text, prompt: Text("Type your answer…").foregroundColor(Color(hex: "8A6B42")))
+                .font(.custom(MitoFont.regular, size: 16))
+                .foregroundStyle(Color(hex: "3A2A18"))
+                .textInputAutocapitalization(.never)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .focused($focused)
+                .disabled(grading)
+                .padding(.horizontal, 10)
+                .frame(height: 44)
+                .background(Color(hex: "EAD4A4"))
+                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                .onChange(of: text) { _, newValue in track(newValue) }
+                .onSubmit(submit)
+
+            Button(action: submit) {
+                Text(grading ? "CHECKING…" : "SUBMIT")
+                    .pixelText(size: 16, color: Color(hex: "F4E6C0"))
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color(hex: "4A9B3F"))
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+            }
+            .buttonStyle(.plain)
+            .disabled(grading || text.trimmingCharacters(in: .whitespaces).isEmpty)
+            .opacity(grading || text.trimmingCharacters(in: .whitespaces).isEmpty ? 0.55 : 1)
+        }
+        .onAppear { focused = true }
+    }
+}
+
+// MARK: - Capture popup
+
+/// Offered after defeating a capturable wild creature. Catch it to add it to your
+/// collection (usable as a team member) or let it go.
+struct CapturePopup: View {
+    let creature: Hero
+    let onCapture: () -> Void
+    let onRelease: () -> Void
+
+    @State private var pop: CGFloat = 0.6
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.55).ignoresSafeArea()
+            VStack(spacing: 14) {
+                Text("A WILD \(creature.name.uppercased()) APPEARED!")
+                    .pixelText(size: 12, color: Color(hex: "FFD24D"))
+                    .multilineTextAlignment(.center)
+
+                Image(creature.asset)
+                    .resizable()
+                    .interpolation(.none)
+                    .scaledToFit()
+                    .frame(width: 92, height: 92)
+                    .padding(10)
+                    .background(creature.color.opacity(0.25))
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+
+                Text(creature.role.uppercased() + " · LV \(creature.level)")
+                    .pixelText(size: 9, color: Color(hex: "F4E6C0"))
+                Text(creature.lore)
+                    .font(.custom(MitoFont.regular, size: 14))
+                    .foregroundStyle(Color(hex: "E9D8B6"))
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+
+                HStack(spacing: 10) {
+                    Button(action: onRelease) {
+                        Text("LET GO")
+                            .pixelText(size: 12, color: Color(hex: "F4E6C0"))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 46)
+                            .background(Color(hex: "6B4324"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+
+                    Button(action: onCapture) {
+                        Text("✦ CAPTURE")
+                            .pixelText(size: 13, color: Color(hex: "1A130A"))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 46)
+                            .background(Color(hex: "FFD24D"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(20)
+            .frame(width: 290)
+            .background(Color(hex: "2A1B0E"))
+            .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 4))
+            .scaleEffect(pop)
+            .onAppear {
+                withAnimation(.spring(response: 0.35, dampingFraction: 0.6)) { pop = 1 }
+            }
+        }
+    }
+}
+
 struct CampaignStageSetup: View {
     let stage: Stage
     let decks: [Deck]
     @Binding var selectedDecks: Set<String>
     @Binding var selectedTags: Set<String>
+    @Binding var answerMode: AnswerMode
     let onBack: () -> Void
     let onStart: () -> Void
 
@@ -2350,6 +2841,8 @@ struct CampaignStageSetup: View {
 
                 TagFilterSection(availableTags: availableTags, selectedTags: $selectedTags)
 
+                AnswerModePicker(answerMode: $answerMode)
+
                 HStack {
                     Text("\(selectedDecks.count) \(selectedDecks.count == 1 ? "deck" : "decks") · \(selectedCount) cards")
                         .font(.custom(MitoFont.regular, size: 15))
@@ -2412,6 +2905,7 @@ struct EndlessReviewSetup: View {
     let decks: [Deck]
     @Binding var selectedDecks: Set<String>
     @Binding var selectedTags: Set<String>
+    @Binding var answerMode: AnswerMode
     let onBack: () -> Void
     let onStart: () -> Void
 
@@ -2483,6 +2977,8 @@ struct EndlessReviewSetup: View {
 
                 TagFilterSection(availableTags: availableTags, selectedTags: $selectedTags)
 
+                AnswerModePicker(answerMode: $answerMode)
+
                 HStack {
                     Text("\(selectedDecks.count) decks · \(selectedCount) cards")
                         .font(.custom(MitoFont.regular, size: 16))
@@ -2553,6 +3049,36 @@ struct EndlessReviewSetup: View {
 /// Shared, self-contained tag filter for the battle setup screens: a tidy
 /// bordered panel whose chips wrap (FlowLayout) and scroll independently when
 /// there are many tags, so it never bloats or leaves dead space.
+/// Lets the player choose how they answer cards this session: classic
+/// self-grade, multiple-choice, or type-in.
+struct AnswerModePicker: View {
+    @Binding var answerMode: AnswerMode
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("ANSWER MODE")
+                .pixelText(size: 10, color: Color(hex: "F4E6C0"))
+            HStack(spacing: 6) {
+                ForEach(AnswerMode.allCases, id: \.self) { mode in
+                    let on = mode == answerMode
+                    Button {
+                        answerMode = mode
+                        Haptics.tap()
+                    } label: {
+                        Text(mode.shortTitle)
+                            .pixelText(size: 10, color: on ? Color(hex: "1A130A") : Color(hex: "F4E6C0"))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 34)
+                            .background(on ? Color(hex: "FFD24D") : Color(hex: "6B4324"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+        }
+    }
+}
+
 struct TagFilterSection: View {
     let availableTags: [String]
     @Binding var selectedTags: Set<String>

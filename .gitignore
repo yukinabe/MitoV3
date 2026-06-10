@@ -6,3 +6,12 @@ xcuserdata/
 # Local Claude Code settings
 .claude/
 build/
+
+# Generated marketing video renders (kept on Desktop, not in git)
+*.mp4
+*.mov
+marketing_exports/reels/*.mp4
+
+# Local scratch / CLI cache
+tmp/
+supabase/.temp/

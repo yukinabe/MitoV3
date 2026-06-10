@@ -7,18 +7,50 @@ struct StudyWanderer: Identifiable {
     let start: CGPoint
     let seed: UInt64
 
-    static let all: [StudyWanderer] = [
-        StudyWanderer(id: "astro", asset: "hero-astrocyte-hop", size: 56, start: CGPoint(x: 0.13, y: 0.29), seed: 0xA517_0021),
-        StudyWanderer(id: "dendri", asset: "hero-dendritic-cell-hop", size: 56, start: CGPoint(x: 0.39, y: 0.38), seed: 0xD31D_0022),
-        StudyWanderer(id: "mito", asset: "hero-mito-hop", size: 62, start: CGPoint(x: 0.63, y: 0.43), seed: 0x4170_0023),
-        StudyWanderer(id: "chloro", asset: "hero-chloroplast-hop", size: 52, start: CGPoint(x: 0.31, y: 0.56), seed: 0xC410_0024),
-        StudyWanderer(id: "neuro", asset: "hero-neuron-hop", size: 52, start: CGPoint(x: 0.55, y: 0.66), seed: 0xE900_0025)
-    ]
+    /// Only the three heroes on the active team wander the study screen.
+    /// Starting positions are randomized per-appearance (see StudyWanderingCharacter).
+    static func forActiveTeam() -> [StudyWanderer] {
+        let sizes: [CGFloat] = [60, 54, 56]
+        return BattleRules.partyHeroes.enumerated().map { idx, hero in
+            StudyWanderer(
+                id: hero.id,
+                asset: hero.asset,
+                size: sizes[idx % sizes.count],
+                start: CGPoint(x: 0.30 + 0.20 * Double(idx), y: 0.40),
+                seed: stableSeed(hero.id)
+            )
+        }
+    }
 
     // Distinct-id copies used by the full-screen focus session so they never
     // collide with the home-screen wanderers in StudyCollisionRegistry.
-    static let focusSet: [StudyWanderer] = all.map {
-        StudyWanderer(id: $0.id + "-focus", asset: $0.asset, size: $0.size, start: $0.start, seed: $0.seed ^ 0x00F0_C500)
+    static func focusTeam() -> [StudyWanderer] {
+        forActiveTeam().map {
+            StudyWanderer(id: $0.id + "-focus", asset: $0.asset, size: $0.size, start: $0.start, seed: $0.seed ^ 0x00F0_C500)
+        }
+    }
+
+    /// Co-op: the characters belonging to OTHER lobby members, so a friend's
+    /// team wanders your home meadow while you study together.
+    static func forLobbyGuests(_ members: [LobbyPresence], myUserID: String) -> [StudyWanderer] {
+        var result: [StudyWanderer] = []
+        for member in members where member.userId != myUserID {
+            for (i, cid) in member.characterIds.prefix(3).enumerated() {
+                guard let hero = DataSet.heroes.first(where: { $0.id == cid }) ?? DataSet.capturable(id: cid)
+                else { continue }
+                result.append(StudyWanderer(
+                    id: "guest-\(member.userId)-\(cid)",
+                    asset: hero.asset,
+                    size: 48,
+                    start: CGPoint(x: 0.22 + 0.16 * Double(i), y: 0.58),
+                    seed: stableSeed(member.userId + cid)))
+            }
+        }
+        return result
+    }
+
+    private static func stableSeed(_ id: String) -> UInt64 {
+        id.unicodeScalars.reduce(UInt64(0xC0FFEE)) { ($0 &* 31) &+ UInt64($1.value) }
     }
 }
 
@@ -38,7 +70,10 @@ struct StudyWanderingCharacter: View {
     init(wanderer: StudyWanderer, canvasSize: CGSize) {
         self.wanderer = wanderer
         self.canvasSize = canvasSize
-        _position = State(initialValue: wanderer.start)
+        // Randomize the spawn each time the screen opens so characters never
+        // start in the same fixed spot.
+        var g = SeededGenerator(seed: wanderer.seed ^ UInt64(Date().timeIntervalSince1970 * 1000))
+        _position = State(initialValue: StudyWalkMap.randomWalkable(using: &g))
     }
 
     var body: some View {
@@ -74,7 +109,8 @@ struct StudyWanderingCharacter: View {
     private func runWanderLoop() async {
         let launchVariance = UInt64(Date().timeIntervalSinceReferenceDate * 1_000)
         var generator = SeededGenerator(seed: wanderer.seed ^ launchVariance)
-        position = StudyWalkMap.clampedWalkable(wanderer.start)
+        // Keep the randomized spawn from init — no snap back to a fixed start.
+        position = StudyWalkMap.clampedWalkable(position)
         isMoving = false
         frame = 0
         StudyCollisionRegistry.update(id: wanderer.id, position: position)
@@ -165,6 +201,18 @@ enum StudyWalkMap {
                 if isWalkable(candidate) { return candidate }
             }
             radius += 0.03
+        }
+        return CGPoint(x: 0.45, y: 0.50)
+    }
+
+    /// A random walkable point anywhere on the map (used for randomized spawns).
+    static func randomWalkable(using generator: inout SeededGenerator) -> CGPoint {
+        for _ in 0..<160 {
+            let candidate = CGPoint(
+                x: Double.random(in: walkBounds.minX...walkBounds.maxX, using: &generator),
+                y: Double.random(in: walkBounds.minY...walkBounds.maxY, using: &generator)
+            )
+            if isWalkable(candidate) { return candidate }
         }
         return CGPoint(x: 0.45, y: 0.50)
     }

@@ -324,6 +324,21 @@ struct CardsScreen: View {
         session.upsertContent(ReviewCard(id: resolvedID, deckID: deckID, deckName: name,
                                          front: cleanFront, back: cleanBack, tags: finalTags))
         refreshDeckMeta(deckID: deckID)
+
+        // Pre-generate multiple-choice distractors in the background so choice
+        // mode has AI-quality options ready next time (best-effort; offline-safe).
+        if backend.isReady {
+            let id = resolvedID
+            Task {
+                if let distractors = try? await backend.generateDistractors(
+                    cardID: id, correct: cleanBack), !distractors.isEmpty {
+                    try? await backend.updateCardChoices(id: id, choices: distractors)
+                    session.upsertContent(ReviewCard(id: id, deckID: deckID, deckName: name,
+                                                     front: cleanFront, back: cleanBack,
+                                                     tags: finalTags, choices: distractors))
+                }
+            }
+        }
     }
 
     /// Delete a card from the deck list, backend, and review session.

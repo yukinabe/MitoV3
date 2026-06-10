@@ -313,6 +313,10 @@ public struct ReviewCard: Identifiable, Codable, Equatable, Sendable {
     public var back: String
     public var tags: [String]
     public var sched: SchedulingState
+    /// Cached multiple-choice distractors (wrong answers only — the correct
+    /// answer is `back`). AI-generated once and persisted; nil/empty means none
+    /// generated yet, in which case the UI falls back to sibling-card answers.
+    public var choices: [String]?
 
     public init(
         id: UUID,
@@ -321,7 +325,8 @@ public struct ReviewCard: Identifiable, Codable, Equatable, Sendable {
         front: String,
         back: String,
         tags: [String] = [],
-        sched: SchedulingState = .newCard()
+        sched: SchedulingState = .newCard(),
+        choices: [String]? = nil
     ) {
         self.id = id
         self.deckID = deckID
@@ -330,6 +335,125 @@ public struct ReviewCard: Identifiable, Codable, Equatable, Sendable {
         self.back = back
         self.tags = tags
         self.sched = sched
+        self.choices = choices
+    }
+}
+
+// MARK: - Answer modes
+//
+// How the player answers a card in battle. All three modes converge on the same
+// FSRS `Rating` and feed `ReviewSession.grade(_:)` — only the way the rating is
+// *derived* differs.
+
+/// The way a card is answered during a battle/review session.
+public enum AnswerMode: String, CaseIterable, Codable, Sendable {
+    case classic        // reveal the answer, self-grade Again/Hard/Good/Easy
+    case multipleChoice // pick from AI-generated options; speed + correctness → rating
+    case typeIn         // type the answer; AI compares it to `back` → rating
+
+    public var title: String {
+        switch self {
+        case .classic: "CLASSIC"
+        case .multipleChoice: "MULTIPLE CHOICE"
+        case .typeIn: "TYPE ANSWER"
+        }
+    }
+
+    public var shortTitle: String {
+        switch self {
+        case .classic: "CLASSIC"
+        case .multipleChoice: "CHOICE"
+        case .typeIn: "TYPE"
+        }
+    }
+
+    public var icon: String {
+        switch self {
+        case .classic: "rectangle.on.rectangle"
+        case .multipleChoice: "list.bullet"
+        case .typeIn: "keyboard"
+        }
+    }
+}
+
+/// Behavioural signals captured while the player types an answer, sent to the AI
+/// grader as secondary evidence of recall confidence.
+public struct TypingSignals: Codable, Sendable {
+    public var elapsedMs: Int            // reveal → submit, total
+    public var timeToFirstKeystrokeMs: Int
+    public var deletions: Int            // backspaces / corrections
+    public var keystrokes: Int           // total characters typed (incl. deleted)
+
+    public init(elapsedMs: Int = 0, timeToFirstKeystrokeMs: Int = 0, deletions: Int = 0, keystrokes: Int = 0) {
+        self.elapsedMs = elapsedMs
+        self.timeToFirstKeystrokeMs = timeToFirstKeystrokeMs
+        self.deletions = deletions
+        self.keystrokes = keystrokes
+    }
+}
+
+/// First-pass, tunable mapping from answer performance to an FSRS `Rating`.
+/// Centralised so thresholds are easy to retune as we gather data.
+public enum AnswerGrading {
+    // Multiple-choice speed thresholds (seconds), applied only when correct.
+    public static let mcEasyUnderSeconds: Double = 3
+    public static let mcGoodUnderSeconds: Double = 7
+
+    /// Multiple-choice rating: a wrong pick is always `.again`; a correct pick is
+    /// graded by how quickly it was chosen.
+    public static func multipleChoiceRating(correct: Bool, elapsed: TimeInterval) -> Rating {
+        guard correct else { return .again }
+        if elapsed <= mcEasyUnderSeconds { return .easy }
+        if elapsed <= mcGoodUnderSeconds { return .good }
+        return .hard
+    }
+
+    /// Offline fallback for type-in mode when the AI grader is unavailable.
+    /// Normalises both strings and scores token-overlap similarity → a rating.
+    public static func localSimilarityRating(expected: String, answer: String) -> Rating {
+        let e = normalize(expected)
+        let a = normalize(answer)
+        guard !a.isEmpty else { return .again }
+        if e == a { return .easy }
+
+        let eTokens = Set(e.split(separator: " ").map(String.init))
+        let aTokens = Set(a.split(separator: " ").map(String.init))
+        guard !eTokens.isEmpty else { return a.contains(e) ? .good : .again }
+        let overlap = Double(eTokens.intersection(aTokens).count) / Double(eTokens.count)
+
+        switch overlap {
+        case 0.9...: return .easy
+        case 0.6..<0.9: return .good
+        case 0.3..<0.6: return .hard
+        default: return .again
+        }
+    }
+
+    /// Lowercase, strip punctuation/accents, collapse whitespace — so "F = m·a"
+    /// and "f=ma" compare sensibly.
+    public static func normalize(_ s: String) -> String {
+        let folded = s.folding(options: [.diacriticInsensitive, .caseInsensitive], locale: nil)
+        let kept = folded.unicodeScalars.map { scalar -> Character in
+            if CharacterSet.alphanumerics.contains(scalar) { return Character(scalar) }
+            return " "
+        }
+        return String(kept).split(separator: " ").joined(separator: " ")
+    }
+}
+
+/// UUID seed for the existing `SeededGenerator` (defined in PixelViews), so a
+/// card's multiple-choice options shuffle the same way every redraw instead of
+/// jumping around on each render. Derived from the UUID's bytes (not `Hasher`,
+/// which is randomized per process and would reshuffle across launches).
+extension SeededGenerator {
+    init(seed: UUID) {
+        let b = seed.uuid
+        let hi = UInt64(b.0) << 56 | UInt64(b.1) << 48 | UInt64(b.2) << 40 | UInt64(b.3) << 32
+               | UInt64(b.4) << 24 | UInt64(b.5) << 16 | UInt64(b.6) << 8 | UInt64(b.7)
+        let lo = UInt64(b.8) << 56 | UInt64(b.9) << 48 | UInt64(b.10) << 40 | UInt64(b.11) << 32
+               | UInt64(b.12) << 24 | UInt64(b.13) << 16 | UInt64(b.14) << 8 | UInt64(b.15)
+        let seed64 = hi ^ lo
+        self.init(seed: seed64 == 0 ? 0x9E37_79B9_7F4A_7C15 : seed64)
     }
 }
 
@@ -534,6 +658,13 @@ public final class ReviewSession: ObservableObject {
         persist()
         onPersist?(updated)
         advance()
+
+        // Engagement: every grade feeds the daily quest; clearing the due
+        // queue (or a solid 10-card run) keeps the daily streak alive.
+        DailyQuests.shared.noteCardReviewed()
+        if remainingDue == 0 || reviewedCount >= 10 {
+            StreakStore.shared.registerActivity()
+        }
         return result
     }
 

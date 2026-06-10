@@ -8,6 +8,7 @@ struct TeamScreen: View {
     @State private var selectedHeroID: String?
     @State private var infoHero: Hero?
     @State private var characterProgress: [String: CharacterProgress] = [:]
+    @ObservedObject private var captures = CaptureStore.shared
     private let maxPartySize = BattleRules.partySize
 
     /// Gold cost to level a hero, rising with its current level.
@@ -19,7 +20,7 @@ struct TeamScreen: View {
     }
 
     private var heroes: [Hero] {
-        DataSet.heroes.map { hero in
+        (DataSet.heroes + captures.capturedHeroes).map { hero in
             if let progress = characterProgress[hero.id] {
                 return hero.applying(progress)
             }
@@ -553,18 +554,6 @@ struct CharacterInfoModal: View {
                 .background(Color(hex: "F4E6C0"))
                 .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
 
-                VStack(alignment: .leading, spacing: 7) {
-                    Text("MOVES")
-                        .pixelText(size: 10, color: Color(hex: "8A6B42"))
-                    ForEach(hero.abilities) { ability in
-                        AbilityInfoRow(ability: ability)
-                    }
-                }
-                .padding(10)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(Color(hex: "F4E6C0"))
-                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-
                 HStack {
                     VStack(alignment: .leading, spacing: 4) {
                         Text("LEVEL UP")
@@ -600,6 +589,18 @@ struct CharacterInfoModal: View {
                 .padding(10)
                 .background(Color(hex: "F4E6C0"))
                 .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+
+                VStack(alignment: .leading, spacing: 7) {
+                    Text("MOVES")
+                        .pixelText(size: 10, color: Color(hex: "8A6B42"))
+                    ForEach(hero.abilities) { ability in
+                        AbilityInfoRow(ability: ability)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(Color(hex: "F4E6C0"))
+                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
             }
             .padding(13)
         }
@@ -628,8 +629,8 @@ struct AbilityInfoRow: View {
 
                 Spacer(minLength: 0)
 
-                Text("DMG \(ability.damage)")
-                    .pixelText(size: 7, color: Color(hex: "8A6B42"))
+                Text(ability.dealsDamage ? "DMG \(ability.damage)" : "SUPPORT")
+                    .pixelText(size: 7, color: ability.dealsDamage ? Color(hex: "8A6B42") : Color(hex: "3E7BB0"))
             }
 
             Text(ability.detail)

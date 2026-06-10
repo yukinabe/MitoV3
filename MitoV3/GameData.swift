@@ -122,8 +122,9 @@ struct BattleAbility: Identifiable, Equatable {
         switch animationKey {
         // Mito — energy & sustain
         case "mito-cristae-surge":
-            return [BuffGrant(kind: .shield, magnitude: 12, turns: 3),
-                    BuffGrant(kind: .heal, magnitude: 8, turns: 0)]
+            // No damage, so it shields + heals more to be worth a turn.
+            return [BuffGrant(kind: .shield, magnitude: 16, turns: 3),
+                    BuffGrant(kind: .heal, magnitude: 10, turns: 0)]
         case "mito-powerhouse-burst":
             return [BuffGrant(kind: .ultEnergy, magnitude: 1, turns: 0),
                     BuffGrant(kind: .attack, magnitude: 0.15, turns: 3)]
@@ -135,7 +136,8 @@ struct BattleAbility: Identifiable, Equatable {
                     BuffGrant(kind: .attack, magnitude: 0.10, turns: 3)]
         // Dendri — mark & attack
         case "dendri-present-antigen":
-            return [BuffGrant(kind: .mark, magnitude: 0.20, turns: 3)]
+            // No damage — a strong, longer Mark instead.
+            return [BuffGrant(kind: .mark, magnitude: 0.30, turns: 4)]
         case "dendri-immune-rally":
             return [BuffGrant(kind: .attack, magnitude: 0.20, turns: 3),
                     BuffGrant(kind: .mark, magnitude: 0.15, turns: 3)]
@@ -158,6 +160,9 @@ struct BattleAbility: Identifiable, Equatable {
 
     /// Whether casting this applies any team buff (drives the aura/hop visuals).
     var isTeamBuff: Bool { !grants.isEmpty || Self.teamBuffKeys.contains(animationKey) }
+
+    /// Pure-support abilities (damage 0) don't strike the enemy at all.
+    var dealsDamage: Bool { damage > 0 }
 
     /// Skills go on cooldown for this many of the hero's own turns after use.
     /// Basics are free; ultimates are gated by energy instead.
@@ -280,7 +285,7 @@ enum BattleAbilityBook {
         case "mito":
             return [
                 BattleAbility(id: "mito-atp-tap", name: "ATP Tap", kind: .basic, damage: 18, detail: "A free ATP spark keeps pressure on the enemy while Mito saves energy for support turns.", theme: "ATP / energy", animationKey: "spark", color: Color(hex: "F48FB1"), energyCost: nil, ultimateChargeRequired: nil),
-                BattleAbility(id: "mito-cristae-surge", name: "Cristae Surge", kind: .skill, damage: 20, detail: "Mito releases an ATP pulse that recharges the team and wraps allies in a small energy shield.", theme: "ATP support / shield", animationKey: "mito-cristae-surge", color: Color(hex: "FFD24D"), energyCost: 2, ultimateChargeRequired: nil),
+                BattleAbility(id: "mito-cristae-surge", name: "Cristae Surge", kind: .skill, damage: 0, detail: "Pure support — no attack. Shields the whole team and restores a little HP.", theme: "ATP support / shield", animationKey: "mito-cristae-surge", color: Color(hex: "FFD24D"), energyCost: 2, ultimateChargeRequired: nil),
                 BattleAbility(id: "mito-powerhouse-burst", name: "Powerhouse Burst", kind: .ultimate, damage: 34, detail: "Mito floods the field with ATP, stabilizing the whole team and turning stored focus into one safe burst.", theme: "ATP support / team sustain", animationKey: "mito-powerhouse-burst", color: Color(hex: "E77878"), energyCost: nil, ultimateChargeRequired: 4)
             ]
         case "cloro":
@@ -292,25 +297,25 @@ enum BattleAbilityBook {
         case "astro":
             return [
                 BattleAbility(id: "astro-calcium-ping", name: "Calcium Ping", kind: .basic, damage: 16, detail: "A small support signal pings the target without slowing review down.", theme: "Neural support / network", animationKey: "pulse", color: Color(hex: "A98FD0"), energyCost: nil, ultimateChargeRequired: nil),
-                BattleAbility(id: "astro-synapse-buffer", name: "Synapse Buffer", kind: .skill, damage: 24, detail: "Astro steadies the field with a glial support pulse and light damage.", theme: "Neural support / network", animationKey: "astro-synapse-buffer", color: Color(hex: "C7A6F2"), energyCost: 2, ultimateChargeRequired: nil),
+                BattleAbility(id: "astro-synapse-buffer", name: "Synapse Buffer", kind: .skill, damage: 14, detail: "A glial pulse: light damage plus a team Speed boost.", theme: "Neural support / network", animationKey: "astro-synapse-buffer", color: Color(hex: "C7A6F2"), energyCost: 2, ultimateChargeRequired: nil),
                 BattleAbility(id: "astro-glial-network", name: "Glial Network", kind: .ultimate, damage: 40, detail: "A star-shaped network lights up, supporting the team while striking back.", theme: "Neural support / network", animationKey: "astro-glial-network", color: Color(hex: "8B6BD9"), energyCost: nil, ultimateChargeRequired: 4)
             ]
         case "dendri":
             return [
                 BattleAbility(id: "dendri-scout-prick", name: "Scout Prick", kind: .basic, damage: 16, detail: "A quick immune scout jab marks the enemy's position visually.", theme: "Immune scouting / antigen", animationKey: "jab", color: Color(hex: "E8C64A"), energyCost: nil, ultimateChargeRequired: nil),
-                BattleAbility(id: "dendri-present-antigen", name: "Present Antigen", kind: .skill, damage: 26, detail: "Dendri presents the threat, setting up a sharper support strike.", theme: "Immune scouting / antigen", animationKey: "dendri-present-antigen", color: Color(hex: "F2D85B"), energyCost: 2, ultimateChargeRequired: nil),
+                BattleAbility(id: "dendri-present-antigen", name: "Present Antigen", kind: .skill, damage: 0, detail: "No attack — marks the enemy so the whole team hits it harder.", theme: "Immune scouting / antigen", animationKey: "dendri-present-antigen", color: Color(hex: "F2D85B"), energyCost: 2, ultimateChargeRequired: nil),
                 BattleAbility(id: "dendri-immune-rally", name: "Immune Rally", kind: .ultimate, damage: 42, detail: "A focused immune call turns one spotted target into team momentum.", theme: "Immune scouting / antigen", animationKey: "dendri-immune-rally", color: Color(hex: "D7A72F"), energyCost: nil, ultimateChargeRequired: 4)
             ]
         case "neuro":
             return [
                 BattleAbility(id: "neuro-axon-zap", name: "Axon Zap", kind: .basic, damage: 18, detail: "A free electrical signal snaps forward from Neuro's axon.", theme: "Electric / signal", animationKey: "zap", color: Color(hex: "5FA3D4"), energyCost: nil, ultimateChargeRequired: nil),
-                BattleAbility(id: "neuro-myelin-guard", name: "Myelin Guard", kind: .skill, damage: 24, detail: "A protected signal absorbs pressure while Neuro pushes damage back.", theme: "Electric / signal", animationKey: "neuro-myelin-guard", color: Color(hex: "7EB9F0"), energyCost: 2, ultimateChargeRequired: nil),
+                BattleAbility(id: "neuro-myelin-guard", name: "Myelin Guard", kind: .skill, damage: 20, detail: "Pushes damage back while raising the team's defense (less recoil).", theme: "Electric / signal", animationKey: "neuro-myelin-guard", color: Color(hex: "7EB9F0"), energyCost: 2, ultimateChargeRequired: nil),
                 BattleAbility(id: "neuro-synaptic-overload", name: "Synaptic Overload", kind: .ultimate, damage: 44, detail: "Neuro releases a heavy chain of signals for a tank-style finisher.", theme: "Electric / signal", animationKey: "neuro-synaptic-overload", color: Color(hex: "4D7FD4"), energyCost: nil, ultimateChargeRequired: 4)
             ]
         case "bcell":
             return [
                 BattleAbility(id: "bcell-antibody-tap", name: "Antibody Tap", kind: .basic, damage: 15, detail: "A tiny antibody projectile tags the enemy with steady support damage.", theme: "Immune / antibody", animationKey: "projectile", color: Color(hex: "F4C6B8"), energyCost: nil, ultimateChargeRequired: nil),
-                BattleAbility(id: "bcell-affinity-shield", name: "Affinity Shield", kind: .skill, damage: 22, detail: "B Cell refines its response, creating shield-flavored pressure.", theme: "Immune / antibody", animationKey: "bcell-affinity-shield", color: Color(hex: "F0AFA4"), energyCost: 2, ultimateChargeRequired: nil),
+                BattleAbility(id: "bcell-affinity-shield", name: "Affinity Shield", kind: .skill, damage: 14, detail: "A light antibody jab that also shields the team.", theme: "Immune / antibody", animationKey: "bcell-affinity-shield", color: Color(hex: "F0AFA4"), energyCost: 2, ultimateChargeRequired: nil),
                 BattleAbility(id: "bcell-memory-response", name: "Memory Response", kind: .ultimate, damage: 38, detail: "A remembered immune response surges back as a reliable support ultimate.", theme: "Immune / antibody", animationKey: "bcell-memory-response", color: Color(hex: "E8877C"), energyCost: nil, ultimateChargeRequired: 4)
             ]
         default:
@@ -458,5 +463,52 @@ enum BattleRules {
 
         let ids = overrideIDs?.isEmpty == false ? overrideIDs! : defaultParty
         return ids.prefix(partySize).compactMap { id in DataSet.heroes.first { $0.id == id } }
+    }
+}
+
+// MARK: - Capturable wild creatures + ownership
+
+extension DataSet {
+    /// Wild creatures that show up as enemies in campaign/endless and can be
+    /// captured on defeat. They start UNOWNED (the base heroes are always owned),
+    /// so they're purely additive collectibles. They use the default ability set
+    /// (BattleAbilityBook handles unknown ids) and existing mob art.
+    static let capturables: [Hero] = [
+        Hero(id: "wild-mutagem", asset: "mob_1", name: "Mutagem", role: "DPS", level: 10, hp: 40, attack: 21, defense: 10, speed: 105, color: Color(hex: "A98FD0"), lore: "A mutated gem-spore that drifts through endless review. Capturing one binds its restless energy to your team."),
+        Hero(id: "wild-spikevyrus", asset: "mob_1", name: "Spikevyrus", role: "Tank", level: 12, hp: 54, attack: 15, defense: 20, speed: 90, color: Color(hex: "5FA3D4"), lore: "A spike-shelled virus boss from the campaign depths. Stubborn, sturdy, and surprisingly loyal once captured."),
+        Hero(id: "wild-cytocrawler", asset: "mob_0", name: "Cytocrawler", role: "DPS", level: 9, hp: 36, attack: 23, defense: 8, speed: 118, color: Color(hex: "E8C64A"), lore: "A fast cytoplasmic crawler that skitters between waves. Rare, twitchy, and a brutal attacker.")
+    ]
+
+    static func capturable(id: String) -> Hero? { capturables.first { $0.id == id } }
+}
+
+/// Persistent set of captured-creature ids. Base heroes are always owned; this
+/// only tracks the extra `DataSet.capturables` the player has caught.
+@MainActor
+final class CaptureStore: ObservableObject {
+    static let shared = CaptureStore()
+    private let key = "captured.creatures"
+
+    @Published private(set) var owned: Set<String>
+
+    private init() {
+        let saved = UserDefaults.standard.stringArray(forKey: key) ?? []
+        owned = Set(saved)
+    }
+
+    func isOwned(_ id: String) -> Bool { owned.contains(id) }
+
+    /// Capture a creature. Returns false if it was already owned.
+    @discardableResult
+    func capture(_ id: String) -> Bool {
+        guard !owned.contains(id) else { return false }
+        owned.insert(id)
+        UserDefaults.standard.set(Array(owned), forKey: key)
+        return true
+    }
+
+    /// Captured creatures as usable Hero records, for the collection/team screen.
+    var capturedHeroes: [Hero] {
+        DataSet.capturables.filter { owned.contains($0.id) }
     }
 }
