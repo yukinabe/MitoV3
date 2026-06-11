@@ -4,11 +4,17 @@ struct TeamScreen: View {
     @Binding var atp: Int
     @Binding var gold: Int
     @Binding var biomass: Int
-    @State private var activePartySlots: [String?] = BattleRules.defaultParty.map { Optional($0) }
+    @State private var activePartySlots: [String?] = {
+        // Seed from the persisted global party, padded to the fixed slot count.
+        var slots = BattleRules.activePartyIDs.map { Optional($0) }
+        while slots.count < BattleRules.partySize { slots.append(nil) }
+        return slots
+    }()
     @State private var selectedHeroID: String?
     @State private var infoHero: Hero?
     @State private var characterProgress: [String: CharacterProgress] = [:]
     @ObservedObject private var captures = CaptureStore.shared
+    @ObservedObject private var party = PartyStore.shared
     private let maxPartySize = BattleRules.partySize
 
     /// Gold cost to level a hero, rising with its current level.
@@ -229,6 +235,8 @@ struct TeamScreen: View {
             activePartySlots[emptyIndex] = hero.id
         }
         selectedHeroID = nil
+        // Persist globally so study + battle + meadow immediately reflect it.
+        party.setParty(activePartySlots.compactMap { $0 })
     }
 
     private func loadCharacterProgress() async {

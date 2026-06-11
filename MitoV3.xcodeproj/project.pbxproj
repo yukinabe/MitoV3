@@ -31,6 +31,7 @@
 		1000000000000000000000B1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B0 /* PrivacyInfo.xcprivacy */; };
 		1000000000000000000000B3 /* Engagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B2 /* Engagement.swift */; };
 		1000000000000000000000B5 /* FocusLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B4 /* FocusLock.swift */; };
+		1000000000000000000000B7 /* Classes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B6 /* Classes.swift */; };
 		1000000000000000000000C5 /* MitoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000C1 /* MitoWidget.swift */; };
 		1000000000000000000000C6 /* MitoWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000C0 /* MitoWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
@@ -60,6 +61,7 @@
 		1000000000000000000000B0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1000000000000000000000B2 /* Engagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engagement.swift; sourceTree = "<group>"; };
 		1000000000000000000000B4 /* FocusLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusLock.swift; sourceTree = "<group>"; };
+		1000000000000000000000B6 /* Classes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Classes.swift; sourceTree = "<group>"; };
 		1000000000000000000000C0 /* MitoWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MitoWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		1000000000000000000000C1 /* MitoWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoWidget.swift; sourceTree = "<group>"; };
 		1000000000000000000000C2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -139,6 +141,7 @@
 				1000000000000000000000A4 /* Haptics.swift */,
 				1000000000000000000000B2 /* Engagement.swift */,
 				1000000000000000000000B4 /* FocusLock.swift */,
+				1000000000000000000000B6 /* Classes.swift */,
 				10000000000000000000001A /* Assets.xcassets */,
 				1000000000000000000000A6 /* Sounds */,
 				10000000000000000000001C /* Silkscreen-Regular.ttf */,
@@ -309,6 +312,7 @@
 				1000000000000000000000A5 /* Haptics.swift in Sources */,
 				1000000000000000000000B3 /* Engagement.swift in Sources */,
 				1000000000000000000000B5 /* FocusLock.swift in Sources */,
+				1000000000000000000000B7 /* Classes.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

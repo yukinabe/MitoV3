@@ -10,11 +10,13 @@ struct HomeScreen: View {
     @State private var showingSettings = false
     @State private var showingAuth = false
     @State private var showingFriends = false
+    @State private var showingClasses = false
     @State private var showingStreak = false
     @State private var showingQuests = false
     @ObservedObject private var lobby = LobbyService.shared
     @ObservedObject private var streak = StreakStore.shared
     @ObservedObject private var quests = DailyQuests.shared
+    @ObservedObject private var party = PartyStore.shared
 
     var body: some View {
         GeometryReader { proxy in
@@ -77,6 +79,19 @@ struct HomeScreen: View {
                         .accessibilityLabel("Daily quests: \(quests.completedCount) of 3 done")
 
                         Spacer()
+                        Button {
+                            showingClasses = true
+                        } label: {
+                            Image(systemName: "graduationcap.fill")
+                                .font(.system(size: 14, weight: .black))
+                                .foregroundStyle(Color(hex: "F4E6C0"))
+                                .frame(width: 38, height: 34)
+                                .background(Color(hex: "4A8A3C"))
+                                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Classes")
+
                         Button {
                             showingFriends = true
                         } label: {
@@ -185,6 +200,12 @@ struct HomeScreen: View {
 
                 if showingFriends {
                     FriendsView(backend: backend, isPresented: $showingFriends)
+                        .zIndex(8)
+                        .transition(.opacity)
+                }
+
+                if showingClasses {
+                    ClassesView(backend: backend, isPresented: $showingClasses)
                         .zIndex(8)
                         .transition(.opacity)
                 }

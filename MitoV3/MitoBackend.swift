@@ -83,6 +83,23 @@ final class MitoBackend: ObservableObject {
 
     @Published private(set) var isReady = false
     @Published private(set) var lastError: String?
+    /// The email of the signed-in account, or nil when anonymous / offline.
+    /// Drives the "signed in as…" UI so a real login is distinguishable from
+    /// the silent anonymous session that backs offline play.
+    @Published private(set) var accountEmail: String?
+
+    /// True only for a real (email) account — NOT the anonymous session.
+    var isLoggedIn: Bool { accountEmail != nil }
+
+    /// Sync `accountEmail` from the current Supabase user (anonymous → nil).
+    private func refreshAccountState() {
+        let user = client.auth.currentUser
+        if let user, user.isAnonymous == false, let email = user.email, !email.isEmpty {
+            accountEmail = email
+        } else {
+            accountEmail = nil
+        }
+    }
 
     private init() {
         // IMPORTANT: supabase-swift defaults to Keychain session storage, which
@@ -109,6 +126,7 @@ final class MitoBackend: ObservableObject {
             try? await upsertProfile(for: session.user.id, displayName: "Mito Scholar")
             isReady = true
             lastError = nil
+            refreshAccountState()
         } catch {
             // No stored session yet — open a silent anonymous one so cloud save
             // works without forcing a login. If anonymous auth is disabled on
@@ -131,6 +149,7 @@ final class MitoBackend: ObservableObject {
             try await upsertProfile(for: current.id, displayName: displayName)
             isReady = true
             lastError = nil
+            refreshAccountState()
             return
         }
 
@@ -140,6 +159,7 @@ final class MitoBackend: ObservableObject {
             isReady = true
             lastError = nil
         }
+        refreshAccountState()
     }
 
     func signIn(email: String, password: String, displayName: String = "Mito Scholar") async throws {
@@ -148,6 +168,7 @@ final class MitoBackend: ObservableObject {
         try await upsertProfile(for: session.user.id, displayName: displayName)
         isReady = true
         lastError = nil
+        refreshAccountState()
     }
 
     func signInAnonymously(displayName: String = "Mito Scholar") async throws {
@@ -157,11 +178,16 @@ final class MitoBackend: ObservableObject {
         try? await upsertProfile(for: session.user.id, displayName: displayName)
         isReady = true
         lastError = nil
+        refreshAccountState()
     }
 
     func signOut() async throws {
         try await client.auth.signOut()
         isReady = false
+        accountEmail = nil
+        // Re-open a silent anonymous session so offline play + local sync keep
+        // working after logout (matches first-launch behaviour).
+        try? await signInAnonymously()
     }
 
     /// Permanently delete the signed-in account and all server-side data
@@ -174,6 +200,7 @@ final class MitoBackend: ObservableObject {
         try await client.rpc("delete_account").execute()
         try? await client.auth.signOut(scope: .local)
         isReady = false
+        accountEmail = nil
     }
 
     func recordStudySession(mode: String, durationMinutes: Int, completed: Bool, focusEnergy: Int, coins: Int, gems: Int) async throws {
@@ -390,6 +417,71 @@ final class MitoBackend: ObservableObject {
     func fetchLeague() async throws -> [LeagueRow] {
         _ = try await authenticatedSession()
         return try await client.rpc("get_friend_league").execute().value
+    }
+
+    // MARK: - Classes (study groups + shared decks)
+    //
+    // Backed by supabase/migrations/0013_classes.sql. Every call is a
+    // security-definer RPC that enforces membership server-side; the free-tier
+    // caps (join 3 / create 1) are enforced client-side against Mito+.
+
+    /// All classes I'm a member of, with member counts.
+    func fetchMyClasses() async throws -> [ClassRecord] {
+        _ = try await authenticatedSession()
+        return try await client.rpc("get_my_classes").execute().value
+    }
+
+    /// Create a class and become its owner. Returns the new class + join code.
+    func createClass(name: String) async throws -> CreatedClass {
+        _ = try await authenticatedSession()
+        let rows: [CreatedClass] = try await client
+            .rpc("create_class", params: ["p_name": name]).execute().value
+        guard let first = rows.first else { throw MitoBackendError.noResult }
+        return first
+    }
+
+    /// Join a class by code. Returns nil if no class has that code.
+    func joinClass(code: String) async throws -> JoinedClass? {
+        _ = try await authenticatedSession()
+        let rows: [JoinedClass] = try await client
+            .rpc("join_class", params: ["p_code": code.uppercased()]).execute().value
+        return rows.first
+    }
+
+    /// Leave a class (owner leaving deletes it).
+    func leaveClass(_ id: UUID) async throws {
+        _ = try await authenticatedSession()
+        try await client.rpc("leave_class", params: ["p_class_id": id.uuidString]).execute()
+    }
+
+    /// Roster of a class I belong to.
+    func fetchClassRoster(_ id: UUID) async throws -> [ClassRosterEntry] {
+        _ = try await authenticatedSession()
+        return try await client
+            .rpc("get_class_roster", params: ["p_class_id": id.uuidString]).execute().value
+    }
+
+    /// Shared decks in a class I belong to.
+    func fetchClassDecks(_ id: UUID) async throws -> [ClassDeckRecord] {
+        _ = try await authenticatedSession()
+        return try await client
+            .rpc("get_class_decks", params: ["p_class_id": id.uuidString]).execute().value
+    }
+
+    /// Cards of a shared class deck (for preview / copying).
+    func fetchClassDeckCards(_ classDeckID: UUID) async throws -> [ClassCardRecord] {
+        _ = try await authenticatedSession()
+        return try await client
+            .rpc("get_class_deck_cards", params: ["p_class_deck_id": classDeckID.uuidString])
+            .execute().value
+    }
+
+    /// Snapshot one of my decks into a class for everyone to copy.
+    @discardableResult
+    func shareDeckToClass(classID: UUID, name: String, cards: [ClassCardPayload]) async throws -> UUID {
+        _ = try await authenticatedSession()
+        let params = ShareDeckParams(p_class_id: classID.uuidString, p_name: name, p_cards: cards)
+        return try await client.rpc("share_deck_to_class", params: params).execute().value
     }
 
     /// All my relationships with names + status + direction (get_friends RPC).
@@ -767,13 +859,80 @@ final class MitoBackend: ObservableObject {
 
 enum MitoBackendError: LocalizedError {
     case missingSession
+    case noResult
 
     var errorDescription: String? {
         switch self {
         case .missingSession:
             "No Supabase session is active. Sign in before writing backend data."
+        case .noResult:
+            "The server returned no result."
         }
     }
+}
+
+// MARK: - Classes models
+
+/// A class I belong to (get_my_classes RPC).
+struct ClassRecord: Decodable, Identifiable {
+    let id: UUID
+    let code: String
+    let name: String
+    let owner: UUID?
+    let member_count: Int
+    let is_owner: Bool
+}
+
+/// Result of create_class.
+struct CreatedClass: Decodable {
+    let id: UUID
+    let code: String
+    let name: String
+}
+
+/// Result of join_class.
+struct JoinedClass: Decodable {
+    let id: UUID
+    let name: String
+}
+
+/// One member in a class roster (get_class_roster RPC).
+struct ClassRosterEntry: Decodable, Identifiable {
+    let user_id: UUID
+    let display_name: String?
+    let role: String
+    var id: UUID { user_id }
+    var displayName: String { display_name ?? "Scholar" }
+    var isOwner: Bool { role == "owner" }
+}
+
+/// A deck shared into a class (get_class_decks RPC).
+struct ClassDeckRecord: Decodable, Identifiable {
+    let id: UUID
+    let name: String
+    let shared_by_name: String?
+    let card_count: Int
+    var sharedBy: String { shared_by_name ?? "Scholar" }
+}
+
+/// One card of a shared class deck (get_class_deck_cards RPC).
+struct ClassCardRecord: Decodable {
+    let front: String
+    let back: String
+    let tags: [String]
+}
+
+/// One card sent up when sharing a deck into a class.
+struct ClassCardPayload: Encodable {
+    let front: String
+    let back: String
+    let tags: [String]
+}
+
+private struct ShareDeckParams: Encodable {
+    let p_class_id: String
+    let p_name: String
+    let p_cards: [ClassCardPayload]
 }
 
 struct MitoDeckRecord: Decodable, Identifiable {

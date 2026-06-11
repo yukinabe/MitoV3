@@ -189,9 +189,10 @@ struct AuthSheet: View {
                 VStack(alignment: .leading, spacing: 4) {
                     Text("ACCOUNT")
                         .pixelText(size: 17, color: Color(hex: "3A2A18"))
-                    Text(backend.isReady ? "Cloud save connected." : "Sign in to sync decks and progress.")
+                    Text(accountSubtitle)
                         .font(.custom(MitoFont.regular, size: 13))
                         .foregroundStyle(Color(hex: "6B4324"))
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 Spacer()
                 Button {
@@ -205,23 +206,25 @@ struct AuthSheet: View {
                 .buttonStyle(.plain)
             }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("EMAIL")
-                    .pixelText(size: 9, color: Color(hex: "6B4324"))
-                TextField("you@example.com", text: $email)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled(true)
-                    .keyboardType(.emailAddress)
-                    .authInputStyle()
-            }
+            if !backend.isLoggedIn {
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("EMAIL")
+                        .pixelText(size: 9, color: Color(hex: "6B4324"))
+                    TextField("you@example.com", text: $email)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .keyboardType(.emailAddress)
+                        .authInputStyle()
+                }
 
-            VStack(alignment: .leading, spacing: 6) {
-                Text("PASSWORD")
-                    .pixelText(size: 9, color: Color(hex: "6B4324"))
-                SecureField("minimum 6 characters", text: $password)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled(true)
-                    .authInputStyle()
+                VStack(alignment: .leading, spacing: 6) {
+                    Text("PASSWORD")
+                        .pixelText(size: 9, color: Color(hex: "6B4324"))
+                    SecureField("minimum 6 characters", text: $password)
+                        .textInputAutocapitalization(.never)
+                        .autocorrectionDisabled(true)
+                        .authInputStyle()
+                }
             }
 
             if !message.isEmpty {
@@ -231,35 +234,37 @@ struct AuthSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
-            HStack(spacing: 10) {
-                Button {
-                    Task { await submit(.signIn) }
-                } label: {
-                    Text(isWorking ? "..." : "SIGN IN")
-                        .pixelText(size: 11, color: Color(hex: "F4E6C0"))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(canSubmit ? Color(hex: "4A8A3C") : Color(hex: "8A8A70"))
-                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-                }
-                .buttonStyle(.plain)
-                .disabled(!canSubmit)
+            if !backend.isLoggedIn {
+                HStack(spacing: 10) {
+                    Button {
+                        Task { await submit(.signIn) }
+                    } label: {
+                        Text(isWorking ? "..." : "SIGN IN")
+                            .pixelText(size: 11, color: Color(hex: "F4E6C0"))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(canSubmit ? Color(hex: "4A8A3C") : Color(hex: "8A8A70"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canSubmit)
 
-                Button {
-                    Task { await submit(.signUp) }
-                } label: {
-                    Text("SIGN UP")
-                        .pixelText(size: 11, color: Color(hex: "18100A"))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                        .background(canSubmit ? Color(hex: "F7C943") : Color(hex: "B89868"))
-                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    Button {
+                        Task { await submit(.signUp) }
+                    } label: {
+                        Text("SIGN UP")
+                            .pixelText(size: 11, color: Color(hex: "18100A"))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(canSubmit ? Color(hex: "F7C943") : Color(hex: "B89868"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!canSubmit)
                 }
-                .buttonStyle(.plain)
-                .disabled(!canSubmit)
             }
 
-            if backend.isReady {
+            if backend.isLoggedIn {
                 Button {
                     Task { await signOut() }
                 } label: {
@@ -301,6 +306,13 @@ struct AuthSheet: View {
 
     private var canSubmit: Bool {
         !isWorking && email.contains("@") && password.count >= 6
+    }
+
+    private var accountSubtitle: String {
+        if let email = backend.accountEmail {
+            return "Signed in as \(email)"
+        }
+        return "Sign in to sync your decks and progress across devices."
     }
 
     private func submit(_ action: AuthAction) async {
@@ -468,9 +480,11 @@ struct GeneralSettingsSheet: View {
 
             VStack(spacing: 8) {
                 SettingsActionRow(
-                    title: backend.isReady ? "ACCOUNT SYNCED" : "LOGIN",
-                    detail: backend.isReady ? "Manage cloud save account." : "Sign in to sync decks and progress.",
-                    value: backend.isReady ? "OPEN" : "SIGN IN",
+                    title: backend.isLoggedIn ? "ACCOUNT" : "LOGIN",
+                    detail: backend.isLoggedIn
+                        ? "Signed in as \(backend.accountEmail ?? "you") · sign out or delete"
+                        : "Sign in to sync decks and progress.",
+                    value: backend.isLoggedIn ? "MANAGE" : "SIGN IN",
                     action: showAuth
                 )
 

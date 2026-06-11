@@ -122,7 +122,11 @@ struct BattleScreen: View {
     /// How the player answers cards this session (classic / multiple-choice /
     /// type-in). Chosen on the setup screens; persisted for convenience.
     @AppStorage("battle.answerMode") private var answerModeRaw = AnswerMode.classic.rawValue
-    private var answerMode: AnswerMode { AnswerMode(rawValue: answerModeRaw) ?? .classic }
+    private var answerMode: AnswerMode {
+        let mode = AnswerMode(rawValue: answerModeRaw) ?? .classic
+        // Multiple-choice was retired; anyone who had it saved falls back.
+        return AnswerMode.selectable.contains(mode) ? mode : .classic
+    }
     @ObservedObject private var session = ReviewSession.shared
     /// A capturable wild creature offered after defeating it (campaign/endless).
     @State private var captureOffer: Hero?
@@ -1067,6 +1071,8 @@ struct BattleCombatView: View {
     @State private var enemyDying = false
     @State private var enemyDeathScale: CGFloat = 1
     @State private var enemyDeathSpin: Double = 0
+    @State private var enemyEnterY: CGFloat = 0       // next enemy drops/fades in
+    @State private var enemyEnterOpacity: Double = 1
     @State private var enemyBreath: CGFloat = 1        // idle breathing
     @State private var effectAbility: BattleAbility?
     @State private var showAbilityEffect = false
@@ -1449,8 +1455,23 @@ struct BattleCombatView: View {
 
         // --- Brief freeze, then the visual reaction lands ---
         DispatchQueue.main.asyncAfter(deadline: .now() + hitStop) {
-            // HP bar drains; chip bar trails behind for readable damage size.
-            if mobHP < displayedMobHP {
+            if enemyDied, mode == .endless {
+                // Death beat: empty the bar on the dying enemy, then bring the
+                // next one in. Purely visual — mobHP is already the new enemy,
+                // so the review loop keeps going and a fast answer just lands on
+                // the incoming foe.
+                withAnimation(.easeOut(duration: 0.16)) {
+                    displayedMobHP = 0
+                    displayedMobHPChip = 0
+                }
+                let incomingHP = mobHP
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) {
+                    displayedMobHP = incomingHP
+                    displayedMobHPChip = incomingHP
+                    playEnemyEnter()
+                }
+            } else if mobHP < displayedMobHP {
+                // HP bar drains; chip bar trails behind for readable damage size.
                 withAnimation(.easeOut(duration: 0.30)) { displayedMobHP = mobHP }
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
                     withAnimation(.easeOut(duration: 0.45)) { displayedMobHPChip = mobHP }
@@ -1506,18 +1527,32 @@ struct BattleCombatView: View {
 
     private func playEnemyDeath() {
         AudioManager.shared.play(.enemyDeath)
+        Haptics.success()
         enemyDying = true
         enemyDeathScale = 1
         enemyDeathSpin = 0
-        withAnimation(.easeIn(duration: 0.42)) {
+        // Shrink + spin + fade — the "pop" of a kill.
+        withAnimation(.easeIn(duration: 0.38)) {
             enemyDeathScale = 0.02
             enemyDeathSpin = 220
         }
-        // In endless a fresh enemy slides in: reset the death visual after.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.46) {
+        // Reset the death transform once it's offscreen. The enemy-enter
+        // animation (endless) takes over opacity/offset from here.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) {
             enemyDying = false
             enemyDeathScale = 1
             enemyDeathSpin = 0
+        }
+    }
+
+    /// The next enemy drops in and fades up after the previous one dies
+    /// (endless). Spring-settled so it feels like an arrival, not a pop.
+    private func playEnemyEnter() {
+        enemyEnterY = -46
+        enemyEnterOpacity = 0
+        withAnimation(.spring(response: 0.40, dampingFraction: 0.7)) {
+            enemyEnterY = 0
+            enemyEnterOpacity = 1
         }
     }
 
@@ -1713,8 +1748,8 @@ struct BattleCombatView: View {
                     )
                     .scaleEffect(enemyHitScale * enemyBreath * enemyDeathScale)
                     .rotationEffect(.degrees(enemyDeathSpin))
-                    .opacity(enemyDying ? Double(Swift.max(enemyDeathScale, 0)) : 1)
-                    .offset(x: enemyShakeX)
+                    .opacity(enemyDying ? Double(Swift.max(enemyDeathScale, 0)) : enemyEnterOpacity)
+                    .offset(x: enemyShakeX, y: enemyEnterY)
 
                 ForEach(floatingDamages) { dmg in
                     DamageNumberView(damage: dmg)
@@ -3059,7 +3094,7 @@ struct AnswerModePicker: View {
             Text("ANSWER MODE")
                 .pixelText(size: 10, color: Color(hex: "F4E6C0"))
             HStack(spacing: 6) {
-                ForEach(AnswerMode.allCases, id: \.self) { mode in
+                ForEach(AnswerMode.selectable, id: \.self) { mode in
                     let on = mode == answerMode
                     Button {
                         answerMode = mode

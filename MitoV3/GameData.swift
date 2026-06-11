@@ -448,21 +448,49 @@ enum BattleScaling {
 enum BattleRules {
     static let partySize = 3
     static let defaultParty = ["mito", "cloro", "neuro"]
+    /// UserDefaults key for the player's persisted active party (see PartyStore).
+    static let partyDefaultsKey = "party.active"
 
-    /// The active party as Hero records, in defaultParty order.
-    static var partyHeroes: [Hero] {
+    /// The player's active party IDs — persisted so the Team screen, study
+    /// meadow, and both battle modes always agree. A `-uitestTeam=` launch arg
+    /// still overrides it for screenshot/UI-test runs.
+    static var activePartyIDs: [String] {
         let launchArgs = ProcessInfo.processInfo.arguments
-        let overrideIDs: [String]? = launchArgs
-            .first { $0.hasPrefix("-uitestTeam=") }
-            .map { arg in
-                String(arg.dropFirst("-uitestTeam=".count))
-                    .split(separator: ",")
-                    .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
-                    .filter { !$0.isEmpty }
-            }
+        if let arg = launchArgs.first(where: { $0.hasPrefix("-uitestTeam=") }) {
+            let ids = String(arg.dropFirst("-uitestTeam=".count))
+                .split(separator: ",")
+                .map { String($0).trimmingCharacters(in: .whitespacesAndNewlines) }
+                .filter { !$0.isEmpty }
+            if !ids.isEmpty { return Array(ids.prefix(partySize)) }
+        }
+        let saved = UserDefaults.standard.stringArray(forKey: partyDefaultsKey) ?? []
+        let ids = saved.isEmpty ? defaultParty : saved
+        return Array(ids.prefix(partySize))
+    }
 
-        let ids = overrideIDs?.isEmpty == false ? overrideIDs! : defaultParty
-        return ids.prefix(partySize).compactMap { id in DataSet.heroes.first { $0.id == id } }
+    /// The active party as Hero records (base + captured creatures), in order.
+    static var partyHeroes: [Hero] {
+        let pool = DataSet.heroes + DataSet.capturables
+        return activePartyIDs.compactMap { id in pool.first { $0.id == id } }
+    }
+}
+
+/// Observable wrapper over the persisted active party so SwiftUI screens (Team,
+/// home meadow) refresh the instant the roster changes. Battle reads the same
+/// values straight from `BattleRules` at launch, so all three stay in sync.
+@MainActor
+final class PartyStore: ObservableObject {
+    static let shared = PartyStore()
+
+    @Published private(set) var partyIDs: [String] = BattleRules.activePartyIDs
+
+    private init() {}
+
+    /// Replace the active party (capped at partySize) and persist it.
+    func setParty(_ ids: [String]) {
+        let trimmed = Array(ids.prefix(BattleRules.partySize))
+        UserDefaults.standard.set(trimmed, forKey: BattleRules.partyDefaultsKey)
+        partyIDs = trimmed
     }
 }
 

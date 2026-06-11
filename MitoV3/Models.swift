@@ -348,14 +348,19 @@ public struct ReviewCard: Identifiable, Codable, Equatable, Sendable {
 /// The way a card is answered during a battle/review session.
 public enum AnswerMode: String, CaseIterable, Codable, Sendable {
     case classic        // reveal the answer, self-grade Again/Hard/Good/Easy
-    case multipleChoice // pick from AI-generated options; speed + correctness → rating
-    case typeIn         // type the answer; AI compares it to `back` → rating
+    case multipleChoice // RETIRED: kept for back-compat with saved prefs; not selectable
+    case typeIn         // "Quiz": type the answer; AI compares it to `back` → rating
+
+    /// Modes the player can actually pick. Multiple-choice was retired (long
+    /// answers didn't fit), so only two ship; the enum case stays for decoding
+    /// any previously-saved preference, which falls back to `.classic`.
+    public static var selectable: [AnswerMode] { [.classic, .typeIn] }
 
     public var title: String {
         switch self {
         case .classic: "CLASSIC"
         case .multipleChoice: "MULTIPLE CHOICE"
-        case .typeIn: "TYPE ANSWER"
+        case .typeIn: "QUIZ"
         }
     }
 
@@ -363,7 +368,7 @@ public enum AnswerMode: String, CaseIterable, Codable, Sendable {
         switch self {
         case .classic: "CLASSIC"
         case .multipleChoice: "CHOICE"
-        case .typeIn: "TYPE"
+        case .typeIn: "QUIZ"
         }
     }
 
