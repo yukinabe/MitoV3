@@ -537,24 +537,50 @@ public final class ReviewSession: ObservableObject {
 
     /// Merge backend cards into the pool. When `authoritative` (a real cloud
     /// load), the bundled starter cards are dropped so they don't duplicate the
-    /// user's own cloud decks. Locally-persisted scheduling is preserved.
+    /// user's own cloud decks. For each card we keep whichever FSRS schedule was
+    /// reviewed most recently, so studying on another device (fresher cloud
+    /// `card_states`) is never clobbered by stale local JSON — and offline local
+    /// progress not yet pushed up isn't lost either.
     public func ingest(_ remote: [ReviewCard], authoritative: Bool = false) {
         if authoritative {
-            // The backend is the source of truth: keep only remote cards,
-            // carrying over each card's local schedule by id. This drops the
-            // bundled seeds and anything deleted on the backend.
             var rebuilt: [UUID: ReviewCard] = [:]
             for var c in remote {
-                if let local = cards[c.id] { c.sched = local.sched }
+                if let local = cards[c.id], Self.localScheduleIsFresher(local.sched, than: c.sched) {
+                    c.sched = local.sched
+                }
                 rebuilt[c.id] = c
             }
             cards = rebuilt
         } else {
             for var c in remote {
-                if let local = cards[c.id] { c.sched = local.sched }
+                if let local = cards[c.id], Self.localScheduleIsFresher(local.sched, than: c.sched) {
+                    c.sched = local.sched
+                }
                 cards[c.id] = c
             }
         }
+        persist()
+        catalogVersion += 1
+    }
+
+    /// True when `local` reflects a more recent review than `remote` (so it
+    /// should win the merge). Never-reviewed schedules count as oldest.
+    private static func localScheduleIsFresher(_ local: SchedulingState, than remote: SchedulingState) -> Bool {
+        (local.lastReview ?? .distantPast) > (remote.lastReview ?? .distantPast)
+    }
+
+    /// Wipe all locally-stored study content + scheduling (account deletion /
+    /// privacy "delete means delete"). Reseeds the bundled starter cards so the
+    /// app isn't left empty for the anonymous session that follows.
+    public func wipeForAccountDeletion() {
+        cards = [:]
+        queue = []
+        current = nil
+        reviewedCount = 0
+        remainingDue = 0
+        lastResult = nil
+        try? FileManager.default.removeItem(at: storeURL)
+        for c in SeedContent.cards { cards[c.id] = c }
         persist()
         catalogVersion += 1
     }

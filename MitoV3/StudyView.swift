@@ -17,6 +17,7 @@ struct HomeScreen: View {
     @ObservedObject private var streak = StreakStore.shared
     @ObservedObject private var quests = DailyQuests.shared
     @ObservedObject private var party = PartyStore.shared
+    @AppStorage("settings.animations") private var animationsEnabled = true
 
     var body: some View {
         GeometryReader { proxy in
@@ -30,7 +31,7 @@ struct HomeScreen: View {
 
                 // Hidden while a focus session is active so their wander tasks
                 // pause and the session's own characters own the registry.
-                if sessionMode == nil {
+                if sessionMode == nil && animationsEnabled {
                     ForEach(StudyWanderer.forActiveTeam()) { wanderer in
                         StudyWanderingCharacter(wanderer: wanderer, canvasSize: proxy.size)
                     }

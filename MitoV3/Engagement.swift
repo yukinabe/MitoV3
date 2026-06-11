@@ -104,6 +104,13 @@ final class StreakStore: ObservableObject {
         defaults.set(freezes, forKey: "streak.freezes")
         defaults.set(lastActiveDay, forKey: "streak.lastDay")
     }
+
+    /// Wipe streak state (account deletion / privacy).
+    func reset() {
+        count = 0; best = 0; freezes = 0; lastActiveDay = ""
+        save()
+        WidgetBridge.sync()
+    }
 }
 
 // MARK: - Daily quests
@@ -192,6 +199,13 @@ final class DailyQuests: ObservableObject {
         defaults.set(reviewsDone, forKey: "quests.reviews")
         defaults.set(battleWon, forKey: "quests.battle")
         defaults.set(chestClaimed, forKey: "quests.chest")
+    }
+
+    /// Wipe daily-quest state (account deletion / privacy).
+    func reset() {
+        day = ""; focusDone = false; reviewsDone = 0; battleWon = false; chestClaimed = false
+        save()
+        WidgetBridge.sync()
     }
 }
 

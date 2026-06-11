@@ -201,6 +201,14 @@ final class MitoBackend: ObservableObject {
         try? await client.auth.signOut(scope: .local)
         isReady = false
         accountEmail = nil
+        // Privacy — "delete means delete": clear all on-device state too, not
+        // just the server account. (Wallet bindings are reset by ContentView
+        // when it observes the account going away.)
+        ReviewSession.shared.wipeForAccountDeletion()
+        StreakStore.shared.reset()
+        DailyQuests.shared.reset()
+        CaptureStore.shared.reset()
+        PartyStore.shared.reset()
     }
 
     func recordStudySession(mode: String, durationMinutes: Int, completed: Bool, focusEnergy: Int, coins: Int, gems: Int) async throws {

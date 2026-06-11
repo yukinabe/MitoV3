@@ -143,6 +143,19 @@ struct ContentView: View {
                 break
             }
         }
+        .onChange(of: backend.accountEmail) { old, new in
+            // Signing into a real account → pull THAT account's cloud wallet +
+            // decks. Signing out / deleting → drop the previous account's
+            // currency from the UI so it isn't shown to the next (anon) user.
+            Task {
+                if new != nil {
+                    await backend.attachSync(to: .shared)
+                    await loadWallet()
+                } else if old != nil {
+                    atp = 0; gold = 0; gems = 0; biomass = 0; shards = 0
+                }
+            }
+        }
         .onChange(of: atp) { _, _ in scheduleWalletSave() }
         .onChange(of: gold) { _, _ in scheduleWalletSave() }
         .onChange(of: gems) { _, _ in scheduleWalletSave() }
@@ -454,7 +467,7 @@ struct GeneralSettingsSheet: View {
 
     @AppStorage("audio.sfx") private var soundEnabled = true
     @AppStorage("audio.music") private var musicEnabled = true
-    @State private var animationsEnabled = true
+    @AppStorage("settings.animations") private var animationsEnabled = true
     @ObservedObject private var lock = FocusLockManager.shared
     @State private var showingAppPicker = false
     #if os(iOS)

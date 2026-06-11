@@ -492,6 +492,12 @@ final class PartyStore: ObservableObject {
         UserDefaults.standard.set(trimmed, forKey: BattleRules.partyDefaultsKey)
         partyIDs = trimmed
     }
+
+    /// Reset to the default party (account deletion / privacy).
+    func reset() {
+        UserDefaults.standard.removeObject(forKey: BattleRules.partyDefaultsKey)
+        partyIDs = BattleRules.defaultParty
+    }
 }
 
 // MARK: - Capturable wild creatures + ownership
@@ -533,6 +539,12 @@ final class CaptureStore: ObservableObject {
         owned.insert(id)
         UserDefaults.standard.set(Array(owned), forKey: key)
         return true
+    }
+
+    /// Clear all captured creatures (account deletion / privacy).
+    func reset() {
+        owned = []
+        UserDefaults.standard.removeObject(forKey: key)
     }
 
     /// Captured creatures as usable Hero records, for the collection/team screen.
