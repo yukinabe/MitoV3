@@ -15,6 +15,7 @@ struct CardsScreen: View {
     @State private var didDeepLink = false
     @State private var showingImport = false
     @State private var importDeckID: String?   // nil = import into a new deck
+    @State private var showDeckLimit = false
 
     var body: some View {
         GeometryReader { proxy in
@@ -84,6 +85,11 @@ struct CardsScreen: View {
                 }
             }
             .task(id: backend.isReady) { await loadLibrary() }
+            .alert("Deck limit reached", isPresented: $showDeckLimit) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("Free accounts keep up to \(DeckLimits.free) decks. Unlock Mito+ for unlimited decks — every deck stays available offline either way.")
+            }
             .onAppear {
                 #if DEBUG
                 if !didDeepLink, ProcessInfo.processInfo.arguments.contains("-uitestImport") {
@@ -111,6 +117,9 @@ struct CardsScreen: View {
                         .minimumScaleFactor(0.7)
                     Spacer(minLength: 0)
                     Button {
+                        guard DeckLimits.canCreate(currentCount: decks.count) else {
+                            showDeckLimit = true; return
+                        }
                         importDeckID = nil
                         showingImport = true
                     } label: {
@@ -123,6 +132,9 @@ struct CardsScreen: View {
                     }
                     .buttonStyle(.plain)
                     Button {
+                        guard DeckLimits.canCreate(currentCount: decks.count) else {
+                            showDeckLimit = true; return
+                        }
                         newDeckName = ""
                         showingNewDeck = true
                     } label: {
@@ -222,6 +234,7 @@ struct CardsScreen: View {
 
     /// Create a deck on the backend (or locally when offline), then open it.
     private func createDeck(named name: String) async {
+        guard DeckLimits.canCreate(currentCount: decks.count) else { showDeckLimit = true; return }
         var deckID = UUID().uuidString
         if backend.isReady, let record = try? await backend.createDeck(named: name) {
             deckID = record.id.uuidString
@@ -237,6 +250,7 @@ struct CardsScreen: View {
     /// Create a deck (cloud when signed in) and return its id, without routing.
     private func makeDeck(named name: String) async -> String {
         var deckID = UUID().uuidString
+        // Note: callers gate on DeckLimits before reaching here (IMPORT button).
         if backend.isReady, let record = try? await backend.createDeck(named: name) {
             deckID = record.id.uuidString
         }

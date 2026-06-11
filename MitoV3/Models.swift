@@ -473,6 +473,19 @@ public struct DeckSummary: Identifiable, Equatable, Sendable {
     public let tags: [String]
 }
 
+/// Free-tier deck cap. Mito+ removes it. Every deck stays fully offline — the
+/// gate is on how many decks you can keep, never on offline access (the app is
+/// deliberately offline-first for everyone).
+public enum DeckLimits {
+    public static let free = 10
+
+    /// Whether another deck can be created given the current count + Mito+ flag.
+    @MainActor public static func canCreate(currentCount: Int) -> Bool {
+        let premium = UserDefaults.standard.bool(forKey: "premium.social")
+        return premium || currentCount < free
+    }
+}
+
 /// The starter content shipped with the app so the review loop has real,
 /// scheduled cards from first launch (before any backend decks exist).
 /// Stable UUIDs keep scheduling state attached across relaunches.

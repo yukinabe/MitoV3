@@ -335,6 +335,12 @@ struct ClassDetailView: View {
 
     private func copyDeck(_ deck: ClassDeckRecord) async {
         working = true; defer { working = false }
+        // Copying adds a deck to the player's own collection, so it counts
+        // against the free deck cap.
+        guard DeckLimits.canCreate(currentCount: session.deckSummaries.count) else {
+            message = "Deck limit reached (\(DeckLimits.free) free). Unlock Mito+ for unlimited decks."
+            return
+        }
         guard let cards = try? await backend.fetchClassDeckCards(deck.id), !cards.isEmpty else {
             message = "Couldn't copy — deck was empty."; return
         }

@@ -18,13 +18,14 @@ struct ContentView: View {
         #endif
         return .home
     }()
-    // Players start empty and earn their way up; the real values load from the
-    // profile wallet once signed in (see loadWallet).
-    @State private var atp = 0
-    @State private var gold = 0
-    @State private var gems = 0
-    @State private var biomass = 0
-    @State private var shards = 0
+    // Wallet is persisted locally (@AppStorage) so currency survives offline play
+    // and relaunches with no connection; the cloud is a backup/sync that's
+    // merged in via loadWallet (max-wins, so offline gains are never lost).
+    @AppStorage("wallet.atp") private var atp = 0
+    @AppStorage("wallet.gold") private var gold = 0
+    @AppStorage("wallet.gems") private var gems = 0
+    @AppStorage("wallet.biomass") private var biomass = 0
+    @AppStorage("wallet.shards") private var shards = 0
     @State private var walletSaveTask: Task<Void, Never>?
     @Environment(\.scenePhase) private var scenePhase
     @AppStorage("mito.admitted") private var admitted = false
@@ -163,10 +164,18 @@ struct ContentView: View {
         .onChange(of: shards) { _, _ in scheduleWalletSave() }
     }
 
-    /// Pull the persisted wallet once signed in; no-ops offline / pre-migration.
+    /// Merge the cloud wallet into the local one. Offline-first: the local
+    /// (@AppStorage) balance is the working copy, so we take the max of each
+    /// currency — cloud progress from another device is pulled in, and coins
+    /// earned offline (cloud is lower) are kept and pushed back up on change.
+    /// No-ops cleanly offline / pre-migration, leaving the local wallet intact.
     private func loadWallet() async {
         guard backend.isReady, let w = try? await backend.fetchWallet() else { return }
-        atp = w.atp; gold = w.gold; gems = w.gems; biomass = w.biomass; shards = w.shards
+        atp = max(atp, w.atp)
+        gold = max(gold, w.gold)
+        gems = max(gems, w.gems)
+        biomass = max(biomass, w.biomass)
+        shards = max(shards, w.shards)
     }
 
     /// Debounced wallet persist — coalesces rapid reward/spend changes into one
