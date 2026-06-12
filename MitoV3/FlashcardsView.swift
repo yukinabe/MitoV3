@@ -234,6 +234,9 @@ struct CardsScreen: View {
 
     /// Create a deck on the backend (or locally when offline), then open it.
     private func createDeck(named name: String) async {
+        if DeckLimits.wouldExceedFree(currentCount: decks.count) {
+            await backend.logEvent("cap_would_block", props: ["cap": "deck", "count": "\(decks.count)"])
+        }
         guard DeckLimits.canCreate(currentCount: decks.count) else { showDeckLimit = true; return }
         var deckID = UUID().uuidString
         if backend.isReady, let record = try? await backend.createDeck(named: name) {
@@ -249,6 +252,9 @@ struct CardsScreen: View {
 
     /// Create a deck (cloud when signed in) and return its id, without routing.
     private func makeDeck(named name: String) async -> String {
+        if DeckLimits.wouldExceedFree(currentCount: decks.count) {
+            await backend.logEvent("cap_would_block", props: ["cap": "deck", "count": "\(decks.count)"])
+        }
         var deckID = UUID().uuidString
         // Note: callers gate on DeckLimits before reaching here (IMPORT button).
         if backend.isReady, let record = try? await backend.createDeck(named: name) {

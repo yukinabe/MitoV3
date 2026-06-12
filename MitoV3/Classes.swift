@@ -28,7 +28,6 @@ struct ClassesView: View {
     @ObservedObject var backend: MitoBackend
     @Binding var isPresented: Bool
 
-    @AppStorage("premium.social") private var premium = false
     @State private var classes: [ClassRecord] = []
     @State private var newName = ""
     @State private var joinCode = ""
@@ -37,8 +36,8 @@ struct ClassesView: View {
     @State private var selected: ClassRecord?
 
     private var ownedCount: Int { classes.filter(\.is_owner).count }
-    private var canCreate: Bool { premium || ownedCount < ClassLimits.freeCreate }
-    private var canJoin: Bool { premium || classes.count < ClassLimits.freeJoin }
+    private var canCreate: Bool { BetaConfig.premiumActive || ownedCount < ClassLimits.freeCreate }
+    private var canJoin: Bool { BetaConfig.premiumActive || classes.count < ClassLimits.freeJoin }
 
     var body: some View {
         ZStack {
@@ -170,6 +169,11 @@ struct ClassesView: View {
     private func create() async {
         let name = newName.trimmingCharacters(in: .whitespaces)
         guard canCreate, name.count >= 2 else { message = "Enter a class name."; return }
+        // Beta: caps aren't enforced, but log where they WOULD bite so we learn
+        // the friction point without blocking testers.
+        if ownedCount >= ClassLimits.freeCreate {
+            await backend.logEvent("cap_would_block", props: ["cap": "class_create", "count": "\(ownedCount)"])
+        }
         do {
             _ = try await backend.createClass(name: name)
             newName = ""; message = ""
@@ -180,6 +184,9 @@ struct ClassesView: View {
     private func join() async {
         let code = joinCode.trimmingCharacters(in: .whitespaces).uppercased()
         guard canJoin, code.count >= 4 else { message = "Enter a class code."; return }
+        if classes.count >= ClassLimits.freeJoin {
+            await backend.logEvent("cap_would_block", props: ["cap": "class_join", "count": "\(classes.count)"])
+        }
         do {
             if let joined = try await backend.joinClass(code: code) {
                 message = "Joined \(joined.name)."
@@ -337,6 +344,9 @@ struct ClassDetailView: View {
         working = true; defer { working = false }
         // Copying adds a deck to the player's own collection, so it counts
         // against the free deck cap.
+        if DeckLimits.wouldExceedFree(currentCount: session.deckSummaries.count) {
+            await backend.logEvent("cap_would_block", props: ["cap": "deck", "count": "\(session.deckSummaries.count)"])
+        }
         guard DeckLimits.canCreate(currentCount: session.deckSummaries.count) else {
             message = "Deck limit reached (\(DeckLimits.free) free). Unlock Mito+ for unlimited decks."
             return

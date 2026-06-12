@@ -479,10 +479,16 @@ public struct DeckSummary: Identifiable, Equatable, Sendable {
 public enum DeckLimits {
     public static let free = 10
 
-    /// Whether another deck can be created given the current count + Mito+ flag.
+    /// Whether another deck can be created given the current count + Mito+.
     @MainActor public static func canCreate(currentCount: Int) -> Bool {
-        let premium = UserDefaults.standard.bool(forKey: "premium.social")
-        return premium || currentCount < free
+        BetaConfig.premiumActive || currentCount < free
+    }
+
+    /// True when this would be over the FREE cap regardless of beta/premium —
+    /// used to log where the cap *would* bite, so we learn the friction point
+    /// during the beta without actually blocking testers.
+    public static func wouldExceedFree(currentCount: Int) -> Bool {
+        currentCount >= free
     }
 }
 

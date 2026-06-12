@@ -16,4 +16,11 @@ enum BetaConfig {
     /// where the friction lands without a wall. Flip to `false` at paid launch
     /// and wire RevenueCat.
     static let premiumFreeForBeta = true
+
+    /// The effective Mito+ state: unlocked for everyone during the beta, else
+    /// the real (dev-unlock / future RevenueCat) flag. Every premium gate reads
+    /// this so flipping `premiumFreeForBeta` to false at paid launch is one edit.
+    static var premiumActive: Bool {
+        premiumFreeForBeta || UserDefaults.standard.bool(forKey: "premium.social")
+    }
 }

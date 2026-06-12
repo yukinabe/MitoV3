@@ -1104,7 +1104,7 @@ struct FriendsView: View {
                 }
                 .padding(.bottom, 10)
 
-                if !premium {
+                if !BetaConfig.premiumActive {
                     paywall
                 } else if !backend.isReady {
                     Text("Sign in (Settings → Login) to use friends and co-op.")
@@ -1306,7 +1306,7 @@ struct FriendsView: View {
     }
 
     private func load() async {
-        guard premium, backend.isReady, !loading else { return }
+        guard BetaConfig.premiumActive, backend.isReady, !loading else { return }
         loading = true; defer { loading = false }
         myCode = (try? await backend.myFriendCode()) ?? "—"
         friends = (try? await backend.fetchFriends()) ?? []
