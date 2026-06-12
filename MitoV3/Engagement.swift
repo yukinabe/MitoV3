@@ -225,22 +225,40 @@ extension ReviewSession {
 ///   • tomorrow 09:00 — how many cards will be due ("your team is waiting")
 ///   • tonight 20:30 — streak-save, only if the streak is alive and unfed today
 @MainActor
-final class NotificationManager {
+final class NotificationManager: ObservableObject {
     static let shared = NotificationManager()
     private let center = UNUserNotificationCenter.current()
     private let defaults = UserDefaults.standard
 
+    /// Drives the in-app priming screen shown before the OS permission dialog.
+    @Published var showPrimer = false
+
     private init() {}
 
-    /// Ask exactly once, right after the first completed session — the moment
-    /// the user has something to lose.
+    /// Called once after the first completed session. Instead of firing the
+    /// system dialog directly (a reflexive "Don't Allow" would kill due-card
+    /// reminders forever), show our own priming screen first — the actual OS
+    /// request only happens if the user opts in there.
     func requestPermissionIfNeeded() {
         guard !defaults.bool(forKey: "notif.requested") else { return }
+        showPrimer = true
+    }
+
+    /// User tapped "Enable" on the primer → now ask the system.
+    func confirmPrimer() {
         defaults.set(true, forKey: "notif.requested")
+        showPrimer = false
         Task {
             let granted = (try? await center.requestAuthorization(options: [.alert, .sound, .badge])) ?? false
             if granted { reschedule() }
         }
+    }
+
+    /// User declined the primer → don't ask again (they can still enable it in
+    /// iOS Settings later).
+    func dismissPrimer() {
+        defaults.set(true, forKey: "notif.requested")
+        showPrimer = false
     }
 
     /// Replace all pending nudges with fresh ones based on current state.

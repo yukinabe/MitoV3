@@ -28,6 +28,7 @@ struct ContentView: View {
     @AppStorage("wallet.shards") private var shards = 0
     @State private var walletSaveTask: Task<Void, Never>?
     @Environment(\.scenePhase) private var scenePhase
+    @ObservedObject private var notifications = NotificationManager.shared
     @AppStorage("mito.admitted") private var admitted = false
     @AppStorage("mito.onboarded") private var onboarded = false
     @AppStorage("mito.tutorialSeen") private var tutorialSeen = false
@@ -81,8 +82,21 @@ struct ContentView: View {
                     selectedTab = .home
                 }
             }
+
+            // Notification priming — shown after the first session completes,
+            // before the OS permission dialog (revealed once the session sheet
+            // dismisses, since it lives below it here).
+            if notifications.showPrimer {
+                NotificationPrimerView(
+                    onEnable: { notifications.confirmPrimer() },
+                    onSkip: { notifications.dismissPrimer() }
+                )
+                .transition(.opacity)
+                .zIndex(50)
+            }
         }
         .preferredColorScheme(.dark)
+        .animation(.easeOut(duration: 0.2), value: notifications.showPrimer)
     }
 
     private var appShell: some View {
@@ -191,6 +205,51 @@ struct ContentView: View {
                 atp: snapshot.0, gold: snapshot.1, gems: snapshot.2,
                 biomass: snapshot.3, shards: snapshot.4
             )
+        }
+    }
+}
+
+/// Priming screen shown before the OS notification dialog, so a reflexive
+/// "Don't Allow" doesn't permanently kill due-card + streak reminders.
+struct NotificationPrimerView: View {
+    let onEnable: () -> Void
+    let onSkip: () -> Void
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.72).ignoresSafeArea()
+
+            VStack(spacing: 14) {
+                Text("🔔").font(.system(size: 40))
+                Text("STAY ON TRACK")
+                    .pixelText(size: 17, color: Color(hex: "3A2A18"))
+                Text("Mito can remind you when your cards are due and when your streak is about to break. Just the two nudges — no spam.")
+                    .font(.custom(MitoFont.regular, size: 14))
+                    .foregroundStyle(Color(hex: "6B4324"))
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                Button(action: onEnable) {
+                    Text("ENABLE REMINDERS")
+                        .pixelText(size: 12, color: Color(hex: "F4E6C0"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 13)
+                        .background(Color(hex: "4A8A3C"))
+                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                }
+                .buttonStyle(.plain)
+
+                Button(action: onSkip) {
+                    Text("NOT NOW")
+                        .pixelText(size: 10, color: Color(hex: "6B4324"))
+                        .padding(.vertical, 6)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(22)
+            .frame(width: 300)
+            .background(Color(hex: "EAD4A4"))
+            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
         }
     }
 }
@@ -1226,7 +1285,10 @@ struct FriendsView: View {
                 }
 
                 sectionHeader("FRIENDS (\(accepted.count))")
-                if accepted.isEmpty {
+                if loading && friends.isEmpty {
+                    HStack { Spacer(); ProgressView().tint(Color(hex: "6B4324")); Spacer() }
+                        .padding(.vertical, 6)
+                } else if accepted.isEmpty {
                     Text("No friends yet — share your code above.")
                         .font(.custom(MitoFont.regular, size: 13))
                         .foregroundStyle(Color(hex: "6B4324"))

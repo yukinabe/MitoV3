@@ -139,7 +139,9 @@ struct ClassesView: View {
 
     @ViewBuilder private var myClassesSection: some View {
         Text("MY CLASSES (\(classes.count))").pixelText(size: 10, color: cInk).padding(.top, 2)
-        if classes.isEmpty {
+        if loading && classes.isEmpty {
+            HStack { Spacer(); ProgressView().tint(cBark); Spacer() }.padding(.vertical, 6)
+        } else if classes.isEmpty {
             Text("No classes yet — create one or join with a code.")
                 .font(.custom(MitoFont.regular, size: 13)).foregroundStyle(cBark)
         }
