@@ -522,19 +522,23 @@ struct GeneralSettingsSheet: View {
                     detail: "Leaving Mito during a timed session voids the run.",
                     isOn: $lock.softLockEnabled)
                 #if os(iOS)
-                SettingsToggleRow(
-                    title: "BLOCK APPS",
-                    detail: "Shield distracting apps with Screen Time during focus. Needs permission.",
-                    isOn: $lock.shieldEnabled)
-                if lock.shieldEnabled {
-                    SettingsActionRow(
-                        title: "CHOOSE BLOCKED APPS",
-                        detail: "\(FocusBlockSelection.count()) app group(s) blocked during focus.",
-                        value: "PICK",
-                        action: {
-                            lock.requestShieldAuthorization()
-                            showingAppPicker = true
-                        })
+                // The OS-level app shield is hidden until the Family Controls
+                // entitlement is granted (see BetaConfig.appShieldEnabled).
+                if BetaConfig.appShieldEnabled {
+                    SettingsToggleRow(
+                        title: "BLOCK APPS",
+                        detail: "Shield distracting apps with Screen Time during focus. Needs permission.",
+                        isOn: $lock.shieldEnabled)
+                    if lock.shieldEnabled {
+                        SettingsActionRow(
+                            title: "CHOOSE BLOCKED APPS",
+                            detail: "\(FocusBlockSelection.count()) app group(s) blocked during focus.",
+                            value: "PICK",
+                            action: {
+                                lock.requestShieldAuthorization()
+                                showingAppPicker = true
+                            })
+                    }
                 }
                 #endif
             }

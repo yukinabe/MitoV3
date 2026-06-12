@@ -14,27 +14,52 @@
 		100000000000000000000005 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000015 /* ContentView.swift */; };
 		100000000000000000000006 /* StudyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000016 /* StudyView.swift */; };
 		100000000000000000000007 /* BattleView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000017 /* BattleView.swift */; };
-		100000000000000000000033 /* GameData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000034 /* GameData.swift */; };
-		100000000000000000000035 /* ShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000036 /* ShopView.swift */; };
-		100000000000000000000097 /* zstddeclib.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000096 /* zstddeclib.c */; };
 		100000000000000000000008 /* FlashcardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000018 /* FlashcardsView.swift */; };
 		100000000000000000000009 /* CollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000019 /* CollectionView.swift */; };
 		10000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001A /* Assets.xcassets */; };
+		10000000000000000000000D /* Fonts/Silkscreen-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001C /* Fonts/Silkscreen-Regular.ttf */; };
+		10000000000000000000000E /* Fonts/Silkscreen-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001D /* Fonts/Silkscreen-Bold.ttf */; };
+		10000000000000000000000F /* Fonts/PixelifySans.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001E /* Fonts/PixelifySans.ttf */; };
+		100000000000000000000010 /* MitoBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001F /* MitoBackend.swift */; };
+		100000000000000000000033 /* GameData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000034 /* GameData.swift */; };
+		100000000000000000000035 /* ShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000036 /* ShopView.swift */; };
+		100000000000000000000092 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000091 /* Supabase */; };
+		100000000000000000000097 /* Vendor/zstd/zstddeclib.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000096 /* Vendor/zstd/zstddeclib.c */; };
 		1000000000000000000000A3 /* AudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A2 /* AudioManager.swift */; };
 		1000000000000000000000A5 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A4 /* Haptics.swift */; };
 		1000000000000000000000A7 /* Sounds in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A6 /* Sounds */; };
-		10000000000000000000000D /* Silkscreen-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001C /* Silkscreen-Regular.ttf */; };
-		10000000000000000000000E /* Silkscreen-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001D /* Silkscreen-Bold.ttf */; };
-		10000000000000000000000F /* PixelifySans.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001E /* PixelifySans.ttf */; };
-		100000000000000000000010 /* MitoBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001F /* MitoBackend.swift */; };
-		100000000000000000000092 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000091 /* Supabase */; };
 		1000000000000000000000B1 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B0 /* PrivacyInfo.xcprivacy */; };
 		1000000000000000000000B3 /* Engagement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B2 /* Engagement.swift */; };
 		1000000000000000000000B5 /* FocusLock.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B4 /* FocusLock.swift */; };
 		1000000000000000000000B7 /* Classes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B6 /* Classes.swift */; };
+		1000000000000000000000B9 /* BetaConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B8 /* BetaConfig.swift */; };
 		1000000000000000000000C5 /* MitoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000C1 /* MitoWidget.swift */; };
 		1000000000000000000000C6 /* MitoWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000C0 /* MitoWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		1000000000000000000000CF /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 100000000000000000000041 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 1000000000000000000000CA;
+			remoteInfo = MitoWidget;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		1000000000000000000000D0 /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				1000000000000000000000C6 /* MitoWidget.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
 		10000000000000000000000B /* MitoV3.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = MitoV3.app; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -45,23 +70,24 @@
 		100000000000000000000015 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
 		100000000000000000000016 /* StudyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StudyView.swift; sourceTree = "<group>"; };
 		100000000000000000000017 /* BattleView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BattleView.swift; sourceTree = "<group>"; };
-		100000000000000000000034 /* GameData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameData.swift; sourceTree = "<group>"; };
-		100000000000000000000036 /* ShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShopView.swift; sourceTree = "<group>"; };
-		100000000000000000000096 /* zstddeclib.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = "Vendor/zstd/zstddeclib.c"; sourceTree = "<group>"; };
 		100000000000000000000018 /* FlashcardsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardsView.swift; sourceTree = "<group>"; };
 		100000000000000000000019 /* CollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionView.swift; sourceTree = "<group>"; };
 		10000000000000000000001A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		10000000000000000000001C /* Fonts/Silkscreen-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Regular.ttf"; sourceTree = "<group>"; };
+		10000000000000000000001D /* Fonts/Silkscreen-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Bold.ttf"; sourceTree = "<group>"; };
+		10000000000000000000001E /* Fonts/PixelifySans.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/PixelifySans.ttf; sourceTree = "<group>"; };
+		10000000000000000000001F /* MitoBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoBackend.swift; sourceTree = "<group>"; };
+		100000000000000000000034 /* GameData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameData.swift; sourceTree = "<group>"; };
+		100000000000000000000036 /* ShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShopView.swift; sourceTree = "<group>"; };
+		100000000000000000000096 /* Vendor/zstd/zstddeclib.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Vendor/zstd/zstddeclib.c; sourceTree = "<group>"; };
 		1000000000000000000000A2 /* AudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioManager.swift; sourceTree = "<group>"; };
 		1000000000000000000000A4 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		1000000000000000000000A6 /* Sounds */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Sounds; sourceTree = "<group>"; };
-		10000000000000000000001C /* Silkscreen-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Regular.ttf"; sourceTree = "<group>"; };
-		10000000000000000000001D /* Silkscreen-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Bold.ttf"; sourceTree = "<group>"; };
-		10000000000000000000001E /* PixelifySans.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/PixelifySans.ttf"; sourceTree = "<group>"; };
-		10000000000000000000001F /* MitoBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoBackend.swift; sourceTree = "<group>"; };
 		1000000000000000000000B0 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		1000000000000000000000B2 /* Engagement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Engagement.swift; sourceTree = "<group>"; };
 		1000000000000000000000B4 /* FocusLock.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FocusLock.swift; sourceTree = "<group>"; };
 		1000000000000000000000B6 /* Classes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Classes.swift; sourceTree = "<group>"; };
+		1000000000000000000000B8 /* BetaConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BetaConfig.swift; sourceTree = "<group>"; };
 		1000000000000000000000C0 /* MitoWidget.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = MitoWidget.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		1000000000000000000000C1 /* MitoWidget.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoWidget.swift; sourceTree = "<group>"; };
 		1000000000000000000000C2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
@@ -87,20 +113,6 @@
 		};
 /* End PBXFrameworksBuildPhase section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		1000000000000000000000D0 /* Embed Foundation Extensions */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = "";
-			dstSubfolderSpec = 13;
-			files = (
-				1000000000000000000000C6 /* MitoWidget.appex in Embed Foundation Extensions */,
-			);
-			name = "Embed Foundation Extensions";
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXCopyFilesBuildPhase section */
-
 /* Begin PBXGroup section */
 		100000000000000000000030 = {
 			isa = PBXGroup;
@@ -109,16 +121,6 @@
 				1000000000000000000000D1 /* MitoWidget */,
 				100000000000000000000032 /* Products */,
 			);
-			sourceTree = "<group>";
-		};
-		1000000000000000000000D1 /* MitoWidget */ = {
-			isa = PBXGroup;
-			children = (
-				1000000000000000000000C1 /* MitoWidget.swift */,
-				1000000000000000000000C2 /* Info.plist */,
-				1000000000000000000000C3 /* MitoWidget.entitlements */,
-			);
-			path = MitoWidget;
 			sourceTree = "<group>";
 		};
 		100000000000000000000031 /* MitoV3 */ = {
@@ -133,7 +135,7 @@
 				100000000000000000000017 /* BattleView.swift */,
 				100000000000000000000034 /* GameData.swift */,
 				100000000000000000000036 /* ShopView.swift */,
-				100000000000000000000096 /* zstddeclib.c */,
+				100000000000000000000096 /* Vendor/zstd/zstddeclib.c */,
 				100000000000000000000018 /* FlashcardsView.swift */,
 				100000000000000000000019 /* CollectionView.swift */,
 				10000000000000000000001F /* MitoBackend.swift */,
@@ -142,11 +144,12 @@
 				1000000000000000000000B2 /* Engagement.swift */,
 				1000000000000000000000B4 /* FocusLock.swift */,
 				1000000000000000000000B6 /* Classes.swift */,
+				1000000000000000000000B8 /* BetaConfig.swift */,
 				10000000000000000000001A /* Assets.xcassets */,
 				1000000000000000000000A6 /* Sounds */,
-				10000000000000000000001C /* Silkscreen-Regular.ttf */,
-				10000000000000000000001D /* Silkscreen-Bold.ttf */,
-				10000000000000000000001E /* PixelifySans.ttf */,
+				10000000000000000000001C /* Fonts/Silkscreen-Regular.ttf */,
+				10000000000000000000001D /* Fonts/Silkscreen-Bold.ttf */,
+				10000000000000000000001E /* Fonts/PixelifySans.ttf */,
 				1000000000000000000000B0 /* PrivacyInfo.xcprivacy */,
 				1000000000000000000000C4 /* MitoV3.entitlements */,
 			);
@@ -162,12 +165,22 @@
 			name = Products;
 			sourceTree = "<group>";
 		};
+		1000000000000000000000D1 /* MitoWidget */ = {
+			isa = PBXGroup;
+			children = (
+				1000000000000000000000C1 /* MitoWidget.swift */,
+				1000000000000000000000C2 /* Info.plist */,
+				1000000000000000000000C3 /* MitoWidget.entitlements */,
+			);
+			path = MitoWidget;
+			sourceTree = "<group>";
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
 		100000000000000000000040 /* MitoV3 */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = 100000000000000000000070 /* Build configuration list for PBXNativeTarget "Mito" */;
+			buildConfigurationList = 100000000000000000000070 /* Build configuration list for PBXNativeTarget "MitoV3" */;
 			buildPhases = (
 				100000000000000000000050 /* Sources */,
 				100000000000000000000020 /* Frameworks */,
@@ -206,24 +219,6 @@
 		};
 /* End PBXNativeTarget section */
 
-/* Begin PBXTargetDependency section */
-		1000000000000000000000CE /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 1000000000000000000000CA /* MitoWidget */;
-			targetProxy = 1000000000000000000000CF /* PBXContainerItemProxy */;
-		};
-/* End PBXTargetDependency section */
-
-/* Begin PBXContainerItemProxy section */
-		1000000000000000000000CF /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 100000000000000000000041 /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 1000000000000000000000CA;
-			remoteInfo = MitoWidget;
-		};
-/* End PBXContainerItemProxy section */
-
 /* Begin PBXProject section */
 		100000000000000000000041 /* Project object */ = {
 			isa = PBXProject;
@@ -237,7 +232,7 @@
 					};
 				};
 			};
-			buildConfigurationList = 100000000000000000000071 /* Build configuration list for PBXProject "Mito" */;
+			buildConfigurationList = 100000000000000000000071 /* Build configuration list for PBXProject "MitoV3" */;
 			compatibilityVersion = "Xcode 14.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
@@ -246,11 +241,11 @@
 				Base,
 			);
 			mainGroup = 100000000000000000000030;
-			productRefGroup = 100000000000000000000032 /* Products */;
-			projectDirPath = "";
 			packageReferences = (
 				100000000000000000000090 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 			);
+			productRefGroup = 100000000000000000000032 /* Products */;
+			projectDirPath = "";
 			projectRoot = "";
 			targets = (
 				100000000000000000000040 /* MitoV3 */,
@@ -260,6 +255,19 @@
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		100000000000000000000060 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				10000000000000000000000A /* Assets.xcassets in Resources */,
+				10000000000000000000000D /* Fonts/Silkscreen-Regular.ttf in Resources */,
+				10000000000000000000000E /* Fonts/Silkscreen-Bold.ttf in Resources */,
+				10000000000000000000000F /* Fonts/PixelifySans.ttf in Resources */,
+				1000000000000000000000A7 /* Sounds in Resources */,
+				1000000000000000000000B1 /* PrivacyInfo.xcprivacy in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		1000000000000000000000C9 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -267,30 +275,9 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
-		100000000000000000000060 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				10000000000000000000000A /* Assets.xcassets in Resources */,
-				10000000000000000000000D /* Silkscreen-Regular.ttf in Resources */,
-				10000000000000000000000E /* Silkscreen-Bold.ttf in Resources */,
-				10000000000000000000000F /* PixelifySans.ttf in Resources */,
-				1000000000000000000000A7 /* Sounds in Resources */,
-				1000000000000000000000B1 /* PrivacyInfo.xcprivacy in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
-		1000000000000000000000C7 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				1000000000000000000000C5 /* MitoWidget.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		100000000000000000000050 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -304,7 +291,7 @@
 				100000000000000000000007 /* BattleView.swift in Sources */,
 				100000000000000000000033 /* GameData.swift in Sources */,
 				100000000000000000000035 /* ShopView.swift in Sources */,
-				100000000000000000000097 /* zstddeclib.c in Sources */,
+				100000000000000000000097 /* Vendor/zstd/zstddeclib.c in Sources */,
 				100000000000000000000008 /* FlashcardsView.swift in Sources */,
 				100000000000000000000009 /* CollectionView.swift in Sources */,
 				100000000000000000000010 /* MitoBackend.swift in Sources */,
@@ -313,10 +300,27 @@
 				1000000000000000000000B3 /* Engagement.swift in Sources */,
 				1000000000000000000000B5 /* FocusLock.swift in Sources */,
 				1000000000000000000000B7 /* Classes.swift in Sources */,
+				1000000000000000000000B9 /* BetaConfig.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		1000000000000000000000C7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				1000000000000000000000C5 /* MitoWidget.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		1000000000000000000000CE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 1000000000000000000000CA /* MitoWidget */;
+			targetProxy = 1000000000000000000000CF /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		100000000000000000000080 /* Debug */ = {
@@ -446,7 +450,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 359RT325UQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Mito V3";
@@ -480,7 +484,7 @@
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "";
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 359RT325UQ;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = "Mito V3";
@@ -512,7 +516,7 @@
 				CODE_SIGN_ENTITLEMENTS = MitoWidget/MitoWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 359RT325UQ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MitoWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Mito;
@@ -539,7 +543,7 @@
 				CODE_SIGN_ENTITLEMENTS = MitoWidget/MitoWidget.entitlements;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
-				DEVELOPMENT_TEAM = "";
+				DEVELOPMENT_TEAM = 359RT325UQ;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = MitoWidget/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = Mito;
@@ -563,11 +567,20 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		100000000000000000000070 /* Build configuration list for PBXNativeTarget "Mito" */ = {
+		100000000000000000000070 /* Build configuration list for PBXNativeTarget "MitoV3" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (
 				100000000000000000000082 /* Debug */,
 				100000000000000000000083 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		100000000000000000000071 /* Build configuration list for PBXProject "MitoV3" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				100000000000000000000080 /* Debug */,
+				100000000000000000000081 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
@@ -577,15 +590,6 @@
 			buildConfigurations = (
 				1000000000000000000000CC /* Debug */,
 				1000000000000000000000CD /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
-		100000000000000000000071 /* Build configuration list for PBXProject "Mito" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				100000000000000000000080 /* Debug */,
-				100000000000000000000081 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;
