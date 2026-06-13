@@ -13,7 +13,7 @@ that move become `internal`; move dependent private helpers with their struct.
 - [x] BattleCapturePopup.swift — CapturePopup
 - [x] BattleSetupViews.swift — CampaignStageSetup, EndlessReviewSetup, TagFilterSection, EndlessDeckRow
 - [x] BattleCombatView.swift — BattleCombatView (+ DamageNumberView, FloatingDamage, AbilityActionButton)
-- [ ] 7. ContentView splits — Tutorial.swift, Onboarding.swift, AppChrome.swift, Social.swift
-- [ ] 8. FlashcardsView splits — FlashcardEditor.swift, CardImport.swift
-- [ ] 9. CollectionView — CharacterInfoModal.swift
-- [ ] 10. StudyView — FocusSession.swift
+- [x]  ContentView splits — Tutorial.swift, Onboarding.swift, AppChrome.swift, Social.swift
+- [x]  FlashcardsView splits — FlashcardEditor.swift, CardImport.swift
+- [x]  CollectionView — CharacterInfoModal.swift
+- [x]  StudyView — FocusSession.swift

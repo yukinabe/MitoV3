@@ -40,9 +40,11 @@
 		52141895C0220415C3EC8C30 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BCAE729C84FA6F03A3750B9 /* SettingsSheet.swift */; };
 		5889D1E881DECEE1B77ECAD6 /* AppChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ADB237E7DBDA981C5D175C7 /* AppChrome.swift */; };
 		6BEE8A09CD8012715C90F2CB /* Social.swift in Sources */ = {isa = PBXBuildFile; fileRef = F82FCC98CA34E68B741F14B9 /* Social.swift */; };
+		9516BB3EF688CC05E0A93391 /* CharacterInfoModal.swift in Sources */ = {isa = PBXBuildFile; fileRef = B4EE1E1A451C35107F86C003 /* CharacterInfoModal.swift */; };
 		99376CAC626398DF8CB2F9E5 /* BackendModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D512C3D12FC9208D7685028 /* BackendModels.swift */; };
 		9A6CF684DB2C23EF3CB2C5B9 /* Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47DAC5AA49829B186532F517 /* Onboarding.swift */; };
 		B85C8FAE838F41F7D908CA17 /* BattleCombatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B8A4988FCA210D5F1D727B6 /* BattleCombatView.swift */; };
+		B9D196BCA94B28771C8EDDBE /* FocusSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4FB449F922AAFC546278511 /* FocusSession.swift */; };
 		C969BE839865B2F6A9AD6955 /* BattleSetupViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDDC82F42DBAB51B1DEF3014 /* BattleSetupViews.swift */; };
 		D15DAACDE7446B819535F6BF /* FlashcardEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D185ED4B61DD43385B68F9DF /* FlashcardEditor.swift */; };
 		DE23A9787963CB17A3CCA06F /* BattleAbilityEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F9217690B483B61835DDD4A /* BattleAbilityEffects.swift */; };
@@ -114,6 +116,8 @@
 		7D512C3D12FC9208D7685028 /* BackendModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BackendModels.swift; sourceTree = "<group>"; };
 		909835FF41108C3349E751E7 /* CardImport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CardImport.swift; sourceTree = "<group>"; };
 		9F9217690B483B61835DDD4A /* BattleAbilityEffects.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleAbilityEffects.swift; sourceTree = "<group>"; };
+		A4FB449F922AAFC546278511 /* FocusSession.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FocusSession.swift; sourceTree = "<group>"; };
+		B4EE1E1A451C35107F86C003 /* CharacterInfoModal.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CharacterInfoModal.swift; sourceTree = "<group>"; };
 		CDDC82F42DBAB51B1DEF3014 /* BattleSetupViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleSetupViews.swift; sourceTree = "<group>"; };
 		D185ED4B61DD43385B68F9DF /* FlashcardEditor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FlashcardEditor.swift; sourceTree = "<group>"; };
 		F723EFC0A844596637076B64 /* Tutorial.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Tutorial.swift; sourceTree = "<group>"; };
@@ -191,6 +195,8 @@
 				F723EFC0A844596637076B64 /* Tutorial.swift */,
 				909835FF41108C3349E751E7 /* CardImport.swift */,
 				D185ED4B61DD43385B68F9DF /* FlashcardEditor.swift */,
+				B4EE1E1A451C35107F86C003 /* CharacterInfoModal.swift */,
+				A4FB449F922AAFC546278511 /* FocusSession.swift */,
 			);
 			path = MitoV3;
 			sourceTree = "<group>";
@@ -353,6 +359,8 @@
 				1996D358CB641DD4061773E0 /* Tutorial.swift in Sources */,
 				E538811C2859A10397DA9E27 /* CardImport.swift in Sources */,
 				D15DAACDE7446B819535F6BF /* FlashcardEditor.swift in Sources */,
+				9516BB3EF688CC05E0A93391 /* CharacterInfoModal.swift in Sources */,
+				B9D196BCA94B28771C8EDDBE /* FocusSession.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
