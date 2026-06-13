@@ -17,14 +17,14 @@
 		100000000000000000000008 /* FlashcardsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000018 /* FlashcardsView.swift */; };
 		100000000000000000000009 /* CollectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000019 /* CollectionView.swift */; };
 		10000000000000000000000A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001A /* Assets.xcassets */; };
-		10000000000000000000000D /* Fonts/Silkscreen-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001C /* Fonts/Silkscreen-Regular.ttf */; };
-		10000000000000000000000E /* Fonts/Silkscreen-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001D /* Fonts/Silkscreen-Bold.ttf */; };
-		10000000000000000000000F /* Fonts/PixelifySans.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001E /* Fonts/PixelifySans.ttf */; };
+		10000000000000000000000D /* Silkscreen-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001C /* Silkscreen-Regular.ttf */; };
+		10000000000000000000000E /* Silkscreen-Bold.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001D /* Silkscreen-Bold.ttf */; };
+		10000000000000000000000F /* PixelifySans.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001E /* PixelifySans.ttf */; };
 		100000000000000000000010 /* MitoBackend.swift in Sources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001F /* MitoBackend.swift */; };
 		100000000000000000000033 /* GameData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000034 /* GameData.swift */; };
 		100000000000000000000035 /* ShopView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000036 /* ShopView.swift */; };
 		100000000000000000000092 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000091 /* Supabase */; };
-		100000000000000000000097 /* Vendor/zstd/zstddeclib.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000096 /* Vendor/zstd/zstddeclib.c */; };
+		100000000000000000000097 /* zstddeclib.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000096 /* zstddeclib.c */; };
 		1000000000000000000000A3 /* AudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A2 /* AudioManager.swift */; };
 		1000000000000000000000A5 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A4 /* Haptics.swift */; };
 		1000000000000000000000A7 /* Sounds in Resources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A6 /* Sounds */; };
@@ -35,6 +35,7 @@
 		1000000000000000000000B9 /* BetaConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B8 /* BetaConfig.swift */; };
 		1000000000000000000000C5 /* MitoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000C1 /* MitoWidget.swift */; };
 		1000000000000000000000C6 /* MitoWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000C0 /* MitoWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		99376CAC626398DF8CB2F9E5 /* BackendModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D512C3D12FC9208D7685028 /* BackendModels.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,13 +74,13 @@
 		100000000000000000000018 /* FlashcardsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlashcardsView.swift; sourceTree = "<group>"; };
 		100000000000000000000019 /* CollectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CollectionView.swift; sourceTree = "<group>"; };
 		10000000000000000000001A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
-		10000000000000000000001C /* Fonts/Silkscreen-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Regular.ttf"; sourceTree = "<group>"; };
-		10000000000000000000001D /* Fonts/Silkscreen-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Bold.ttf"; sourceTree = "<group>"; };
-		10000000000000000000001E /* Fonts/PixelifySans.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/PixelifySans.ttf; sourceTree = "<group>"; };
+		10000000000000000000001C /* Silkscreen-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Regular.ttf"; sourceTree = "<group>"; };
+		10000000000000000000001D /* Silkscreen-Bold.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = "Fonts/Silkscreen-Bold.ttf"; sourceTree = "<group>"; };
+		10000000000000000000001E /* PixelifySans.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = Fonts/PixelifySans.ttf; sourceTree = "<group>"; };
 		10000000000000000000001F /* MitoBackend.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoBackend.swift; sourceTree = "<group>"; };
 		100000000000000000000034 /* GameData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GameData.swift; sourceTree = "<group>"; };
 		100000000000000000000036 /* ShopView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShopView.swift; sourceTree = "<group>"; };
-		100000000000000000000096 /* Vendor/zstd/zstddeclib.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Vendor/zstd/zstddeclib.c; sourceTree = "<group>"; };
+		100000000000000000000096 /* zstddeclib.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; path = Vendor/zstd/zstddeclib.c; sourceTree = "<group>"; };
 		1000000000000000000000A2 /* AudioManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AudioManager.swift; sourceTree = "<group>"; };
 		1000000000000000000000A4 /* Haptics.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Haptics.swift; sourceTree = "<group>"; };
 		1000000000000000000000A6 /* Sounds */ = {isa = PBXFileReference; lastKnownFileType = folder; path = Sounds; sourceTree = "<group>"; };
@@ -93,6 +94,7 @@
 		1000000000000000000000C2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		1000000000000000000000C3 /* MitoWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MitoWidget.entitlements; sourceTree = "<group>"; };
 		1000000000000000000000C4 /* MitoV3.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MitoV3.entitlements; sourceTree = "<group>"; };
+		7D512C3D12FC9208D7685028 /* BackendModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BackendModels.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -135,7 +137,7 @@
 				100000000000000000000017 /* BattleView.swift */,
 				100000000000000000000034 /* GameData.swift */,
 				100000000000000000000036 /* ShopView.swift */,
-				100000000000000000000096 /* Vendor/zstd/zstddeclib.c */,
+				100000000000000000000096 /* zstddeclib.c */,
 				100000000000000000000018 /* FlashcardsView.swift */,
 				100000000000000000000019 /* CollectionView.swift */,
 				10000000000000000000001F /* MitoBackend.swift */,
@@ -147,11 +149,12 @@
 				1000000000000000000000B8 /* BetaConfig.swift */,
 				10000000000000000000001A /* Assets.xcassets */,
 				1000000000000000000000A6 /* Sounds */,
-				10000000000000000000001C /* Fonts/Silkscreen-Regular.ttf */,
-				10000000000000000000001D /* Fonts/Silkscreen-Bold.ttf */,
-				10000000000000000000001E /* Fonts/PixelifySans.ttf */,
+				10000000000000000000001C /* Silkscreen-Regular.ttf */,
+				10000000000000000000001D /* Silkscreen-Bold.ttf */,
+				10000000000000000000001E /* PixelifySans.ttf */,
 				1000000000000000000000B0 /* PrivacyInfo.xcprivacy */,
 				1000000000000000000000C4 /* MitoV3.entitlements */,
+				7D512C3D12FC9208D7685028 /* BackendModels.swift */,
 			);
 			path = MitoV3;
 			sourceTree = "<group>";
@@ -260,9 +263,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				10000000000000000000000A /* Assets.xcassets in Resources */,
-				10000000000000000000000D /* Fonts/Silkscreen-Regular.ttf in Resources */,
-				10000000000000000000000E /* Fonts/Silkscreen-Bold.ttf in Resources */,
-				10000000000000000000000F /* Fonts/PixelifySans.ttf in Resources */,
+				10000000000000000000000D /* Silkscreen-Regular.ttf in Resources */,
+				10000000000000000000000E /* Silkscreen-Bold.ttf in Resources */,
+				10000000000000000000000F /* PixelifySans.ttf in Resources */,
 				1000000000000000000000A7 /* Sounds in Resources */,
 				1000000000000000000000B1 /* PrivacyInfo.xcprivacy in Resources */,
 			);
@@ -291,7 +294,7 @@
 				100000000000000000000007 /* BattleView.swift in Sources */,
 				100000000000000000000033 /* GameData.swift in Sources */,
 				100000000000000000000035 /* ShopView.swift in Sources */,
-				100000000000000000000097 /* Vendor/zstd/zstddeclib.c in Sources */,
+				100000000000000000000097 /* zstddeclib.c in Sources */,
 				100000000000000000000008 /* FlashcardsView.swift in Sources */,
 				100000000000000000000009 /* CollectionView.swift in Sources */,
 				100000000000000000000010 /* MitoBackend.swift in Sources */,
@@ -301,6 +304,7 @@
 				1000000000000000000000B5 /* FocusLock.swift in Sources */,
 				1000000000000000000000B7 /* Classes.swift in Sources */,
 				1000000000000000000000B9 /* BetaConfig.swift in Sources */,
+				99376CAC626398DF8CB2F9E5 /* BackendModels.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -472,7 +476,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "MitoV3/Vendor/zstd/Mito-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -506,7 +510,7 @@
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_OBJC_BRIDGING_HEADER = "MitoV3/Vendor/zstd/Mito-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
@@ -533,7 +537,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Debug;
 		};
@@ -560,7 +564,7 @@
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
-				TARGETED_DEVICE_FAMILY = "1";
+				TARGETED_DEVICE_FAMILY = 1;
 			};
 			name = Release;
 		};
