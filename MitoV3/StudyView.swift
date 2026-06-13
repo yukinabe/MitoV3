@@ -144,6 +144,7 @@ struct HomeScreen: View {
                         .transition(.move(edge: .bottom).combined(with: .opacity))
                     } else {
                         Button {
+                            TutorialManager.shared.complete("study")
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
                                 showPicker = true
                             }
@@ -156,6 +157,7 @@ struct HomeScreen: View {
                         .buttonStyle(.plain)
                         .frame(width: min(330, proxy.size.width * 0.88))
                         .padding(.bottom, 12)
+                        .tutorialAnchor("study")
                     }
                 }
 
@@ -308,10 +310,19 @@ struct StreakSheet: View {
                     Haptics.success()
                 }
             } label: {
-                Text(streak.freezes >= StreakStore.maxFreezes
-                     ? "FREEZES FULL"
-                     : "BUY FREEZE · \(StreakStore.freezeCostGold) GOLD")
-                    .pixelText(size: 11, color: Color(hex: "F4E6C0"))
+                HStack(spacing: 6) {
+                    Text(streak.freezes >= StreakStore.maxFreezes ? "FREEZES FULL" : "BUY FREEZE")
+                        .pixelText(size: 11, color: Color(hex: "F4E6C0"))
+                    if streak.freezes < StreakStore.maxFreezes {
+                        Image("currency-coin")
+                            .resizable()
+                            .interpolation(.none)
+                            .scaledToFit()
+                            .frame(width: 16, height: 16)
+                        Text("\(StreakStore.freezeCostGold)")
+                            .pixelText(size: 10, color: Color(hex: "F4E6C0"))
+                    }
+                }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(canBuyFreeze ? Color(hex: "4A7BA8") : Color(hex: "8A8A70"))
@@ -371,8 +382,7 @@ struct DailyQuestSheet: View {
                     AudioManager.shared.play(.reward)
                 }
             } label: {
-                Text(chestLabel)
-                    .pixelText(size: 11, color: Color(hex: quests.chestReady ? "18100A" : "F4E6C0"))
+                chestLabel
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
                     .background(quests.chestReady ? Color(hex: "F7C943") : Color(hex: "8A8A70"))
@@ -386,10 +396,34 @@ struct DailyQuestSheet: View {
         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
     }
 
-    private var chestLabel: String {
-        if quests.chestClaimed { return "CHEST CLAIMED" }
-        if quests.chestReady { return "OPEN CHEST · +\(DailyQuests.chestGold) GOLD +\(DailyQuests.chestGems) GEM" }
-        return "FINISH ALL 3 TO OPEN THE CHEST"
+    @ViewBuilder
+    private var chestLabel: some View {
+        if quests.chestClaimed {
+            Text("CHEST CLAIMED")
+                .pixelText(size: 11, color: Color(hex: "F4E6C0"))
+        } else if quests.chestReady {
+            HStack(spacing: 6) {
+                Text("OPEN CHEST")
+                    .pixelText(size: 11, color: Color(hex: "18100A"))
+                Image("currency-coin")
+                    .resizable()
+                    .interpolation(.none)
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
+                Text("\(DailyQuests.chestGold)")
+                    .pixelText(size: 10, color: Color(hex: "18100A"))
+                Image("currency-gem")
+                    .resizable()
+                    .interpolation(.none)
+                    .scaledToFit()
+                    .frame(width: 16, height: 16)
+                Text("\(DailyQuests.chestGems)")
+                    .pixelText(size: 10, color: Color(hex: "18100A"))
+            }
+        } else {
+            Text("FINISH ALL 3 TO OPEN THE CHEST")
+                .pixelText(size: 11, color: Color(hex: "F4E6C0"))
+        }
     }
 
     private func questRow(done: Bool, title: String, detail: String) -> some View {

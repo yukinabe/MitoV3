@@ -374,12 +374,12 @@ enum StageStatus {
 
 enum DataSet {
     static let heroes: [Hero] = [
-        Hero(id: "mito", asset: "hero-mito-hop", name: "Mito", role: "Support", level: 12, hp: 48, attack: 18, defense: 14, speed: 96, color: Color(hex: "E77878"), lore: "A bean-shaped mitochondria helper with bright cristae. Turns focus into ATP and keeps the party steady when long study sessions get rough."),
-        Hero(id: "cloro", asset: "hero-chloroplast-hop", name: "Chloro", role: "DPS", level: 11, hp: 42, attack: 22, defense: 11, speed: 112, color: Color(hex: "7BB55C"), lore: "A chloroplast DPS who captures light and stores it as clean burst damage. Quick, bright, and built for photosynthesis-themed pressure."),
-        Hero(id: "astro", asset: "hero-astrocyte-hop", name: "Astro", role: "Support", level: 10, hp: 36, attack: 24, defense: 9, speed: 103, color: Color(hex: "A98FD0"), lore: "A star-shaped astrocyte support who stabilizes the neural field. Astro's attacks feel like glial network signals instead of raw force."),
-        Hero(id: "dendri", asset: "hero-dendritic-cell-hop", name: "Dendri", role: "Support", level: 9, hp: 38, attack: 16, defense: 12, speed: 108, color: Color(hex: "E8C64A"), lore: "A branching dendritic-cell scout who keeps the team alert and turns small wins into streaks."),
-        Hero(id: "neuro", asset: "hero-neuron-hop", name: "Neuro", role: "Tank", level: 13, hp: 56, attack: 14, defense: 22, speed: 88, color: Color(hex: "5FA3D4"), lore: "A sturdy neuron buffer with branching signals. Soaks pressure while fragile allies line up the next answer."),
-        Hero(id: "bcell", asset: "hero-b-cell-hop", name: "B Cell", role: "Support", level: 8, hp: 34, attack: 17, defense: 10, speed: 94, color: Color(hex: "F4C6B8"), lore: "A careful immune support who turns repeated exposure into stronger responses. Antibody-themed moves make B Cell feel defensive without extra combat math.")
+        Hero(id: "mito", asset: "hero-mito-hop", name: "Mito", role: "Support", level: 0, hp: 48, attack: 18, defense: 14, speed: 96, color: Color(hex: "E77878"), lore: "A bean-shaped mitochondria helper with bright cristae. Turns focus into ATP and keeps the party steady when long study sessions get rough."),
+        Hero(id: "cloro", asset: "hero-chloroplast-hop", name: "Chloro", role: "DPS", level: 0, hp: 42, attack: 22, defense: 11, speed: 112, color: Color(hex: "7BB55C"), lore: "A chloroplast DPS who captures light and stores it as clean burst damage. Quick, bright, and built for photosynthesis-themed pressure."),
+        Hero(id: "astro", asset: "hero-astrocyte-hop", name: "Astro", role: "Support", level: 0, hp: 36, attack: 24, defense: 9, speed: 103, color: Color(hex: "A98FD0"), lore: "A star-shaped astrocyte support who stabilizes the neural field. Astro's attacks feel like glial network signals instead of raw force."),
+        Hero(id: "dendri", asset: "hero-dendritic-cell-hop", name: "Dendri", role: "Support", level: 0, hp: 38, attack: 16, defense: 12, speed: 108, color: Color(hex: "E8C64A"), lore: "A branching dendritic-cell scout who keeps the team alert and turns small wins into streaks."),
+        Hero(id: "neuro", asset: "hero-neuron-hop", name: "Neuro", role: "Tank", level: 0, hp: 56, attack: 14, defense: 22, speed: 88, color: Color(hex: "5FA3D4"), lore: "A sturdy neuron buffer with branching signals. Soaks pressure while fragile allies line up the next answer."),
+        Hero(id: "bcell", asset: "hero-b-cell-hop", name: "B Cell", role: "Support", level: 0, hp: 34, attack: 17, defense: 10, speed: 94, color: Color(hex: "F4C6B8"), lore: "A careful immune support who turns repeated exposure into stronger responses. Antibody-themed moves make B Cell feel defensive without extra combat math.")
     ]
 
     static let decks: [Deck] = [
@@ -506,11 +506,11 @@ extension DataSet {
     /// Wild creatures that show up as enemies in campaign/endless and can be
     /// captured on defeat. They start UNOWNED (the base heroes are always owned),
     /// so they're purely additive collectibles. They use the default ability set
-    /// (BattleAbilityBook handles unknown ids) and existing mob art.
+    /// (BattleAbilityBook handles unknown ids) and their own hop-strip art.
     static let capturables: [Hero] = [
-        Hero(id: "wild-mutagem", asset: "mob_1", name: "Mutagem", role: "DPS", level: 10, hp: 40, attack: 21, defense: 10, speed: 105, color: Color(hex: "A98FD0"), lore: "A mutated gem-spore that drifts through endless review. Capturing one binds its restless energy to your team."),
-        Hero(id: "wild-spikevyrus", asset: "mob_1", name: "Spikevyrus", role: "Tank", level: 12, hp: 54, attack: 15, defense: 20, speed: 90, color: Color(hex: "5FA3D4"), lore: "A spike-shelled virus boss from the campaign depths. Stubborn, sturdy, and surprisingly loyal once captured."),
-        Hero(id: "wild-cytocrawler", asset: "mob_0", name: "Cytocrawler", role: "DPS", level: 9, hp: 36, attack: 23, defense: 8, speed: 118, color: Color(hex: "E8C64A"), lore: "A fast cytoplasmic crawler that skitters between waves. Rare, twitchy, and a brutal attacker.")
+        Hero(id: "wild-mutagem", asset: "wild-mutagem-hop", name: "Mutagem", role: "DPS", level: 0, hp: 40, attack: 21, defense: 10, speed: 105, color: Color(hex: "A98FD0"), lore: "A mutated gem-spore that drifts through endless review. Capturing one binds its restless energy to your team."),
+        Hero(id: "wild-spikevyrus", asset: "wild-spikevyrus-hop", name: "Spikevyrus", role: "Tank", level: 0, hp: 54, attack: 15, defense: 20, speed: 90, color: Color(hex: "5FA3D4"), lore: "A spike-shelled virus boss from the campaign depths. Stubborn, sturdy, and surprisingly loyal once captured."),
+        Hero(id: "wild-cytocrawler", asset: "wild-cytocrawler-hop", name: "Cytocrawler", role: "DPS", level: 0, hp: 36, attack: 23, defense: 8, speed: 118, color: Color(hex: "E8C64A"), lore: "A fast cytoplasmic crawler that skitters between waves. Rare, twitchy, and a brutal attacker.")
     ]
 
     static func capturable(id: String) -> Hero? { capturables.first { $0.id == id } }

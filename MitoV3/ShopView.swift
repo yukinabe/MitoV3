@@ -8,10 +8,10 @@ struct ShopScreen: View {
     @Binding var shards: Int
 
     @AppStorage("lastDailyClaim") private var lastDailyClaim = ""
-    @State private var tab: ShopTabKind = .daily
     @State private var pendingPack: GemPack?
     @State private var watchingAd = false
     @State private var toast: String?
+    @ObservedObject private var streak = StreakStore.shared
 
     private var todayKey: String {
         let f = DateFormatter()
@@ -26,17 +26,10 @@ struct ShopScreen: View {
 
             VStack(spacing: 8) {
                 shopHeader
-                walletStrip
-                tabBar
 
                 ScrollView(showsIndicators: false) {
-                    VStack(spacing: 10) {
-                        switch tab {
-                        case .daily: dailyTab
-                        case .gems: gemsTab
-                        case .coins: coinsTab
-                        case .resources: resourcesTab
-                        }
+                    VStack(spacing: 12) {
+                        storeFeed
                     }
                     .padding(.horizontal, 12)
                     .padding(.bottom, 96)
@@ -60,14 +53,14 @@ struct ShopScreen: View {
 
     private var shopHeader: some View {
         HStack(spacing: 10) {
-            SpriteView(asset: "hero-mito-hop", size: 48)
+            SpriteView(asset: "hero-b-cell-hop", size: 50)
                 .frame(width: 52, height: 52)
                 .background(Color(hex: "F0D6A4"))
                 .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
             VStack(alignment: .leading, spacing: 4) {
                 Text("RIBO'S SHOP")
                     .pixelText(size: 15, color: Color(hex: "3A2A18"))
-                Text("\"Gems for a head start, coins for the grind.\"")
+                Text("\"Coins for the journey, gems for flair — but ATP? You earn that.\"")
                     .font(.custom(MitoFont.regular, size: 13))
                     .foregroundStyle(Color(hex: "5B442A"))
                     .lineLimit(2)
@@ -80,42 +73,15 @@ struct ShopScreen: View {
         .padding(.horizontal, 12)
     }
 
-    private var walletStrip: some View {
-        HStack(spacing: 6) {
-            WalletChip(asset: "hud-gem", value: gems, color: Color(hex: "BFF5C2"))
-            WalletChip(asset: "hud-coin", value: gold, color: Color(hex: "F9E9B8"))
-            WalletChip(symbol: "🧬", value: biomass, color: Color(hex: "CFE49C"))
-            WalletChip(symbol: "♦", value: shards, color: Color(hex: "E3B8B8"))
-        }
-        .padding(.horizontal, 12)
-    }
+    // MARK: - Store feed
 
-    private var tabBar: some View {
-        HStack(spacing: 6) {
-            ForEach(ShopTabKind.allCases) { kind in
-                Button { tab = kind } label: {
-                    Text(kind.title)
-                        .pixelText(size: 9, color: tab == kind ? Color(hex: "18100A") : Color(hex: "F4E6C0"))
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(tab == kind ? Color(hex: "F7C943") : Color(hex: "6B4324"))
-                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-                }
-                .buttonStyle(.plain)
-            }
-        }
-        .padding(.horizontal, 12)
-    }
-
-    // MARK: - Tabs
-
-    private var dailyTab: some View {
-        VStack(spacing: 10) {
+    private var storeFeed: some View {
+        VStack(spacing: 12) {
+            ShopSectionTitle("TODAY")
             ShopOfferCard(
-                icon: "gift.fill",
-                accent: Color(hex: "F7C943"),
+                art: .asset("btn-pot"),
                 title: "Daily Reward",
-                detail: dailyClaimed ? "Claimed — come back tomorrow." : "Free every day. +25 💎  +500 ◎",
+                detail: dailyClaimed ? "Claimed — come back tomorrow." : "Free every day. +25 gems and +500 coins.",
                 actionTitle: dailyClaimed ? "DONE" : "CLAIM",
                 actionTint: dailyClaimed ? Color(hex: "8A6B42") : Color(hex: "4A8A3C"),
                 enabled: !dailyClaimed,
@@ -123,29 +89,19 @@ struct ShopScreen: View {
             )
 
             ShopOfferCard(
-                icon: "play.rectangle.fill",
-                accent: Color(hex: "8B6BD9"),
+                art: .badge("PLAY", Color(hex: "7AA35A")),
                 title: "Watch an Ad",
-                detail: "Watch a short video for +15 💎.",
+                detail: "Watch a short video for +15 gems.",
                 actionTitle: "WATCH",
                 actionTint: Color(hex: "4A8A3C"),
                 enabled: !watchingAd,
                 action: watchAd
             )
 
-            Text("Spend gems on coins · spend coins on resources")
-                .font(.custom(MitoFont.regular, size: 12))
-                .foregroundStyle(Color(hex: "B89868"))
-                .padding(.top, 4)
-        }
-    }
-
-    private var gemsTab: some View {
-        VStack(spacing: 10) {
+            ShopSectionTitle("GEMS")
             ForEach(GemPack.all) { pack in
                 ShopBuyRow(
-                    icon: "diamond.fill",
-                    accent: Color(hex: "8B6BD9"),
+                    art: .asset("currency-gem"),
                     title: "\(pack.gems) Gems",
                     detail: pack.bonus,
                     priceTitle: pack.price,
@@ -153,43 +109,37 @@ struct ShopScreen: View {
                     action: { pendingPack = pack }
                 )
             }
-            Text("Mock store — purchases grant instantly, no charge.")
-                .font(.custom(MitoFont.regular, size: 12))
-                .foregroundStyle(Color(hex: "B89868"))
-                .padding(.top, 4)
-        }
-    }
 
-    private var coinsTab: some View {
-        VStack(spacing: 10) {
+            ShopSectionTitle("COINS")
             ForEach(CoinBundle.all) { bundle in
                 ShopBuyRow(
-                    icon: "circle.fill",
-                    accent: Color(hex: "F7C943"),
+                    art: .asset("currency-coin"),
                     title: "\(bundle.coins.formatted()) Coins",
                     detail: "Exchange gems for coins.",
-                    priceTitle: "\(bundle.gemCost) 💎",
+                    priceTitle: "\(bundle.gemCost) GEM",
                     priceTint: gems >= bundle.gemCost ? Color(hex: "4A8A3C") : Color(hex: "8A6B42"),
                     action: { buyCoins(bundle) }
                 )
             }
-        }
-    }
 
-    private var resourcesTab: some View {
-        VStack(spacing: 10) {
-            ShopBuyRow(icon: "circle.circle.fill", accent: Color(hex: "CFE49C"),
-                       title: "Biomass Pouch", detail: "+12 🧬 — upgrade material.",
-                       priceTitle: "60 ◎", priceTint: gold >= 60 ? Color(hex: "4A8A3C") : Color(hex: "8A6B42"),
-                       action: { buyResource(cost: 60) { biomass += 12 } })
-            ShopBuyRow(icon: "diamond.fill", accent: Color(hex: "E3B8B8"),
-                       title: "Cloro Shard", detail: "+3 ♦ — rare material.",
-                       priceTitle: "220 ◎", priceTint: gold >= 220 ? Color(hex: "4A8A3C") : Color(hex: "8A6B42"),
-                       action: { buyResource(cost: 220) { shards += 3 } })
-            ShopBuyRow(icon: "flask.fill", accent: Color(hex: "F7C943"),
-                       title: "ATP Flask", detail: "+30 ⚡ — instant focus boost.",
-                       priceTitle: "100 ◎", priceTint: gold >= 100 ? Color(hex: "4A8A3C") : Color(hex: "8A6B42"),
-                       action: { buyResource(cost: 100) { atp += 30 } })
+            ShopSectionTitle("RESOURCES")
+            ShopBuyRow(art: .asset("currency-biomass"),
+                       title: "Biomass Pouch", detail: "+12 biomass for creature growth.",
+                       priceTitle: "60 COIN", priceTint: gold >= 60 ? Color(hex: "4A8A3C") : Color(hex: "8A6B42"),
+                       action: { buyResource(cost: 60, toast: "+12 BIOMASS") { biomass += 12 } })
+            ShopBuyRow(art: .asset("currency-shard"),
+                       title: "Cloro Shard", detail: "+3 shards for rare upgrades.",
+                       priceTitle: "220 COIN", priceTint: gold >= 220 ? Color(hex: "4A8A3C") : Color(hex: "8A6B42"),
+                       action: { buyResource(cost: 220, toast: "+3 SHARDS") { shards += 3 } })
+            ShopBuyRow(art: .asset("currency-atp"),
+                       title: "ATP Flask", detail: "+30 ATP. Once per day, studying still rules.",
+                       priceTitle: "100 COIN", priceTint: gold >= 100 ? Color(hex: "4A8A3C") : Color(hex: "8A6B42"),
+                       action: { buyResource(cost: 100, toast: "+30 ATP") { atp += 30 } })
+            ShopBuyRow(art: .asset("currency-freeze"),
+                       title: "Streak Freeze", detail: "Protects one missed day. Owned \(streak.freezes)/\(StreakStore.maxFreezes).",
+                       priceTitle: streak.freezes >= StreakStore.maxFreezes ? "FULL" : "\(StreakStore.freezeCostGold) COIN",
+                       priceTint: canBuyFreeze ? Color(hex: "4A8A3C") : Color(hex: "8A6B42"),
+                       action: buyFreeze)
         }
     }
 
@@ -216,7 +166,7 @@ struct ShopScreen: View {
                     Button {
                         gems += pack.gems
                         pendingPack = nil
-                        showToast("+\(pack.gems) 💎")
+                        showToast("+\(pack.gems) GEMS")
                     } label: {
                         Text("BUY")
                             .pixelText(size: 12, color: Color(hex: "F4E6C0"))
@@ -271,7 +221,7 @@ struct ShopScreen: View {
         gems += 25
         gold += 500
         lastDailyClaim = todayKey
-        showToast("+25 💎  +500 ◎")
+        showToast("+25 GEMS  +500 COINS")
     }
 
     private func watchAd() {
@@ -280,7 +230,7 @@ struct ShopScreen: View {
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.5) {
             watchingAd = false
             gems += 15
-            showToast("+15 💎")
+            showToast("+15 GEMS")
         }
     }
 
@@ -292,10 +242,10 @@ struct ShopScreen: View {
         gems -= bundle.gemCost
         gold += bundle.coins
         AudioManager.shared.play(.reward); Haptics.success()
-        showToast("+\(bundle.coins.formatted()) ◎")
+        showToast("+\(bundle.coins.formatted()) COINS")
     }
 
-    private func buyResource(cost: Int, grant: () -> Void) {
+    private func buyResource(cost: Int, toast: String, grant: () -> Void) {
         guard gold >= cost else {
             AudioManager.shared.play(.uiBack); Haptics.warning()
             showToast("Not enough coins"); return
@@ -303,25 +253,35 @@ struct ShopScreen: View {
         gold -= cost
         grant()
         AudioManager.shared.play(.reward); Haptics.success()
+        showToast(toast)
+    }
+
+    private var canBuyFreeze: Bool {
+        streak.freezes < StreakStore.maxFreezes && gold >= StreakStore.freezeCostGold
+    }
+
+    private func buyFreeze() {
+        guard streak.freezes < StreakStore.maxFreezes else {
+            AudioManager.shared.play(.uiBack); Haptics.warning()
+            showToast("Freezes full")
+            return
+        }
+        guard gold >= StreakStore.freezeCostGold else {
+            AudioManager.shared.play(.uiBack); Haptics.warning()
+            showToast("Not enough coins")
+            return
+        }
+        if streak.addFreeze() {
+            gold -= StreakStore.freezeCostGold
+            AudioManager.shared.play(.reward); Haptics.success()
+            showToast("+1 FREEZE")
+        }
     }
 
     private func showToast(_ text: String) {
         withAnimation { toast = text }
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
             withAnimation { toast = nil }
-        }
-    }
-}
-
-enum ShopTabKind: String, CaseIterable, Identifiable {
-    case daily, gems, coins, resources
-    var id: String { rawValue }
-    var title: String {
-        switch self {
-        case .daily: "DAILY"
-        case .gems: "GEMS"
-        case .coins: "COINS"
-        case .resources: "RESOURCES"
         }
     }
 }
@@ -352,42 +312,62 @@ struct CoinBundle: Identifiable {
     ]
 }
 
-struct WalletChip: View {
-    var asset: String?
-    var symbol: String?
-    let value: Int
-    let color: Color
+enum ShopArt {
+    case asset(String)
+    case badge(String, Color)
+}
 
-    init(asset: String, value: Int, color: Color) {
-        self.asset = asset; self.symbol = nil; self.value = value; self.color = color
-    }
-    init(symbol: String, value: Int, color: Color) {
-        self.asset = nil; self.symbol = symbol; self.value = value; self.color = color
+struct ShopSectionTitle: View {
+    let title: String
+
+    init(_ title: String) {
+        self.title = title
     }
 
     var body: some View {
-        HStack(spacing: 4) {
-            if let asset {
-                Image(asset).resizable().interpolation(.none).scaledToFit().frame(width: 18, height: 18)
-            } else if let symbol {
-                Text(symbol).font(.system(size: 13))
-            }
-            Text(value.formatted())
-                .pixelText(size: 9, color: color)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
+        HStack(spacing: 8) {
+            Rectangle()
+                .fill(Color(hex: "F7C943"))
+                .frame(width: 8, height: 18)
+                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+            Text(title)
+                .pixelText(size: 12, color: Color(hex: "F4E6C0"))
+            Spacer()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 7)
-        .background(Color(hex: "2A1B0E"))
-        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+        .padding(.top, 2)
+    }
+}
+
+struct ShopArtTile: View {
+    let art: ShopArt
+
+    var body: some View {
+        ZStack {
+            Color(hex: "F4E6C0")
+            switch art {
+            case .asset(let name):
+                Image(name)
+                    .resizable()
+                    .interpolation(.none)
+                    .scaledToFit()
+                    .padding(name.hasPrefix("hud-") ? 8 : 5)
+            case .badge(let text, let color):
+                color
+                Text(text)
+                    .pixelText(size: text.count > 1 ? 8 : 13, color: Color(hex: "18100A"))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                    .padding(.horizontal, 3)
+            }
+        }
+        .frame(width: 50, height: 50)
+        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
     }
 }
 
 /// A daily/ad style offer with a single action button.
 struct ShopOfferCard: View {
-    let icon: String
-    let accent: Color
+    let art: ShopArt
     let title: String
     let detail: String
     let actionTitle: String
@@ -397,12 +377,7 @@ struct ShopOfferCard: View {
 
     var body: some View {
         HStack(spacing: 10) {
-            Image(systemName: icon)
-                .font(.system(size: 24, weight: .black))
-                .foregroundStyle(Color(hex: "18100A"))
-                .frame(width: 46, height: 46)
-                .background(accent)
-                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+            ShopArtTile(art: art)
             VStack(alignment: .leading, spacing: 5) {
                 Text(title).pixelText(size: 12, color: Color(hex: "3A2A18"))
                 Text(detail)
@@ -430,8 +405,7 @@ struct ShopOfferCard: View {
 
 /// A purchasable row with a price button.
 struct ShopBuyRow: View {
-    let icon: String
-    let accent: Color
+    let art: ShopArt
     let title: String
     let detail: String
     let priceTitle: String
@@ -441,12 +415,7 @@ struct ShopBuyRow: View {
     var body: some View {
         Button(action: action) {
             HStack(spacing: 10) {
-                Image(systemName: icon)
-                    .font(.system(size: 24, weight: .black))
-                    .foregroundStyle(Color(hex: "18100A"))
-                    .frame(width: 46, height: 46)
-                    .background(accent)
-                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                ShopArtTile(art: art)
                 VStack(alignment: .leading, spacing: 5) {
                     Text(title).pixelText(size: 12, color: Color(hex: "3A2A18"))
                     Text(detail)

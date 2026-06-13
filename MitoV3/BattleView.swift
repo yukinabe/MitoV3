@@ -174,13 +174,16 @@ struct BattleScreen: View {
     /// The wild creature tied to the current enemy, if the player hasn't caught
     /// it yet. Endless = Mutagem (Cytocrawler on every 4th wave); campaign =
     /// Spikevyrus. Returns nil if already owned, so we never re-offer.
-    private func captureCandidate() -> Hero? {
-        let id: String
+    private var currentWildEnemyID: String {
         if battleMode == .endless {
-            id = (wave % 4 == 0) ? "wild-cytocrawler" : "wild-mutagem"
+            return (wave % 4 == 0) ? "wild-cytocrawler" : "wild-mutagem"
         } else {
-            id = "wild-spikevyrus"
+            return "wild-spikevyrus"
         }
+    }
+
+    private func captureCandidate() -> Hero? {
+        let id = currentWildEnemyID
         guard !CaptureStore.shared.isOwned(id) else { return nil }
         return DataSet.capturable(id: id)
     }
@@ -1096,9 +1099,17 @@ struct BattleCombatView: View {
     @AppStorage("audio.master") private var volume: Double = 0.8
     @AppStorage("audio.music") private var musicOn: Bool = true
 
-    private var enemyName: String {
-        mode == .endless ? "Mutagem" : "Spikevyrus"
+    private var currentWildEnemyID: String {
+        if mode == .endless {
+            return (wave % 4 == 0) ? "wild-cytocrawler" : "wild-mutagem"
+        } else {
+            return "wild-spikevyrus"
+        }
     }
+
+    private var currentEnemy: Hero? { DataSet.capturable(id: currentWildEnemyID) }
+
+    private var enemyName: String { currentEnemy?.name ?? (mode == .endless ? "Mutagem" : "Spikevyrus") }
 
     private var enemyRarity: String? {
         mode == .endless ? "EPIC" : nil
@@ -1730,18 +1741,10 @@ struct BattleCombatView: View {
             .padding(.horizontal, 2)
 
             ZStack {
-                Image("mob_1")
-                    .resizable()
-                    .interpolation(.none)
-                    .scaledToFit()
-                    .frame(width: mode == .endless ? 124 : 118, height: mode == .endless ? 124 : 118)
+                SpriteView(asset: currentEnemy?.asset ?? "wild-spikevyrus-hop", size: mode == .endless ? 124 : 118)
                     .shadow(color: .black.opacity(0.34), radius: 0, x: 4, y: 5)
                     .overlay(
-                        Image("mob_1")
-                            .resizable()
-                            .interpolation(.none)
-                            .scaledToFit()
-                            .frame(width: mode == .endless ? 124 : 118, height: mode == .endless ? 124 : 118)
+                        SpriteView(asset: currentEnemy?.asset ?? "wild-spikevyrus-hop", size: mode == .endless ? 124 : 118)
                             .colorMultiply(enemyFlashColor)
                             .opacity(enemyFlash)
                             .blendMode(.plusLighter)
@@ -2717,11 +2720,7 @@ struct CapturePopup: View {
                     .pixelText(size: 12, color: Color(hex: "FFD24D"))
                     .multilineTextAlignment(.center)
 
-                Image(creature.asset)
-                    .resizable()
-                    .interpolation(.none)
-                    .scaledToFit()
-                    .frame(width: 92, height: 92)
+                SpriteView(asset: creature.asset, size: 92)
                     .padding(10)
                     .background(creature.color.opacity(0.25))
                     .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
@@ -2817,11 +2816,7 @@ struct CampaignStageSetup: View {
                 }
 
                 HStack(spacing: 10) {
-                    Image("mob_1")
-                        .resizable()
-                        .interpolation(.none)
-                        .scaledToFit()
-                        .frame(width: 58, height: 58)
+                    SpriteView(asset: "wild-spikevyrus-hop", size: 58)
                         .background(Color(hex: "F4E6C0"))
                         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     VStack(alignment: .leading, spacing: 4) {

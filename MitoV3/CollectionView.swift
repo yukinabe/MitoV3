@@ -570,10 +570,8 @@ struct CharacterInfoModal: View {
                             .font(.custom(MitoFont.regular, size: 13))
                             .foregroundStyle(Color(hex: "6B4324"))
                         HStack(spacing: 6) {
-                            Text("◎ \(goldCost)")
-                                .pixelText(size: 10, color: Color(hex: "8A6B42"))
-                            Text("🧬 \(bioCost)")
-                                .pixelText(size: 10, color: ownedBio >= bioCost ? Color(hex: "4A8A3C") : Color(hex: "C4452F"))
+                            CurrencyCostChip(asset: "currency-coin", value: goldCost, color: Color(hex: "8A6B42"))
+                            CurrencyCostChip(asset: "currency-biomass", value: bioCost, color: ownedBio >= bioCost ? Color(hex: "4A8A3C") : Color(hex: "C4452F"))
                             Text("(have \(ownedBio))")
                                 .font(.custom(MitoFont.regular, size: 12))
                                 .foregroundStyle(Color(hex: "8A6B42"))
@@ -615,6 +613,26 @@ struct CharacterInfoModal: View {
         .frame(maxHeight: 690)
         .background(Color(hex: "EAD4A4"))
         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+    }
+}
+
+struct CurrencyCostChip: View {
+    let asset: String
+    let value: Int
+    let color: Color
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(asset)
+                .resizable()
+                .interpolation(.none)
+                .scaledToFit()
+                .frame(width: 15, height: 15)
+            Text("\(value)")
+                .pixelText(size: 10, color: color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
     }
 }
 
