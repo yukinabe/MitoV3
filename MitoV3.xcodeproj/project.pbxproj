@@ -44,7 +44,9 @@
 		9A6CF684DB2C23EF3CB2C5B9 /* Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47DAC5AA49829B186532F517 /* Onboarding.swift */; };
 		B85C8FAE838F41F7D908CA17 /* BattleCombatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B8A4988FCA210D5F1D727B6 /* BattleCombatView.swift */; };
 		C969BE839865B2F6A9AD6955 /* BattleSetupViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDDC82F42DBAB51B1DEF3014 /* BattleSetupViews.swift */; };
+		D15DAACDE7446B819535F6BF /* FlashcardEditor.swift in Sources */ = {isa = PBXBuildFile; fileRef = D185ED4B61DD43385B68F9DF /* FlashcardEditor.swift */; };
 		DE23A9787963CB17A3CCA06F /* BattleAbilityEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F9217690B483B61835DDD4A /* BattleAbilityEffects.swift */; };
+		E538811C2859A10397DA9E27 /* CardImport.swift in Sources */ = {isa = PBXBuildFile; fileRef = 909835FF41108C3349E751E7 /* CardImport.swift */; };
 		F3FA939B4D935F20686337DB /* BattleCapturePopup.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5C35F1514D76D52E6B7B7477 /* BattleCapturePopup.swift */; };
 /* End PBXBuildFile section */
 
@@ -110,8 +112,10 @@
 		6ADB237E7DBDA981C5D175C7 /* AppChrome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
 		6B8A4988FCA210D5F1D727B6 /* BattleCombatView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleCombatView.swift; sourceTree = "<group>"; };
 		7D512C3D12FC9208D7685028 /* BackendModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BackendModels.swift; sourceTree = "<group>"; };
+		909835FF41108C3349E751E7 /* CardImport.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = CardImport.swift; sourceTree = "<group>"; };
 		9F9217690B483B61835DDD4A /* BattleAbilityEffects.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleAbilityEffects.swift; sourceTree = "<group>"; };
 		CDDC82F42DBAB51B1DEF3014 /* BattleSetupViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleSetupViews.swift; sourceTree = "<group>"; };
+		D185ED4B61DD43385B68F9DF /* FlashcardEditor.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = FlashcardEditor.swift; sourceTree = "<group>"; };
 		F723EFC0A844596637076B64 /* Tutorial.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Tutorial.swift; sourceTree = "<group>"; };
 		F82FCC98CA34E68B741F14B9 /* Social.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Social.swift; sourceTree = "<group>"; };
 		FC7A3AA0AB939D5A021F571D /* BattleFlashcardPanels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleFlashcardPanels.swift; sourceTree = "<group>"; };
@@ -185,6 +189,8 @@
 				6ADB237E7DBDA981C5D175C7 /* AppChrome.swift */,
 				1BCAE729C84FA6F03A3750B9 /* SettingsSheet.swift */,
 				F723EFC0A844596637076B64 /* Tutorial.swift */,
+				909835FF41108C3349E751E7 /* CardImport.swift */,
+				D185ED4B61DD43385B68F9DF /* FlashcardEditor.swift */,
 			);
 			path = MitoV3;
 			sourceTree = "<group>";
@@ -345,6 +351,8 @@
 				5889D1E881DECEE1B77ECAD6 /* AppChrome.swift in Sources */,
 				52141895C0220415C3EC8C30 /* SettingsSheet.swift in Sources */,
 				1996D358CB641DD4061773E0 /* Tutorial.swift in Sources */,
+				E538811C2859A10397DA9E27 /* CardImport.swift in Sources */,
+				D15DAACDE7446B819535F6BF /* FlashcardEditor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
