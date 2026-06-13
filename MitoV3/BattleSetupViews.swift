@@ -240,6 +240,7 @@ struct EndlessReviewSetup: View {
                     .padding(.vertical, 2)
                 }
                 .frame(maxHeight: .infinity)
+                .tutorialAnchor("battle.pickDeck")
 
                 TagFilterSection(availableTags: availableTags, selectedTags: $selectedTags)
 
@@ -302,6 +303,8 @@ struct EndlessReviewSetup: View {
             selectedDecks.insert(deck.id)
         }
         selectedTags.formIntersection(Set(availableTags))
+        // Advance the tutorial's "pick a deck" beat once the player has a deck selected.
+        if !selectedDecks.isEmpty { TutorialManager.shared.complete("battle.pickDeck") }
     }
 
     private func toggleTag(_ tag: String) {

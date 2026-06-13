@@ -22,8 +22,9 @@ enum TutorialBeat: Equatable {
     /// Mito (and an optional partner on the opposite side) speaks; tap anywhere to continue.
     case say(speaker: String, name: String, text: String, partner: String? = nil, partnerName: String? = nil)
     /// Dim everything except `target`; only the real target stays tappable. Advances when the
-    /// game calls `TutorialManager.complete(target)`. If the target can't be found, the dim is
-    /// tappable so the flow can never soft-lock.
+    /// game calls `TutorialManager.complete(target)`. If the target can't be found, the dim
+    /// swallows taps (so a stray tap can't skip the lesson) and the persistent "skip" button is
+    /// the soft-lock escape hatch.
     case spotlight(target: String, caption: String?)
 
     var spotlightTarget: String? {
@@ -95,7 +96,8 @@ enum TutorialScript {
             // — Into the first battle
             .spotlight(target: "tab.battle", caption: "head over to Battle ⚔"),
             .spotlight(target: "battle.endless", caption: "start with Endless Review — no pressure"),
-            .spotlight(target: "battle.startEndless", caption: "pick any deck, then start (it's free)"),
+            .spotlight(target: "battle.pickDeck", caption: "pick a deck — tap any one"),
+            .spotlight(target: "battle.startEndless", caption: "now hit Start (it's free)"),
             // — The core loop (real combat)
             .say(speaker: mito, name: "Mito",
                  text: "okay. one card, one hit. let's see what you've got."),
@@ -119,6 +121,7 @@ enum TutorialScript {
 struct TutorialHost: View {
     @ObservedObject private var manager = TutorialManager.shared
     let anchors: [String: CGRect]
+    let size: CGSize
 
     var body: some View {
         if let beat = manager.current {
@@ -130,7 +133,7 @@ struct TutorialHost: View {
                     .transition(.opacity)
                     .zIndex(60)
             case let .spotlight(target, caption):
-                TutorialSpotlight(rect: anchors[target], caption: caption,
+                TutorialSpotlight(rect: anchors[target], caption: caption, size: size,
                                   onSkip: { manager.skip() })
                     .zIndex(60)
             }
@@ -218,85 +221,88 @@ private struct TutorialDialogue: View {
 private struct TutorialSpotlight: View {
     let rect: CGRect?
     let caption: String?
+    let size: CGSize
     let onSkip: () -> Void
     @State private var pulse = false
 
     var body: some View {
-        GeometryReader { geo in
-            ZStack {
-                if let r = rect {
-                    dim(0, 0, geo.size.width, max(0, r.minY))                                    // top
-                    dim(0, r.maxY, geo.size.width, max(0, geo.size.height - r.maxY))             // bottom
-                    dim(0, r.minY, max(0, r.minX), r.height)                                     // left
-                    dim(r.maxX, r.minY, max(0, geo.size.width - r.maxX), r.height)               // right
+        ZStack {
+            if let r = rect {
+                dim(0, 0, size.width, max(0, r.minY))                                    // top
+                dim(0, r.maxY, size.width, max(0, size.height - r.maxY))                 // bottom
+                dim(0, r.minY, max(0, r.minX), r.height)                                 // left
+                dim(r.maxX, r.minY, max(0, size.width - r.maxX), r.height)               // right
 
-                    RoundedRectangle(cornerRadius: 16)
-                        .stroke(Color(hex: "FFD24D"), lineWidth: 4)
-                        .frame(width: r.width + 18, height: r.height + 18)
-                        .position(x: r.midX, y: r.midY)
-                        .scaleEffect(pulse ? 1.05 : 0.97)
-                        .opacity(pulse ? 0.35 : 1)
+                RoundedRectangle(cornerRadius: 16)
+                    .stroke(Color(hex: "FFD24D"), lineWidth: 4)
+                    .frame(width: r.width + 18, height: r.height + 18)
+                    .position(x: r.midX, y: r.midY)
+                    .scaleEffect(pulse ? 1.05 : 0.97)
+                    .opacity(pulse ? 0.35 : 1)
+                    .allowsHitTesting(false)
+
+                if let caption {
+                    Text(caption)
+                        .pixelText(size: 12, color: .white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 14).padding(.vertical, 9)
+                        .background(Color(hex: "18100A").opacity(0.85))
+                        .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 2))
+                        .fixedSize()
+                        .position(x: size.width / 2,
+                                  y: r.minY > 120 ? r.minY - 34 : r.maxY + 40)
                         .allowsHitTesting(false)
-
-                    if let caption {
-                        Text(caption)
-                            .pixelText(size: 12, color: .white)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 14).padding(.vertical, 9)
-                            .background(Color(hex: "18100A").opacity(0.85))
-                            .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 2))
-                            .fixedSize()
-                            .position(x: geo.size.width / 2,
-                                      y: r.minY > 120 ? r.minY - 34 : r.maxY + 40)
-                            .allowsHitTesting(false)
-                    }
-                } else {
-                    // Target not on-screen yet: dim + caption + wait (advance comes from `complete`).
-                    Color.black.opacity(0.6).ignoresSafeArea()
-                        .contentShape(Rectangle())
-                        .onTapGesture { }   // swallow taps; do NOT advance (would skip the lesson)
-                    if let caption {
-                        Text(caption)
-                            .pixelText(size: 12, color: .white)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 14).padding(.vertical, 9)
-                            .background(Color(hex: "18100A").opacity(0.85))
-                            .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 2))
-                            .position(x: geo.size.width / 2, y: geo.size.height * 0.5)
-                            .allowsHitTesting(false)
-                    }
                 }
+            } else {
+                // Target not on-screen yet: dim + caption + wait (advance comes from `complete`).
+                Color.black.opacity(0.6)
+                    .frame(width: size.width, height: size.height)
+                    .contentShape(Rectangle())
+                    .onTapGesture { }   // swallow taps; do NOT advance (would skip the lesson)
+                if let caption {
+                    Text(caption)
+                        .pixelText(size: 12, color: .white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 14).padding(.vertical, 9)
+                        .background(Color(hex: "18100A").opacity(0.85))
+                        .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 2))
+                        .position(x: size.width / 2, y: size.height * 0.5)
+                        .allowsHitTesting(false)
+                }
+            }
 
-                // Persistent skip — guarantees no soft-lock.
-                VStack {
-                    HStack {
-                        Spacer()
-                        Button(action: onSkip) {
-                            Text("skip")
-                                .font(.custom(MitoFont.regular, size: 12))
-                                .foregroundStyle(.white.opacity(0.7))
-                                .padding(.horizontal, 12).padding(.vertical, 6)
-                                .background(Color(hex: "18100A").opacity(0.6))
-                        }
-                        .buttonStyle(.plain)
-                    }
+            // Persistent skip — guarantees no soft-lock.
+            VStack {
+                HStack {
                     Spacer()
+                    Button(action: onSkip) {
+                        Text("skip")
+                            .font(.custom(MitoFont.regular, size: 12))
+                            .foregroundStyle(.white.opacity(0.7))
+                            .padding(.horizontal, 12).padding(.vertical, 6)
+                            .background(Color(hex: "18100A").opacity(0.6))
+                    }
+                    .buttonStyle(.plain)
                 }
-                .padding(.top, 8).padding(.trailing, 8)
+                Spacer()
             }
-            .onAppear {
-                withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { pulse = true }
-            }
+            .padding(.top, 50).padding(.trailing, 12)
         }
-        .ignoresSafeArea()
+        .frame(width: size.width, height: size.height)
+        .onAppear {
+            withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { pulse = true }
+        }
     }
 
     private func dim(_ x: CGFloat, _ y: CGFloat, _ w: CGFloat, _ h: CGFloat) -> some View {
+        // NOTE: contentShape + onTapGesture must be applied BEFORE .position. `.position`
+        // returns a view that fills the entire parent, so attaching the hit area after it
+        // would make the whole screen swallow taps — covering the spotlight hole too.
         Color.black.opacity(0.7)
             .frame(width: w, height: h)
-            .position(x: x + w / 2, y: y + h / 2)
             .contentShape(Rectangle())
-            .onTapGesture { }   // swallow taps everywhere except the spotlight hole
+            .onTapGesture { }   // swallow taps only within this dim panel, not the hole
+            .position(x: x + w / 2, y: y + h / 2)
     }
 }
 

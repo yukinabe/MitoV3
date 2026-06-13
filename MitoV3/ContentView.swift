@@ -71,8 +71,11 @@ struct ContentView: View {
             appShell
                 .overlayPreferenceValue(TutorialAnchorKey.self) { prefs in
                     GeometryReader { geo in
-                        TutorialHost(anchors: prefs.mapValues { geo[$0] })
+                        // Resolve anchors AND draw the overlay in the same full-screen
+                        // coordinate space so spotlight holes line up with real controls.
+                        TutorialHost(anchors: prefs.mapValues { geo[$0] }, size: geo.size)
                     }
+                    .ignoresSafeArea()
                 }
             // Waitlist / "private beta" gate removed — app opens straight in.
             if forceOnboard || (!bypassGate && !onboarded) {
