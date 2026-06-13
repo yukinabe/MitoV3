@@ -8,11 +8,11 @@ that move become `internal`; move dependent private helpers with their struct.
 
 ## Steps (check off as committed)
 - [x] 1. BackendModels.swift — DTO structs from MitoBackend.swift (keep class + methods + MitoBackendError)
-- [ ] 2. BattleAbilityEffects.swift — *Effect structs, PixelSpark, LightningBolt, BattleAbilityEffectView, SpriteSheetAbilityEffect
-- [ ] 3. BattleFlashcardPanels.swift — BattleFlashcardPanel, BattlePanelTag, BattleGradeButton, MultipleChoicePanel, TypeInPanel, AnswerModePicker, BattleStatusChip
-- [ ] 4. BattleCapturePopup.swift — CapturePopup
-- [ ] 5. BattleSetupViews.swift — CampaignStageSetup, EndlessReviewSetup, TagFilterSection, EndlessDeckRow
-- [ ] 6. BattleCombatView.swift — BattleCombatView (+ DamageNumberView, FloatingDamage, AbilityActionButton)
+- [x] BattleAbilityEffects.swift — *Effect structs, PixelSpark, LightningBolt, BattleAbilityEffectView, SpriteSheetAbilityEffect
+- [x] BattleFlashcardPanels.swift — BattleFlashcardPanel, BattlePanelTag, BattleGradeButton, MultipleChoicePanel, TypeInPanel, AnswerModePicker, BattleStatusChip
+- [x] BattleCapturePopup.swift — CapturePopup
+- [x] BattleSetupViews.swift — CampaignStageSetup, EndlessReviewSetup, TagFilterSection, EndlessDeckRow
+- [x] BattleCombatView.swift — BattleCombatView (+ DamageNumberView, FloatingDamage, AbilityActionButton)
 - [ ] 7. ContentView splits — Tutorial.swift, Onboarding.swift, AppChrome.swift, Social.swift
 - [ ] 8. FlashcardsView splits — FlashcardEditor.swift, CardImport.swift
 - [ ] 9. CollectionView — CharacterInfoModal.swift
