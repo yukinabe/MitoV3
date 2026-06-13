@@ -35,8 +35,13 @@
 		1000000000000000000000B9 /* BetaConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B8 /* BetaConfig.swift */; };
 		1000000000000000000000C5 /* MitoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000C1 /* MitoWidget.swift */; };
 		1000000000000000000000C6 /* MitoWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000C0 /* MitoWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		1996D358CB641DD4061773E0 /* Tutorial.swift in Sources */ = {isa = PBXBuildFile; fileRef = F723EFC0A844596637076B64 /* Tutorial.swift */; };
 		34F4826E0C6CF513AE64CC34 /* BattleFlashcardPanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A3AA0AB939D5A021F571D /* BattleFlashcardPanels.swift */; };
+		52141895C0220415C3EC8C30 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BCAE729C84FA6F03A3750B9 /* SettingsSheet.swift */; };
+		5889D1E881DECEE1B77ECAD6 /* AppChrome.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6ADB237E7DBDA981C5D175C7 /* AppChrome.swift */; };
+		6BEE8A09CD8012715C90F2CB /* Social.swift in Sources */ = {isa = PBXBuildFile; fileRef = F82FCC98CA34E68B741F14B9 /* Social.swift */; };
 		99376CAC626398DF8CB2F9E5 /* BackendModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7D512C3D12FC9208D7685028 /* BackendModels.swift */; };
+		9A6CF684DB2C23EF3CB2C5B9 /* Onboarding.swift in Sources */ = {isa = PBXBuildFile; fileRef = 47DAC5AA49829B186532F517 /* Onboarding.swift */; };
 		B85C8FAE838F41F7D908CA17 /* BattleCombatView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B8A4988FCA210D5F1D727B6 /* BattleCombatView.swift */; };
 		C969BE839865B2F6A9AD6955 /* BattleSetupViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = CDDC82F42DBAB51B1DEF3014 /* BattleSetupViews.swift */; };
 		DE23A9787963CB17A3CCA06F /* BattleAbilityEffects.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F9217690B483B61835DDD4A /* BattleAbilityEffects.swift */; };
@@ -99,11 +104,16 @@
 		1000000000000000000000C2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		1000000000000000000000C3 /* MitoWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MitoWidget.entitlements; sourceTree = "<group>"; };
 		1000000000000000000000C4 /* MitoV3.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MitoV3.entitlements; sourceTree = "<group>"; };
+		1BCAE729C84FA6F03A3750B9 /* SettingsSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
+		47DAC5AA49829B186532F517 /* Onboarding.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Onboarding.swift; sourceTree = "<group>"; };
 		5C35F1514D76D52E6B7B7477 /* BattleCapturePopup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleCapturePopup.swift; sourceTree = "<group>"; };
+		6ADB237E7DBDA981C5D175C7 /* AppChrome.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = AppChrome.swift; sourceTree = "<group>"; };
 		6B8A4988FCA210D5F1D727B6 /* BattleCombatView.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleCombatView.swift; sourceTree = "<group>"; };
 		7D512C3D12FC9208D7685028 /* BackendModels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BackendModels.swift; sourceTree = "<group>"; };
 		9F9217690B483B61835DDD4A /* BattleAbilityEffects.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleAbilityEffects.swift; sourceTree = "<group>"; };
 		CDDC82F42DBAB51B1DEF3014 /* BattleSetupViews.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleSetupViews.swift; sourceTree = "<group>"; };
+		F723EFC0A844596637076B64 /* Tutorial.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Tutorial.swift; sourceTree = "<group>"; };
+		F82FCC98CA34E68B741F14B9 /* Social.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Social.swift; sourceTree = "<group>"; };
 		FC7A3AA0AB939D5A021F571D /* BattleFlashcardPanels.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleFlashcardPanels.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -170,6 +180,11 @@
 				5C35F1514D76D52E6B7B7477 /* BattleCapturePopup.swift */,
 				CDDC82F42DBAB51B1DEF3014 /* BattleSetupViews.swift */,
 				6B8A4988FCA210D5F1D727B6 /* BattleCombatView.swift */,
+				F82FCC98CA34E68B741F14B9 /* Social.swift */,
+				47DAC5AA49829B186532F517 /* Onboarding.swift */,
+				6ADB237E7DBDA981C5D175C7 /* AppChrome.swift */,
+				1BCAE729C84FA6F03A3750B9 /* SettingsSheet.swift */,
+				F723EFC0A844596637076B64 /* Tutorial.swift */,
 			);
 			path = MitoV3;
 			sourceTree = "<group>";
@@ -325,6 +340,11 @@
 				F3FA939B4D935F20686337DB /* BattleCapturePopup.swift in Sources */,
 				C969BE839865B2F6A9AD6955 /* BattleSetupViews.swift in Sources */,
 				B85C8FAE838F41F7D908CA17 /* BattleCombatView.swift in Sources */,
+				6BEE8A09CD8012715C90F2CB /* Social.swift in Sources */,
+				9A6CF684DB2C23EF3CB2C5B9 /* Onboarding.swift in Sources */,
+				5889D1E881DECEE1B77ECAD6 /* AppChrome.swift in Sources */,
+				52141895C0220415C3EC8C30 /* SettingsSheet.swift in Sources */,
+				1996D358CB641DD4061773E0 /* Tutorial.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
