@@ -332,11 +332,13 @@ struct BattleScreen: View {
                     Button {
                         selectedDecks = []
                         selectedTags = []
+                        TutorialManager.shared.complete("battle.endless")
                         route = .reviewSetup
                     } label: {
                         FeatureButton(title: "ENDLESS REVIEW", badge: "RECOMMENDED", detail: "No limits · no ATP · earn gold, XP & recruits", tint: Color(hex: "4A8A3C"), height: 100)
                     }
                     .buttonStyle(.plain)
+                    .tutorialAnchor("battle.endless")
                     Button {
                         selectedDecks = []
                         selectedTags = []
@@ -382,6 +384,7 @@ struct BattleScreen: View {
                 session.start(deckIDs: selectedDecks, tags: selectedTags)
                 prepareAnswerMode()
                 route = .combat
+                TutorialManager.shared.complete("battle.startEndless")
             }
         )
     }
@@ -499,6 +502,7 @@ struct BattleScreen: View {
                 showingAnswer = true
                 AudioManager.shared.play(.cardShow)
                 Haptics.tap()
+                TutorialManager.shared.complete("battle.showAnswer")
             },
             onDone: { route = .landing },
             onGrade: grade,
@@ -779,6 +783,7 @@ struct BattleScreen: View {
         Haptics.select()
         pendingRating = rating
         choosingAbility = true
+        TutorialManager.shared.complete("battle.grade")
 
         if let activeHero {
             let required = activeHero.abilities.first { $0.kind == .ultimate }?.ultimateChargeRequired ?? 4
@@ -822,6 +827,7 @@ struct BattleScreen: View {
 
     private func useAbility(_ ability: BattleAbility) {
         guard let rating = pendingRating else { return }
+        TutorialManager.shared.complete("battle.ability")
         // Schedule the current card with FSRS and persist before advancing.
         session.grade(rating.fsrs)
         // Endless review loops forever: rebuild the queue once it drains.

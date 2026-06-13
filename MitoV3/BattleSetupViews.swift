@@ -276,6 +276,7 @@ struct EndlessReviewSetup: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(selectedDecks.isEmpty)
+                .tutorialAnchor("battle.startEndless")
             }
             .padding(.horizontal, 16)
             .padding(.top, 14)

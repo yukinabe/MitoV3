@@ -69,6 +69,7 @@ struct BattleFlashcardPanel: View {
                         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                 }
                 .buttonStyle(.plain)
+                .tutorialAnchor("battle.showAnswer")
             }
         }
         .padding(12)

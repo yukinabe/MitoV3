@@ -138,6 +138,7 @@ struct BottomTray: View {
                             withAnimation(.snappy(duration: 0.28)) {
                                 selectedTab = tab
                             }
+                            TutorialManager.shared.complete("tab.\(tab.rawValue)")
                         } label: {
                             ZStack {
                                 if selectedTab == tab {
@@ -157,6 +158,7 @@ struct BottomTray: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel(tab.title)
+                        .tutorialAnchor("tab.\(tab.rawValue)")
                     }
                 }
             }

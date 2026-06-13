@@ -74,23 +74,43 @@ final class TutorialManager: ObservableObject {
 }
 
 enum TutorialScript {
-    /// Session 1 — the opening hook. Phase-2 battle/study beats get inserted after the
-    /// STUDY spotlight as they're wired into those screens.
+    /// Session 1 — battle-first hook. Rides the REAL flow via spotlights on real controls
+    /// (advance only when the player performs the action) + dialogue between state changes.
     static func session1(goal: String) -> [TutorialBeat] {
         let g = goal.trimmingCharacters(in: .whitespacesAndNewlines)
+        let mito = "hero-mito-hop"
         return [
-            .say(speaker: "hero-mito-hop", name: "Mito",
+            // — Hook
+            .say(speaker: mito, name: "Mito",
                  text: "oh — you're here. good, 'cause we've got a situation."),
-            .say(speaker: "hero-mito-hop", name: "Mito",
+            .say(speaker: mito, name: "Mito",
                  text: "see that? a Mutagem. it feeds on the stuff you forget. rude, honestly.",
                  partner: "wild-mutagem-hop", partnerName: "Mutagem"),
-            .say(speaker: "hero-mito-hop", name: "Mito",
+            .say(speaker: mito, name: "Mito",
                  text: "the deal is simple — answer a flashcard right, and we hit it. your brain's the weapon. kinda poetic."),
-            .say(speaker: "hero-mito-hop", name: "Mito",
+            .say(speaker: mito, name: "Mito",
                  text: g.isEmpty
-                    ? "let's get a real run going. tap STUDY whenever you're ready."
+                    ? "let's get you into a real fight. follow me."
                     : "i loaded you up with some \(g) cards. let's put 'em to work."),
-            .spotlight(target: "study", caption: "tap STUDY to start your first run")
+            // — Into the first battle
+            .spotlight(target: "tab.battle", caption: "head over to Battle ⚔"),
+            .spotlight(target: "battle.endless", caption: "start with Endless Review — no pressure"),
+            .spotlight(target: "battle.startEndless", caption: "pick any deck, then start (it's free)"),
+            // — The core loop (real combat)
+            .say(speaker: mito, name: "Mito",
+                 text: "okay. one card, one hit. let's see what you've got."),
+            .spotlight(target: "battle.showAnswer", caption: "try to recall it… then reveal the answer"),
+            .spotlight(target: "battle.grade", caption: "rate how well you knew it — be honest"),
+            .spotlight(target: "battle.ability", caption: "now hit it — pick a move"),
+            .say(speaker: mito, name: "Mito",
+                 text: "LET'S GO. that's the whole loop — answer, attack, repeat. you've basically got it."),
+            // — Bridge to study / ATP
+            .say(speaker: mito, name: "Mito",
+                 text: "battles train your memory. and studying earns ATP to power the team up."),
+            .spotlight(target: "tab.home", caption: "back to your meadow"),
+            .spotlight(target: "study", caption: "this is your real focus time — every session earns ATP"),
+            .say(speaker: mito, name: "Mito",
+                 text: "that's it. go wreck some Mutagems — you got this. 🫡"),
         ]
     }
 }
@@ -111,7 +131,7 @@ struct TutorialHost: View {
                     .zIndex(60)
             case let .spotlight(target, caption):
                 TutorialSpotlight(rect: anchors[target], caption: caption,
-                                  onAdvance: { manager.advance() })
+                                  onSkip: { manager.skip() })
                     .zIndex(60)
             }
         }
@@ -192,10 +212,13 @@ private struct TutorialDialogue: View {
 
 /// Spotlight coachmark: dims everything except `rect`, pulses a ring on it, and leaves the
 /// real control tappable (the four dim panels around the hole block everything else).
+/// It advances ONLY when the game performs the matching action (`TutorialManager.complete`),
+/// never on a stray tap — so it can't skip a lesson. A persistent "skip" prevents soft-locks
+/// (e.g. if a target never renders or the player is on the wrong screen).
 private struct TutorialSpotlight: View {
     let rect: CGRect?
     let caption: String?
-    let onAdvance: () -> Void
+    let onSkip: () -> Void
     @State private var pulse = false
 
     var body: some View {
@@ -228,11 +251,38 @@ private struct TutorialSpotlight: View {
                             .allowsHitTesting(false)
                     }
                 } else {
-                    // Target not measured yet — full dim that advances on tap (no soft-lock).
+                    // Target not on-screen yet: dim + caption + wait (advance comes from `complete`).
                     Color.black.opacity(0.6).ignoresSafeArea()
                         .contentShape(Rectangle())
-                        .onTapGesture(perform: onAdvance)
+                        .onTapGesture { }   // swallow taps; do NOT advance (would skip the lesson)
+                    if let caption {
+                        Text(caption)
+                            .pixelText(size: 12, color: .white)
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal, 14).padding(.vertical, 9)
+                            .background(Color(hex: "18100A").opacity(0.85))
+                            .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 2))
+                            .position(x: geo.size.width / 2, y: geo.size.height * 0.5)
+                            .allowsHitTesting(false)
+                    }
                 }
+
+                // Persistent skip — guarantees no soft-lock.
+                VStack {
+                    HStack {
+                        Spacer()
+                        Button(action: onSkip) {
+                            Text("skip")
+                                .font(.custom(MitoFont.regular, size: 12))
+                                .foregroundStyle(.white.opacity(0.7))
+                                .padding(.horizontal, 12).padding(.vertical, 6)
+                                .background(Color(hex: "18100A").opacity(0.6))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Spacer()
+                }
+                .padding(.top, 8).padding(.trailing, 8)
             }
             .onAppear {
                 withAnimation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true)) { pulse = true }

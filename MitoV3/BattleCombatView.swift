@@ -1022,6 +1022,7 @@ struct BattleCombatView: View {
                     }
                 }
                 .opacity(showingAnswer ? 1 : 0.48)
+                .tutorialAnchor("battle.grade")
             case .multipleChoice:
                 MultipleChoicePanel(
                     options: mcOptions,
@@ -1081,6 +1082,7 @@ struct BattleCombatView: View {
             }
         }
         .frame(maxWidth: .infinity)
+        .tutorialAnchor("battle.ability")
     }
 }
 
