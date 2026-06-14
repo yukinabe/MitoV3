@@ -209,6 +209,7 @@ final class MitoBackend: ObservableObject {
         DailyQuests.shared.reset()
         CaptureStore.shared.reset()
         RosterStore.shared.reset()
+        CampaignStoryManager.shared.reset()
         PartyStore.shared.reset()
     }
 

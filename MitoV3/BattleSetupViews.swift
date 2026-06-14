@@ -32,6 +32,18 @@ struct CampaignStageSetup: View {
         !selectedDecks.isEmpty
     }
 
+    /// The boss shown for this stage: the recruitable hero (until owned), else the
+    /// generic Spikevyrus — kept in sync with what actually appears in combat.
+    private var bossPreview: Hero {
+        if let id = CampaignRecruits.heroID(forStage: stage.id),
+           !RosterStore.shared.isOwned(id),
+           let hero = DataSet.anyHero(id: id) {
+            return hero
+        }
+        return DataSet.anyHero(id: "wild-spikevyrus")
+            ?? DataSet.heroes[0]
+    }
+
     var body: some View {
         ZStack {
             WoodBackground()
@@ -52,13 +64,13 @@ struct CampaignStageSetup: View {
                 }
 
                 HStack(spacing: 10) {
-                    SpriteView(asset: "wild-spikevyrus-hop", size: 58)
+                    SpriteView(asset: bossPreview.asset, size: 58)
                         .background(Color(hex: "F4E6C0"))
                         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     VStack(alignment: .leading, spacing: 4) {
                         Text(stage.name.uppercased())
                             .pixelText(size: 13, color: Color(hex: "3A2A18"))
-                        Text("Spikevyrus · \(stage.difficulty == "BOSS" ? "boss fight" : "3 waves")")
+                        Text("\(bossPreview.name) · \(stage.difficulty == "BOSS" ? "boss fight" : "3 waves")")
                             .font(.custom(MitoFont.regular, size: 15))
                             .foregroundStyle(Color(hex: "6B4324"))
                     }

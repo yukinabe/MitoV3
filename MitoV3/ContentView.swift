@@ -77,6 +77,12 @@ struct ContentView: View {
                     }
                     .ignoresSafeArea()
                 }
+
+            // Campaign story scenes (inter-character dialogue around stages).
+            CampaignStoryHost()
+                .ignoresSafeArea()
+                .zIndex(70)
+
             // Waitlist / "private beta" gate removed — app opens straight in.
             if forceOnboard || (!bypassGate && !onboarded) {
                 OnboardingView(backend: backend, goal: $goal) {
@@ -101,6 +107,7 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .animation(.easeOut(duration: 0.2), value: notifications.showPrimer)
         .onAppear {
+            GameMigration.runIfNeeded()
             if forceTutorial || (!bypassGate && onboarded && !tutorialSeen) {
                 TutorialManager.shared.start(goal: goal)
             }

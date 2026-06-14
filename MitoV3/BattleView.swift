@@ -204,6 +204,15 @@ struct BattleScreen: View {
         return id
     }
 
+    /// Play the stage's story intro the first time the player opens its combat
+    /// (the boss is on screen behind the dialogue). No-op for unscripted stages
+    /// or once the scene's been seen.
+    private func playCampaignIntroIfNeeded() {
+        guard battleMode == .campaign else { return }
+        let stage = selectedStage.id
+        CampaignStoryManager.shared.playOnce("intro.\(stage)", CampaignStoryScript.intro(stage: stage))
+    }
+
     /// The wild creature tied to the current enemy, if the player hasn't caught
     /// it yet. Endless = Mutagem (Cytocrawler on every 4th wave); campaign =
     /// Spikevyrus. Returns nil if already owned, so we never re-offer.
@@ -548,6 +557,7 @@ struct BattleScreen: View {
             gradeTyped: { text, signals in await aiGradeTyped(text, signals) }
         )
         .onAppear(perform: scheduleUITestAutoCastIfNeeded)
+        .onAppear(perform: playCampaignIntroIfNeeded)
         // Flipping auto on while the ability picker is already showing should
         // cast immediately rather than waiting for the next card.
         .onChange(of: autoMode) { _, isOn in
@@ -977,12 +987,18 @@ struct BattleScreen: View {
             if battleMode == .campaign, enemyDefeated {
                 DailyQuests.shared.noteBattleWon()
                 clearedStage = max(clearedStage, selectedStage.id)
-                // Recruit-stage bosses join the team; other stages may drop a
-                // capturable wild creature instead.
-                if let hero = campaignRecruitHero {
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { recruitOffer = hero }
-                } else {
-                    offerCaptureIfWild()
+                // Play the stage's story outro (if any), THEN chain into the
+                // recruit-stage join popup or a wild-creature capture offer.
+                let stage = selectedStage.id
+                let recruit = campaignRecruitHero   // capture before it's unlocked
+                CampaignStoryManager.shared.playOnce(
+                    "outro.\(stage)", CampaignStoryScript.outro(stage: stage)
+                ) {
+                    if let recruit {
+                        recruitOffer = recruit
+                    } else {
+                        offerCaptureIfWild()
+                    }
                 }
             }
             let outcome = enemyDefeated ? "win" : "loss"

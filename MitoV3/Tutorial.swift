@@ -148,7 +148,8 @@ struct TutorialHost: View {
 }
 
 /// Dimmed dialogue: Mito bottom-right, optional partner bottom-left facing in, tap to continue.
-private struct TutorialDialogue: View {
+/// Shared by the one-shot tutorial and the campaign story (`CampaignStoryHost`).
+struct TutorialDialogue: View {
     let speaker: String, name: String, text: String
     let partner: String?, partnerName: String?
     let onAdvance: () -> Void
@@ -309,6 +310,188 @@ private struct TutorialSpotlight: View {
             .contentShape(Rectangle())
             .onTapGesture { }   // swallow taps only within this dim panel, not the hole
             .position(x: x + w / 2, y: y + h / 2)
+    }
+}
+
+// MARK: - Campaign story (inter-character dialogue around campaign stages)
+
+/// Plays short story scenes before/after campaign stages, reusing the tutorial's
+/// dialogue UI. Unlike `TutorialManager` (a one-shot guided flow), this fires
+/// once per scene as the player reaches each stage, and runs a completion
+/// handler when a scene ends (used to chain into the recruit/capture popup).
+@MainActor
+final class CampaignStoryManager: ObservableObject {
+    static let shared = CampaignStoryManager()
+    @Published private(set) var script: [TutorialBeat] = []
+    @Published private(set) var index = 0
+    private var onFinish: (() -> Void)?
+    private var currentID: String?
+    private let seenKey = "campaign.story.seen"
+    private var seen: Set<String>
+
+    private init() {
+        seen = Set(UserDefaults.standard.stringArray(forKey: seenKey) ?? [])
+    }
+
+    var active: Bool { !script.isEmpty }
+    var current: TutorialBeat? {
+        guard active, index >= 0, index < script.count else { return nil }
+        return script[index]
+    }
+
+    /// Play a scene once (keyed by `id`). If already seen or empty, the optional
+    /// completion runs immediately so callers can chain reliably. The scene is
+    /// marked seen only once it actually FINISHES (see `finish`), so an app-kill
+    /// mid-scene replays it next time rather than silently dropping it (and the
+    /// chained recruit/capture callback).
+    func playOnce(_ id: String, _ beats: [TutorialBeat], onFinish: (() -> Void)? = nil) {
+        guard !seen.contains(id) else { onFinish?(); return }
+        guard !beats.isEmpty else { markSeen(id); onFinish?(); return }
+        currentID = id
+        self.onFinish = onFinish
+        index = 0
+        withAnimation(.easeOut(duration: 0.25)) { script = beats }
+    }
+
+    func advance() {
+        guard active else { return }
+        if index + 1 >= script.count { finish(); return }
+        withAnimation(.easeInOut(duration: 0.2)) { index += 1 }
+    }
+
+    /// Skip the rest of the current scene (still marks it seen + fires completion).
+    func skip() { finish() }
+
+    private func finish() {
+        if let id = currentID { markSeen(id) }
+        currentID = nil
+        let handler = onFinish
+        onFinish = nil
+        withAnimation(.easeOut(duration: 0.25)) { script = [] }
+        index = 0
+        handler?()
+    }
+
+    private func markSeen(_ id: String) {
+        seen.insert(id)
+        UserDefaults.standard.set(Array(seen), forKey: seenKey)
+    }
+
+    /// Clear seen scenes (account deletion / privacy).
+    func reset() {
+        seen = []
+        UserDefaults.standard.removeObject(forKey: seenKey)
+        script = []
+        index = 0
+        onFinish = nil
+        currentID = nil
+    }
+}
+
+/// Renders the current campaign-story line using the shared dialogue UI.
+struct CampaignStoryHost: View {
+    @ObservedObject private var story = CampaignStoryManager.shared
+
+    var body: some View {
+        if case let .say(speaker, name, text, partner, partnerName) = story.current {
+            TutorialDialogue(speaker: speaker, name: name, text: text,
+                             partner: partner, partnerName: partnerName,
+                             onAdvance: { story.advance() }, onSkip: { story.skip() })
+                .transition(.opacity)
+                .zIndex(70)
+        }
+    }
+}
+
+/// The written scenes. Each stage has an `intro` (plays as combat opens, with the
+/// boss on screen behind the dim) and an `outro` (plays after the win, before the
+/// recruit/capture popup). Only stages 1–3 are scripted so far — the prologue's
+/// solo fight, the Spikevyrus scout, and Neuro's rescue.
+enum CampaignStoryScript {
+    private static let mito = "hero-mito-hop"
+    private static let chloro = "hero-chloroplast-hop"
+    private static let neuro = "hero-neuron-hop"
+
+    static func intro(stage: Int) -> [TutorialBeat] {
+        switch stage {
+        case 1:
+            return [
+                .say(speaker: mito, name: "Mito",
+                     text: "there — a chloroplast. or it was one. the Fading's got it; see how the light's gone grey?"),
+                .say(speaker: mito, name: "Mito",
+                     text: "it won't hear words anymore — only remembering. recall clean and we'll pull it back to itself.")
+            ]
+        case 2:
+            return [
+                .say(speaker: mito, name: "Mito",
+                     text: "spoke too soon. that spiky thing's a Spikevyrus scout. the Fading isn't just happening — something's spreading it."),
+                .say(speaker: chloro, name: "Chloro",
+                     text: "so we're not curing a sickness. we're fighting whatever WANTS us sick. cool. love that.",
+                     partner: mito, partnerName: "Mito"),
+                .say(speaker: mito, name: "Mito",
+                     text: "wear it down and you can bind it to the team — even a scout knows where it crawled from. let's catch one.",
+                     partner: chloro, partnerName: "Chloro")
+            ]
+        case 3:
+            return [
+                .say(speaker: mito, name: "Mito",
+                     text: "feel that static? a neuron — Neuro — and its signals are scrambled. the Fading hits memory hardest here."),
+                .say(speaker: chloro, name: "Chloro",
+                     text: "it's twitching like it forgot how to think.",
+                     partner: mito, partnerName: "Mito"),
+                .say(speaker: mito, name: "Mito",
+                     text: "because it did — same as you were. recall sharp and we'll straighten its wires out.",
+                     partner: chloro, partnerName: "Chloro")
+            ]
+        default:
+            return []
+        }
+    }
+
+    static func outro(stage: Int) -> [TutorialBeat] {
+        switch stage {
+        case 1:
+            return [
+                .say(speaker: chloro, name: "Chloro",
+                     text: "…oh. OH. the light — it's back. how long was i out?",
+                     partner: mito, partnerName: "Mito"),
+                .say(speaker: mito, name: "Mito",
+                     text: "long enough. welcome back, Chloro.",
+                     partner: chloro, partnerName: "Chloro"),
+                .say(speaker: chloro, name: "Chloro",
+                     text: "i had the weirdest dream where i was a feral lamp. …we don't talk about it. let's move.",
+                     partner: mito, partnerName: "Mito")
+            ]
+        case 2:
+            return [
+                .say(speaker: mito, name: "Mito",
+                     text: "that's the idea. every one we take is one less spreading the Fading.",
+                     partner: chloro, partnerName: "Chloro"),
+                .say(speaker: chloro, name: "Chloro",
+                     text: "and a little extra muscle never hurts. onward, bean.",
+                     partner: mito, partnerName: "Mito")
+            ]
+        case 3:
+            return [
+                .say(speaker: neuro, name: "Neuro",
+                     text: "…signal restored. systems nominal. who pulled me back?",
+                     partner: mito, partnerName: "Mito"),
+                .say(speaker: mito, name: "Mito",
+                     text: "team effort. you're one of us now — if you want in.",
+                     partner: neuro, partnerName: "Neuro"),
+                .say(speaker: neuro, name: "Neuro",
+                     text: "i hold the line. nothing gets past me twice.",
+                     partner: mito, partnerName: "Mito"),
+                .say(speaker: chloro, name: "Chloro",
+                     text: "oh good, a wall with opinions. this'll be fun.",
+                     partner: neuro, partnerName: "Neuro"),
+                .say(speaker: mito, name: "Mito",
+                     text: "play nice, you two. that's three of us — the team's coming together. now let's go free the rest.",
+                     partner: chloro, partnerName: "Chloro")
+            ]
+        default:
+            return []
+        }
     }
 }
 

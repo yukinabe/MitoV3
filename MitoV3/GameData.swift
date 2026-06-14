@@ -532,13 +532,15 @@ extension DataSet {
 /// them. Mito is the starter; the rest join one per campaign, in this order.
 /// Stages without an entry are generic (Spikevyrus) fights.
 enum CampaignRecruits {
-    /// stage.id → recruited hero id.
+    /// stage.id → recruited hero id. Stage 2 is a no-recruit story/mechanic beat
+    /// (a wild Spikevyrus scout that teaches capturing), so Neuro lands on
+    /// campaign 3 and the rest follow.
     static let byStage: [Int: String] = [
         1: "cloro",   // Chloro  — DPS
-        2: "neuro",   // Neuro   — Tank
-        3: "astro",   // Astro   — Support
-        4: "dendri",  // Dendri  — Support
-        5: "bcell"    // B Cell  — Support
+        3: "neuro",   // Neuro   — Tank
+        4: "astro",   // Astro   — Support
+        5: "dendri",  // Dendri  — Support
+        6: "bcell"    // B Cell  — Support
     ]
 
     static func heroID(forStage id: Int) -> String? { byStage[id] }
@@ -631,5 +633,27 @@ final class CaptureStore: ObservableObject {
     /// so `BattleRules` can sanitize the saved party.
     nonisolated static func persistedOwned() -> Set<String> {
         Set(UserDefaults.standard.stringArray(forKey: defaultsKey) ?? [])
+    }
+}
+
+/// One-time save migrations. Runs once per device on launch.
+enum GameMigration {
+    private static let doneKey = "migration.recruitV1.done"
+
+    /// The recruit/roster/story systems are newer than some saves. A pre-recruit
+    /// save had every hero free and may carry campaign progress that would skip
+    /// the new boss-recruit + story beats (and the stage→hero mapping changed
+    /// when the story stage was inserted). For those saves, restart the campaign
+    /// so recruits unlock in order. Brand-new saves (cleared == 0) are untouched.
+    static func runIfNeeded() {
+        let d = UserDefaults.standard
+        guard !d.bool(forKey: doneKey) else { return }
+        d.set(true, forKey: doneKey)
+
+        let hasRoster = d.stringArray(forKey: RosterStore.defaultsKey) != nil
+        let cleared = d.integer(forKey: "campaign.cleared")
+        if !hasRoster && cleared > 0 {
+            d.set(0, forKey: "campaign.cleared")
+        }
     }
 }
