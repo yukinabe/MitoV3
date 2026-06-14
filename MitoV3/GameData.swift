@@ -374,12 +374,12 @@ enum StageStatus {
 
 enum DataSet {
     static let heroes: [Hero] = [
-        Hero(id: "mito", asset: "hero-mito-hop", name: "Mito", role: "Support", level: 0, hp: 48, attack: 18, defense: 14, speed: 96, color: Color(hex: "E77878"), lore: "A bean-shaped mitochondria helper with bright cristae. Turns focus into ATP and keeps the party steady when long study sessions get rough."),
-        Hero(id: "cloro", asset: "hero-chloroplast-hop", name: "Chloro", role: "DPS", level: 0, hp: 42, attack: 22, defense: 11, speed: 112, color: Color(hex: "7BB55C"), lore: "A chloroplast DPS who captures light and stores it as clean burst damage. Quick, bright, and built for photosynthesis-themed pressure."),
-        Hero(id: "astro", asset: "hero-astrocyte-hop", name: "Astro", role: "Support", level: 0, hp: 36, attack: 24, defense: 9, speed: 103, color: Color(hex: "A98FD0"), lore: "A star-shaped astrocyte support who stabilizes the neural field. Astro's attacks feel like glial network signals instead of raw force."),
-        Hero(id: "dendri", asset: "hero-dendritic-cell-hop", name: "Dendri", role: "Support", level: 0, hp: 38, attack: 16, defense: 12, speed: 108, color: Color(hex: "E8C64A"), lore: "A branching dendritic-cell scout who keeps the team alert and turns small wins into streaks."),
-        Hero(id: "neuro", asset: "hero-neuron-hop", name: "Neuro", role: "Tank", level: 0, hp: 56, attack: 14, defense: 22, speed: 88, color: Color(hex: "5FA3D4"), lore: "A sturdy neuron buffer with branching signals. Soaks pressure while fragile allies line up the next answer."),
-        Hero(id: "bcell", asset: "hero-b-cell-hop", name: "B Cell", role: "Support", level: 0, hp: 34, attack: 17, defense: 10, speed: 94, color: Color(hex: "F4C6B8"), lore: "A careful immune support who turns repeated exposure into stronger responses. Antibody-themed moves make B Cell feel defensive without extra combat math.")
+        Hero(id: "mito", asset: "hero-mito-hop", name: "Mito", role: "Support", level: 1, hp: 48, attack: 18, defense: 14, speed: 96, color: Color(hex: "E77878"), lore: "A bean-shaped mitochondria helper with bright cristae. Turns focus into ATP and keeps the party steady when long study sessions get rough."),
+        Hero(id: "cloro", asset: "hero-chloroplast-hop", name: "Chloro", role: "DPS", level: 1, hp: 42, attack: 22, defense: 11, speed: 112, color: Color(hex: "7BB55C"), lore: "A chloroplast DPS who captures light and stores it as clean burst damage. Quick, bright, and built for photosynthesis-themed pressure."),
+        Hero(id: "astro", asset: "hero-astrocyte-hop", name: "Astro", role: "Support", level: 1, hp: 36, attack: 24, defense: 9, speed: 103, color: Color(hex: "A98FD0"), lore: "A star-shaped astrocyte support who stabilizes the neural field. Astro's attacks feel like glial network signals instead of raw force."),
+        Hero(id: "dendri", asset: "hero-dendritic-cell-hop", name: "Dendri", role: "Support", level: 1, hp: 38, attack: 16, defense: 12, speed: 108, color: Color(hex: "E8C64A"), lore: "A branching dendritic-cell scout who keeps the team alert and turns small wins into streaks."),
+        Hero(id: "neuro", asset: "hero-neuron-hop", name: "Neuro", role: "Tank", level: 1, hp: 56, attack: 14, defense: 22, speed: 88, color: Color(hex: "5FA3D4"), lore: "A sturdy neuron buffer with branching signals. Soaks pressure while fragile allies line up the next answer."),
+        Hero(id: "bcell", asset: "hero-b-cell-hop", name: "B Cell", role: "Support", level: 1, hp: 34, attack: 17, defense: 10, speed: 94, color: Color(hex: "F4C6B8"), lore: "A careful immune support who turns repeated exposure into stronger responses. Antibody-themed moves make B Cell feel defensive without extra combat math.")
     ]
 
     static let decks: [Deck] = [
@@ -447,7 +447,8 @@ enum BattleScaling {
 /// screen and both battle modes. Three characters: Support / DPS / Tank.
 enum BattleRules {
     static let partySize = 3
-    static let defaultParty = ["mito", "cloro", "neuro"]
+    /// A new game starts solo — extra members are recruited via the campaign.
+    static let defaultParty = ["mito"]
     /// UserDefaults key for the player's persisted active party (see PartyStore).
     static let partyDefaultsKey = "party.active"
 
@@ -465,7 +466,13 @@ enum BattleRules {
         }
         let saved = UserDefaults.standard.stringArray(forKey: partyDefaultsKey) ?? []
         let ids = saved.isEmpty ? defaultParty : saved
-        return Array(ids.prefix(partySize))
+        // Drop any members the player no longer owns (stale saves from before the
+        // recruit system, or pre-recruit defaults) so they can't be fielded and
+        // don't occupy slots that should be free for new recruits.
+        let owned = RosterStore.persistedOwned().union(CaptureStore.persistedOwned())
+        let filtered = ids.filter { owned.contains($0) }
+        let result = filtered.isEmpty ? defaultParty : filtered
+        return Array(result.prefix(partySize))
     }
 
     /// The active party as Hero records (base + captured creatures), in order.
@@ -508,12 +515,81 @@ extension DataSet {
     /// so they're purely additive collectibles. They use the default ability set
     /// (BattleAbilityBook handles unknown ids) and their own hop-strip art.
     static let capturables: [Hero] = [
-        Hero(id: "wild-mutagem", asset: "wild-mutagem-hop", name: "Mutagem", role: "DPS", level: 0, hp: 40, attack: 21, defense: 10, speed: 105, color: Color(hex: "A98FD0"), lore: "A mutated gem-spore that drifts through endless review. Capturing one binds its restless energy to your team."),
-        Hero(id: "wild-spikevyrus", asset: "wild-spikevyrus-hop", name: "Spikevyrus", role: "Tank", level: 0, hp: 54, attack: 15, defense: 20, speed: 90, color: Color(hex: "5FA3D4"), lore: "A spike-shelled virus boss from the campaign depths. Stubborn, sturdy, and surprisingly loyal once captured."),
-        Hero(id: "wild-cytocrawler", asset: "wild-cytocrawler-hop", name: "Cytocrawler", role: "DPS", level: 0, hp: 36, attack: 23, defense: 8, speed: 118, color: Color(hex: "E8C64A"), lore: "A fast cytoplasmic crawler that skitters between waves. Rare, twitchy, and a brutal attacker.")
+        Hero(id: "wild-mutagem", asset: "wild-mutagem-hop", name: "Mutagem", role: "DPS", level: 1, hp: 40, attack: 21, defense: 10, speed: 105, color: Color(hex: "A98FD0"), lore: "A mutated gem-spore that drifts through endless review. Capturing one binds its restless energy to your team."),
+        Hero(id: "wild-spikevyrus", asset: "wild-spikevyrus-hop", name: "Spikevyrus", role: "Tank", level: 1, hp: 54, attack: 15, defense: 20, speed: 90, color: Color(hex: "5FA3D4"), lore: "A spike-shelled virus boss from the campaign depths. Stubborn, sturdy, and surprisingly loyal once captured."),
+        Hero(id: "wild-cytocrawler", asset: "wild-cytocrawler-hop", name: "Cytocrawler", role: "DPS", level: 1, hp: 36, attack: 23, defense: 8, speed: 118, color: Color(hex: "E8C64A"), lore: "A fast cytoplasmic crawler that skitters between waves. Rare, twitchy, and a brutal attacker.")
     ]
 
     static func capturable(id: String) -> Hero? { capturables.first { $0.id == id } }
+
+    /// Resolve any hero by id — base roster first, then capturable wild creatures.
+    static func anyHero(id: String) -> Hero? {
+        heroes.first { $0.id == id } ?? capturables.first { $0.id == id }
+    }
+}
+
+/// Which base hero each campaign stage's boss is — clear the stage to recruit
+/// them. Mito is the starter; the rest join one per campaign, in this order.
+/// Stages without an entry are generic (Spikevyrus) fights.
+enum CampaignRecruits {
+    /// stage.id → recruited hero id.
+    static let byStage: [Int: String] = [
+        1: "cloro",   // Chloro  — DPS
+        2: "neuro",   // Neuro   — Tank
+        3: "astro",   // Astro   — Support
+        4: "dendri",  // Dendri  — Support
+        5: "bcell"    // B Cell  — Support
+    ]
+
+    static func heroID(forStage id: Int) -> String? { byStage[id] }
+}
+
+/// Persistent set of OWNED base heroes. A new game starts with only Mito; the
+/// rest are recruited by clearing their campaign boss (see `CampaignRecruits`).
+/// This is the base-roster analogue of `CaptureStore` (wild creatures).
+@MainActor
+final class RosterStore: ObservableObject {
+    static let shared = RosterStore()
+    nonisolated static let starter = "mito"
+    nonisolated static let defaultsKey = "roster.owned"
+
+    @Published private(set) var owned: Set<String>
+
+    private init() {
+        owned = RosterStore.persistedOwned()
+    }
+
+    func isOwned(_ id: String) -> Bool { owned.contains(id) }
+
+    /// Recruit a base hero. Returns false if it was already owned.
+    @discardableResult
+    func unlock(_ id: String) -> Bool {
+        guard !owned.contains(id) else { return false }
+        owned.insert(id)
+        persist()
+        return true
+    }
+
+    /// Reset to the starter-only roster (account deletion / privacy).
+    func reset() {
+        owned = [RosterStore.starter]
+        persist()
+    }
+
+    private func persist() {
+        UserDefaults.standard.set(Array(owned), forKey: RosterStore.defaultsKey)
+    }
+
+    /// Owned base-hero ids straight from storage (Mito always included). Readable
+    /// off the main actor so `BattleRules` can sanitize the saved party.
+    nonisolated static func persistedOwned() -> Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: defaultsKey) ?? []).union([starter])
+    }
+
+    /// Owned base heroes as Hero records, in canonical roster order.
+    var ownedHeroes: [Hero] {
+        DataSet.heroes.filter { owned.contains($0.id) }
+    }
 }
 
 /// Persistent set of captured-creature ids. Base heroes are always owned; this
@@ -521,13 +597,12 @@ extension DataSet {
 @MainActor
 final class CaptureStore: ObservableObject {
     static let shared = CaptureStore()
-    private let key = "captured.creatures"
+    nonisolated static let defaultsKey = "captured.creatures"
 
     @Published private(set) var owned: Set<String>
 
     private init() {
-        let saved = UserDefaults.standard.stringArray(forKey: key) ?? []
-        owned = Set(saved)
+        owned = CaptureStore.persistedOwned()
     }
 
     func isOwned(_ id: String) -> Bool { owned.contains(id) }
@@ -537,18 +612,24 @@ final class CaptureStore: ObservableObject {
     func capture(_ id: String) -> Bool {
         guard !owned.contains(id) else { return false }
         owned.insert(id)
-        UserDefaults.standard.set(Array(owned), forKey: key)
+        UserDefaults.standard.set(Array(owned), forKey: CaptureStore.defaultsKey)
         return true
     }
 
     /// Clear all captured creatures (account deletion / privacy).
     func reset() {
         owned = []
-        UserDefaults.standard.removeObject(forKey: key)
+        UserDefaults.standard.removeObject(forKey: CaptureStore.defaultsKey)
     }
 
     /// Captured creatures as usable Hero records, for the collection/team screen.
     var capturedHeroes: [Hero] {
         DataSet.capturables.filter { owned.contains($0.id) }
+    }
+
+    /// Captured creature ids straight from storage. Readable off the main actor
+    /// so `BattleRules` can sanitize the saved party.
+    nonisolated static func persistedOwned() -> Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: defaultsKey) ?? [])
     }
 }

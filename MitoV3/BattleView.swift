@@ -130,6 +130,8 @@ struct BattleScreen: View {
     @ObservedObject private var session = ReviewSession.shared
     /// A capturable wild creature offered after defeating it (campaign/endless).
     @State private var captureOffer: Hero?
+    /// A base hero recruited after beating their campaign boss.
+    @State private var recruitOffer: Hero?
     /// Creatures already offered this run, so a declined capture isn't re-offered
     /// every wave. Cleared when a fresh battle starts.
     @State private var offeredThisRun: Set<String> = []
@@ -167,8 +169,39 @@ struct BattleScreen: View {
                 )
                 .zIndex(50)
             }
+
+            if let hero = recruitOffer {
+                RecruitPopup(
+                    hero: hero,
+                    onJoin: {
+                        RosterStore.shared.unlock(hero.id)
+                        AudioManager.shared.play(.victory, volume: 0.85)
+                        Haptics.success()
+                        recruitOffer = nil
+                    }
+                )
+                .zIndex(55)
+            }
         }
         .onAppear(perform: maybeJumpToReviewForUITest)
+    }
+
+    /// The base hero recruited by clearing the selected campaign stage, if it's a
+    /// recruit stage and the player hasn't already unlocked them.
+    private var campaignRecruitHero: Hero? {
+        guard let id = CampaignRecruits.heroID(forStage: selectedStage.id),
+              !RosterStore.shared.isOwned(id) else { return nil }
+        return DataSet.anyHero(id: id)
+    }
+
+    /// The boss hero a campaign stage is fought against (drives the enemy sprite/
+    /// name). Recruit stages show the joinable hero until they're recruited; after
+    /// that the stage reverts to a generic Spikevyrus fight so the enemy you see
+    /// matches the capture you're offered on a replay.
+    private var campaignBossHeroID: String? {
+        guard let id = CampaignRecruits.heroID(forStage: selectedStage.id),
+              !RosterStore.shared.isOwned(id) else { return nil }
+        return id
     }
 
     /// The wild creature tied to the current enemy, if the player hasn't caught
@@ -493,6 +526,7 @@ struct BattleScreen: View {
             upcomingTurns: upcomingTurnIndices(5),
             skillCooldownTurns: activeSkillCooldown,
             wave: wave,
+            bossOverrideID: battleMode == .campaign ? campaignBossHeroID : nil,
             stageLabel: "STAGE \(selectedStage.id) · \(selectedStage.difficulty)",
             autoMode: autoMode,
             answerMode: answerMode,
@@ -943,7 +977,13 @@ struct BattleScreen: View {
             if battleMode == .campaign, enemyDefeated {
                 DailyQuests.shared.noteBattleWon()
                 clearedStage = max(clearedStage, selectedStage.id)
-                offerCaptureIfWild()
+                // Recruit-stage bosses join the team; other stages may drop a
+                // capturable wild creature instead.
+                if let hero = campaignRecruitHero {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { recruitOffer = hero }
+                } else {
+                    offerCaptureIfWild()
+                }
             }
             let outcome = enemyDefeated ? "win" : "loss"
             let stageID = selectedStage.id

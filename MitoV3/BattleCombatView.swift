@@ -79,6 +79,9 @@ struct BattleCombatView: View {
     let upcomingTurns: [Int]
     let skillCooldownTurns: Int
     let wave: Int
+    /// When set (campaign recruit stages), the enemy is this hero instead of the
+    /// generic wild boss — so the boss you fight is the character you'll recruit.
+    var bossOverrideID: String? = nil
     let stageLabel: String
     let autoMode: Bool
     let answerMode: AnswerMode
@@ -130,6 +133,7 @@ struct BattleCombatView: View {
     @AppStorage("audio.music") private var musicOn: Bool = true
 
     private var currentWildEnemyID: String {
+        if let bossOverrideID { return bossOverrideID }
         if mode == .endless {
             return (wave % 4 == 0) ? "wild-cytocrawler" : "wild-mutagem"
         } else {
@@ -137,12 +141,13 @@ struct BattleCombatView: View {
         }
     }
 
-    private var currentEnemy: Hero? { DataSet.capturable(id: currentWildEnemyID) }
+    private var currentEnemy: Hero? { DataSet.anyHero(id: currentWildEnemyID) }
 
     private var enemyName: String { currentEnemy?.name ?? (mode == .endless ? "Mutagem" : "Spikevyrus") }
 
     private var enemyRarity: String? {
-        mode == .endless ? "EPIC" : nil
+        if bossOverrideID != nil { return "BOSS" }
+        return mode == .endless ? "EPIC" : nil
     }
 
     /// Shared 3-character active party (same in both modes).

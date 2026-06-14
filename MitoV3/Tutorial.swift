@@ -85,7 +85,7 @@ enum TutorialScript {
             .say(speaker: mito, name: "Mito",
                  text: "oh — you're here. good, 'cause we've got a situation."),
             .say(speaker: mito, name: "Mito",
-                 text: "see that? a Mutagem. it feeds on the stuff you forget. rude, honestly.",
+                 text: "see that? a Mutagem. it feeds on the stuff you forget. and right now it's just you and me against it.",
                  partner: "wild-mutagem-hop", partnerName: "Mutagem"),
             .say(speaker: mito, name: "Mito",
                  text: "the deal is simple — answer a flashcard right, and we hit it. your brain's the weapon. kinda poetic."),
@@ -111,8 +111,14 @@ enum TutorialScript {
                  text: "battles train your memory. and studying earns ATP to power the team up."),
             .spotlight(target: "tab.home", caption: "back to your meadow"),
             .spotlight(target: "study", caption: "this is your real focus time — every session earns ATP"),
+            // — Point them at the campaign / first recruit
             .say(speaker: mito, name: "Mito",
-                 text: "that's it. go wreck some Mutagems — you got this. 🫡"),
+                 text: "one more thing — we don't have to fight solo forever."),
+            .say(speaker: mito, name: "Mito",
+                 text: "clear a Campaign stage and its boss joins our team. first up is Chloro — a chloroplast who hits HARD.",
+                 partner: "hero-chloroplast-hop", partnerName: "Chloro"),
+            .say(speaker: mito, name: "Mito",
+                 text: "head to Battle → Campaign when you're ready to go recruit 'em. you got this. 🫡"),
         ]
     }
 }

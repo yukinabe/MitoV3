@@ -208,6 +208,7 @@ final class MitoBackend: ObservableObject {
         StreakStore.shared.reset()
         DailyQuests.shared.reset()
         CaptureStore.shared.reset()
+        RosterStore.shared.reset()
         PartyStore.shared.reset()
     }
 

@@ -14,6 +14,7 @@ struct TeamScreen: View {
     @State private var infoHero: Hero?
     @State private var characterProgress: [String: CharacterProgress] = [:]
     @ObservedObject private var captures = CaptureStore.shared
+    @ObservedObject private var roster = RosterStore.shared
     @ObservedObject private var party = PartyStore.shared
     private let maxPartySize = BattleRules.partySize
 
@@ -26,7 +27,7 @@ struct TeamScreen: View {
     }
 
     private var heroes: [Hero] {
-        (DataSet.heroes + captures.capturedHeroes).map { hero in
+        (roster.ownedHeroes + captures.capturedHeroes).map { hero in
             if let progress = characterProgress[hero.id] {
                 return hero.applying(progress)
             }
