@@ -1516,7 +1516,7 @@ struct BattleCombatView: View {
 
                 Spacer(minLength: 0)
 
-                Text("-\(ability.damage)")
+                Text("-\(lastDamage)")
                     .pixelText(size: 11, color: Color(hex: "FFD24D"))
             } else {
                 Text(upNext.name.uppercased())
@@ -1676,7 +1676,7 @@ struct AbilityActionButton: View {
                     Text("\(cooldown) TURN\(cooldown == 1 ? "" : "S")")
                         .pixelText(size: 8, color: Color(hex: "6DA6FF"))
                 } else if ability.dealsDamage {
-                    Text("DMG \(ability.damage)")
+                    Text("PWR \(ability.damage)")
                         .pixelText(size: 6, color: Color(hex: "F4E6C0").opacity(0.88))
                 } else {
                     Text("SUPPORT")

@@ -260,7 +260,9 @@ struct BattleScreen: View {
             didUITestJump = true
             battleMode = .campaign
             enemyMaxHP = BattleScaling.campaignEnemyHP(
-                stageIndex: selectedStage.id, tierMultiplier: selectedStage.tierMultiplier, teamLevel: teamLevel)
+                stageIndex: selectedStage.id,
+                tierMultiplier: selectedStage.tierMultiplier
+            )
             mobHP = enemyMaxHP
             heroHP = Dictionary(uniqueKeysWithValues: activeTeam.map { ($0.id, $0.hp) })
             resetCombatFlow()
@@ -495,8 +497,7 @@ struct BattleScreen: View {
                 wave = 1
                 enemyMaxHP = BattleScaling.campaignEnemyHP(
                     stageIndex: selectedStage.id,
-                    tierMultiplier: selectedStage.tierMultiplier,
-                    teamLevel: teamLevel
+                    tierMultiplier: selectedStage.tierMultiplier
                 )
                 mobHP = enemyMaxHP
                 heroHP = Dictionary(uniqueKeysWithValues: activeTeam.map { ($0.id, $0.hp) })
@@ -884,19 +885,21 @@ struct BattleScreen: View {
             ultimateCharge[activeTeam[boundedIndex].id] = 0
         }
 
-        // Damage scales with team level, the team ATK buff, and the enemy MARK.
-        let damageMult = BattleScaling.heroDamageMultiplier(teamLevel: teamLevel)
-        let buffed = Double(ability.damage) * damageMult
-            * combatBuffs.damageMultiplier * combatBuffs.markMultiplier
-        // Pure-support abilities (Cristae Surge, Present Antigen) deal no damage.
-        let damage = ability.dealsDamage ? max(1, Int(buffed)) : 0
+        let actor = activeTeam[boundedIndex]
+        // Damage resolves from the actor's current base stats. Ability damage is
+        // a power/tuning value; upgrades and levels change the final hit.
+        let damage = BattleScaling.playerDamage(
+            ability: ability,
+            actor: actor,
+            combatBuffs: combatBuffs
+        )
         let enemyDefeated = ability.dealsDamage && (mobHP - damage <= 0)
         // End of turn: existing buffs tick down, then this ability's grants apply.
         combatBuffs.tickAll()
         applyGrants(ability)
         // Skill cooldown: every answered card ticks all cooldowns down; casting
         // a skill benches that hero's skill for `cooldownTurns` more cards.
-        let actorId = activeTeam[boundedIndex].id
+        let actorId = actor.id
         for hero in activeTeam {
             skillCooldown[hero.id] = max(0, (skillCooldown[hero.id] ?? 0) - 1)
         }
@@ -939,8 +942,13 @@ struct BattleScreen: View {
         var teamDefeated = false
         if battleMode == .campaign {
             // DEF buff reduces recoil; a team SHIELD absorbs the rest first.
-            var recoil = Int(Double(rating.recoil) * selectedStage.tierMultiplier
-                             * combatBuffs.recoilMultiplier)
+            var recoil = Int(
+                Double(BattleScaling.campaignRecoil(
+                    stageIndex: selectedStage.id,
+                    tierMultiplier: selectedStage.tierMultiplier,
+                    rating: rating
+                )) * combatBuffs.recoilMultiplier
+            )
             if combatBuffs.shield > 0, recoil > 0 {
                 let absorbed = min(combatBuffs.shield, recoil)
                 combatBuffs.shield -= absorbed
@@ -1035,4 +1043,3 @@ struct BattleScreen: View {
         case result
     }
 }
-

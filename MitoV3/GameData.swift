@@ -487,12 +487,24 @@ extension Stage {
     }
 }
 
-/// Centralized difficulty scaling so endless waves and campaign stages stay
-/// challenging as the team levels up — no one-shotting, no brick walls.
+/// Centralized battle tuning. Player damage comes from upgraded character stats;
+/// Endless enemies adapt to the team for review flow, while Campaign stages are
+/// fixed gates that players beat by leveling and upgrading BioBuds.
 enum BattleScaling {
-    /// Player hits scale gently with team level so progression matters.
-    static func heroDamageMultiplier(teamLevel: Int) -> Double {
-        max(0.7, 1 + 0.05 * Double(teamLevel - 10))
+    /// Resolve live combat damage from the actor's current stats. The ability's
+    /// stored `damage` is a tuning power value, not the final HP subtraction.
+    static func playerDamage(
+        ability: BattleAbility,
+        actor: Hero,
+        combatBuffs: CombatBuffs
+    ) -> Int {
+        guard ability.dealsDamage else { return 0 }
+
+        let abilityPower = Double(ability.damage) / 20.0
+        let attackPower = Double(max(actor.attack, 1))
+        let buffMultiplier = combatBuffs.damageMultiplier * combatBuffs.markMultiplier
+
+        return max(1, Int((attackPower * abilityPower * buffMultiplier).rounded()))
     }
 
     /// Endless enemies grow each wave (and with team level), so later waves
@@ -506,9 +518,23 @@ enum BattleScaling {
         (18 + wave * 5, 1 + wave / 4)
     }
 
-    /// Campaign enemy HP scales with stage index and tier.
-    static func campaignEnemyHP(stageIndex: Int, tierMultiplier: Double, teamLevel: Int) -> Int {
-        Int((80 + 14 * Double(stageIndex)) * tierMultiplier * (1 + 0.06 * Double(teamLevel - 10)))
+    /// Campaign enemy HP is fixed by stage, not by the player's current team.
+    static func campaignEnemyHP(stageIndex: Int, tierMultiplier: Double) -> Int {
+        Int((80 + 16 * Double(stageIndex)) * tierMultiplier)
+    }
+
+    /// Campaign enemy pressure rises by stage. Better answers still reduce the
+    /// hit, but later stages demand upgraded HP/DEF instead of auto-scaling down.
+    static func campaignRecoil(stageIndex: Int, tierMultiplier: Double, rating: BattleRating) -> Int {
+        let baseAttack = (5.0 + 1.7 * Double(stageIndex)) * tierMultiplier
+        let ratingMultiplier: Double
+        switch rating {
+        case .again: ratingMultiplier = 1.20
+        case .hard: ratingMultiplier = 0.75
+        case .good: ratingMultiplier = 0.35
+        case .easy: ratingMultiplier = 0
+        }
+        return max(0, Int((baseAttack * ratingMultiplier).rounded()))
     }
 }
 
