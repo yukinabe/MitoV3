@@ -1,5 +1,42 @@
 import SwiftUI
 
+/// Collectible rarity. Drives how much focused study time a character needs to
+/// earn full Trust before they can be fielded (see `TrustStore`).
+enum Rarity: String, Comparable {
+    case common, rare, epic, legendary
+
+    /// Minutes of completed study needed to take Trust from 0 → full.
+    var trustMinutesToMax: Int {
+        switch self {
+        case .common: 30
+        case .rare: 75
+        case .epic: 150
+        case .legendary: 300
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .common: "COMMON"
+        case .rare: "RARE"
+        case .epic: "EPIC"
+        case .legendary: "LEGENDARY"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .common: Color(hex: "9BB07A")
+        case .rare: Color(hex: "5FA3D4")
+        case .epic: Color(hex: "C98AE0")
+        case .legendary: Color(hex: "F07BFF")
+        }
+    }
+
+    private var order: Int { switch self { case .common: 0; case .rare: 1; case .epic: 2; case .legendary: 3 } }
+    static func < (a: Rarity, b: Rarity) -> Bool { a.order < b.order }
+}
+
 struct Hero: Identifiable {
     let id: String
     let asset: String
@@ -12,6 +49,7 @@ struct Hero: Identifiable {
     var speed: Int = 100          // turn frequency (HSR-style action value)
     let color: Color
     let lore: String
+    var rarity: Rarity = .common
 
     func applying(_ progress: CharacterProgress) -> Hero {
         Hero(
@@ -25,7 +63,8 @@ struct Hero: Identifiable {
             defense: progress.defense,
             speed: speed,
             color: color,
-            lore: lore
+            lore: lore,
+            rarity: rarity
         )
     }
 }
@@ -152,6 +191,16 @@ struct BattleAbility: Identifiable, Equatable {
         case "bcell-memory-response":
             return [BuffGrant(kind: .attack, magnitude: 0.18, turns: 3),
                     BuffGrant(kind: .shield, magnitude: 12, turns: 3)]
+        // Prion — structural corruption / mark
+        case "prion-chain-conformation":
+            return [BuffGrant(kind: .mark, magnitude: 0.35, turns: 3)]
+        case "prion-cascade":
+            return [BuffGrant(kind: .mark, magnitude: 0.25, turns: 4)]
+        // T4 Phage — injected tempo / viral burst
+        case "t4-genome-injection":
+            return [BuffGrant(kind: .ultEnergy, magnitude: 1, turns: 0)]
+        case "t4-lytic-burst":
+            return [BuffGrant(kind: .speed, magnitude: 20, turns: 2)]
         // Cloro & basics — pure damage, no buffs.
         default:
             return []
@@ -181,6 +230,12 @@ struct BattleAbility: Identifiable, Equatable {
             return "Glial sync — sharpens the whole party's focus."
         case "dendri-immune-rally":
             return "Immune rally — momentum boosts team damage."
+        case "prion-chain-conformation", "prion-cascade":
+            return "Misfolded structure — the enemy takes heavier hits."
+        case "t4-genome-injection":
+            return "Injected genome — charges the whole team."
+        case "t4-lytic-burst":
+            return "Lytic burst — speeds up the next turns."
         default:
             return "Energizes the team."
         }
@@ -318,6 +373,18 @@ enum BattleAbilityBook {
                 BattleAbility(id: "bcell-affinity-shield", name: "Affinity Shield", kind: .skill, damage: 14, detail: "A light antibody jab that also shields the team.", theme: "Immune / antibody", animationKey: "bcell-affinity-shield", color: Color(hex: "F0AFA4"), energyCost: 2, ultimateChargeRequired: nil),
                 BattleAbility(id: "bcell-memory-response", name: "Memory Response", kind: .ultimate, damage: 38, detail: "A remembered immune response surges back as a reliable support ultimate.", theme: "Immune / antibody", animationKey: "bcell-memory-response", color: Color(hex: "E8877C"), energyCost: nil, ultimateChargeRequired: 4)
             ]
+        case "prion":
+            return [
+                BattleAbility(id: "prion-misfold-flick", name: "Misfold Flick", kind: .basic, damage: 28, detail: "A sassy protein snap hits fast without spending cooldown.", theme: "Misfolded protein / prion", animationKey: "prion-misfold-flick", color: Color(hex: "C78CFF"), energyCost: nil, ultimateChargeRequired: nil),
+                BattleAbility(id: "prion-chain-conformation", name: "Chain Conformation", kind: .skill, damage: 38, detail: "Misfolded bands wrap the target and leave it marked for heavier follow-up hits.", theme: "Misfolded protein / prion", animationKey: "prion-chain-conformation", color: Color(hex: "B56BFF"), energyCost: 2, ultimateChargeRequired: nil),
+                BattleAbility(id: "prion-cascade", name: "Prion Cascade", kind: .ultimate, damage: 68, detail: "A legendary misfold cascade collapses the enemy structure and keeps it vulnerable.", theme: "Misfolded protein / prion", animationKey: "prion-cascade", color: Color(hex: "E6B7FF"), energyCost: nil, ultimateChargeRequired: 4)
+            ]
+        case "t4phage":
+            return [
+                BattleAbility(id: "t4-tail-pierce", name: "Tail Pierce", kind: .basic, damage: 27, detail: "A clean tail-fiber stab lands like a surgical strike.", theme: "Bacteriophage / viral injection", animationKey: "t4-tail-pierce", color: Color(hex: "4FDFF2"), energyCost: nil, ultimateChargeRequired: nil),
+                BattleAbility(id: "t4-genome-injection", name: "Genome Injection", kind: .skill, damage: 34, detail: "T4 latches on and injects a glowing genome, charging the team's ultimates.", theme: "Bacteriophage / viral injection", animationKey: "t4-genome-injection", color: Color(hex: "70F5FF"), energyCost: 2, ultimateChargeRequired: nil),
+                BattleAbility(id: "t4-lytic-burst", name: "Lytic Burst", kind: .ultimate, damage: 72, detail: "A legendary lytic overload shatters the target and accelerates the party.", theme: "Bacteriophage / lytic cycle", animationKey: "t4-lytic-burst", color: Color(hex: "8DF7FF"), energyCost: nil, ultimateChargeRequired: 4)
+            ]
         default:
             return [
                 BattleAbility(id: "\(hero.id)-tap", name: "Study Tap", kind: .basic, damage: 18, detail: "\(hero.name) keeps the review moving.", theme: "Study", animationKey: "tap", color: hero.color, energyCost: nil, ultimateChargeRequired: nil),
@@ -374,12 +441,14 @@ enum StageStatus {
 
 enum DataSet {
     static let heroes: [Hero] = [
-        Hero(id: "mito", asset: "hero-mito-hop", name: "Mito", role: "Support", level: 1, hp: 48, attack: 18, defense: 14, speed: 96, color: Color(hex: "E77878"), lore: "A bean-shaped mitochondria helper with bright cristae. Turns focus into ATP and keeps the party steady when long study sessions get rough."),
-        Hero(id: "cloro", asset: "hero-chloroplast-hop", name: "Chloro", role: "DPS", level: 1, hp: 42, attack: 22, defense: 11, speed: 112, color: Color(hex: "7BB55C"), lore: "A chloroplast DPS who captures light and stores it as clean burst damage. Quick, bright, and built for photosynthesis-themed pressure."),
-        Hero(id: "astro", asset: "hero-astrocyte-hop", name: "Astro", role: "Support", level: 1, hp: 36, attack: 24, defense: 9, speed: 103, color: Color(hex: "A98FD0"), lore: "A star-shaped astrocyte support who stabilizes the neural field. Astro's attacks feel like glial network signals instead of raw force."),
-        Hero(id: "dendri", asset: "hero-dendritic-cell-hop", name: "Dendri", role: "Support", level: 1, hp: 38, attack: 16, defense: 12, speed: 108, color: Color(hex: "E8C64A"), lore: "A branching dendritic-cell scout who keeps the team alert and turns small wins into streaks."),
-        Hero(id: "neuro", asset: "hero-neuron-hop", name: "Neuro", role: "Tank", level: 1, hp: 56, attack: 14, defense: 22, speed: 88, color: Color(hex: "5FA3D4"), lore: "A sturdy neuron buffer with branching signals. Soaks pressure while fragile allies line up the next answer."),
-        Hero(id: "bcell", asset: "hero-b-cell-hop", name: "B Cell", role: "Support", level: 1, hp: 34, attack: 17, defense: 10, speed: 94, color: Color(hex: "F4C6B8"), lore: "A careful immune support who turns repeated exposure into stronger responses. Antibody-themed moves make B Cell feel defensive without extra combat math.")
+        Hero(id: "mito", asset: "hero-mito-hop", name: "Mito", role: "Support", level: 1, hp: 48, attack: 18, defense: 14, speed: 96, color: Color(hex: "E77878"), lore: "A bean-shaped mitochondria helper with bright cristae. Turns focus into ATP and keeps the party steady when long study sessions get rough.", rarity: .common),
+        Hero(id: "cloro", asset: "hero-chloroplast-hop", name: "Chloro", role: "DPS", level: 1, hp: 42, attack: 22, defense: 11, speed: 112, color: Color(hex: "7BB55C"), lore: "A chloroplast DPS who captures light and stores it as clean burst damage. Quick, bright, and built for photosynthesis-themed pressure.", rarity: .rare),
+        Hero(id: "astro", asset: "hero-astrocyte-hop", name: "Astro", role: "Support", level: 1, hp: 36, attack: 24, defense: 9, speed: 103, color: Color(hex: "A98FD0"), lore: "A star-shaped astrocyte support who stabilizes the neural field. Astro's attacks feel like glial network signals instead of raw force.", rarity: .rare),
+        Hero(id: "dendri", asset: "hero-dendritic-cell-hop", name: "Dendri", role: "Support", level: 1, hp: 38, attack: 16, defense: 12, speed: 108, color: Color(hex: "E8C64A"), lore: "A branching dendritic-cell scout who keeps the team alert and turns small wins into streaks.", rarity: .rare),
+        Hero(id: "neuro", asset: "hero-neuron-hop", name: "Neuro", role: "Tank", level: 1, hp: 56, attack: 14, defense: 22, speed: 88, color: Color(hex: "5FA3D4"), lore: "A sturdy neuron buffer with branching signals. Soaks pressure while fragile allies line up the next answer.", rarity: .rare),
+        Hero(id: "bcell", asset: "hero-b-cell-hop", name: "B Cell", role: "Support", level: 1, hp: 34, attack: 17, defense: 10, speed: 94, color: Color(hex: "F4C6B8"), lore: "A careful immune support who turns repeated exposure into stronger responses. Antibody-themed moves make B Cell feel defensive without extra combat math.", rarity: .rare),
+        Hero(id: "prion", asset: "hero-prion-hop", name: "Prion", role: "DPS", level: 1, hp: 44, attack: 27, defense: 12, speed: 116, color: Color(hex: "C78CFF"), lore: "A sassy misfolded-protein BioBud with a dangerous little smile. Prion turns one correct fold into a chain reaction of pressure.", rarity: .legendary),
+        Hero(id: "t4phage", asset: "hero-t4-phage-hop", name: "T4 Phage", role: "DPS", level: 1, hp: 46, attack: 26, defense: 13, speed: 114, color: Color(hex: "4FDFF2"), lore: "A boss-tier bacteriophage BioBud with an iconic capsid and tail fibers. It latches on, injects focus, and makes review feel like a raid.", rarity: .legendary)
     ]
 
     static let decks: [Deck] = [
@@ -390,12 +459,12 @@ enum DataSet {
     ]
 
     static let stages: [Stage] = [
-        Stage(id: 1, name: "Petri Plain", status: .cleared, x: 0.50, y: 0.84, difficulty: "EASY"),
+        Stage(id: 1, name: "Chloroplast Cove", status: .cleared, x: 0.50, y: 0.84, difficulty: "EASY"),
         Stage(id: 2, name: "Membrane Marsh", status: .cleared, x: 0.40, y: 0.775, difficulty: "EASY"),
-        Stage(id: 3, name: "Nucleus Hollow", status: .cleared, x: 0.55, y: 0.71, difficulty: "NORMAL"),
-        Stage(id: 4, name: "Mitochondria Cave", status: .active, x: 0.45, y: 0.645, difficulty: "NORMAL"),
-        Stage(id: 5, name: "Ribosome Ridge", status: .locked, x: 0.58, y: 0.58, difficulty: "NORMAL"),
-        Stage(id: 6, name: "Golgi Gorge", status: .locked, x: 0.42, y: 0.515, difficulty: "HARD"),
+        Stage(id: 3, name: "Neuron Hollow", status: .cleared, x: 0.55, y: 0.71, difficulty: "NORMAL"),
+        Stage(id: 4, name: "Astrocyte Cave", status: .active, x: 0.45, y: 0.645, difficulty: "NORMAL"),
+        Stage(id: 5, name: "Dendrite Ridge", status: .locked, x: 0.58, y: 0.58, difficulty: "NORMAL"),
+        Stage(id: 6, name: "Antibody Gorge", status: .locked, x: 0.42, y: 0.515, difficulty: "HARD"),
         Stage(id: 7, name: "Lysosome Lair", status: .locked, x: 0.56, y: 0.45, difficulty: "HARD"),
         Stage(id: 8, name: "Vacuole Vale", status: .locked, x: 0.44, y: 0.385, difficulty: "BOSS"),
         Stage(id: 9, name: "Cytoskel Span", status: .locked, x: 0.57, y: 0.32, difficulty: "HARD"),
@@ -447,8 +516,8 @@ enum BattleScaling {
 /// screen and both battle modes. Three characters: Support / DPS / Tank.
 enum BattleRules {
     static let partySize = 3
-    /// A new game starts solo — extra members are recruited via the campaign.
-    static let defaultParty = ["mito"]
+    /// Beta/default party includes the two Legendary BioBuds for UGC capture.
+    static let defaultParty = ["mito", "prion", "t4phage"]
     /// UserDefaults key for the player's persisted active party (see PartyStore).
     static let partyDefaultsKey = "party.active"
 
@@ -469,8 +538,10 @@ enum BattleRules {
         // Drop any members the player no longer owns (stale saves from before the
         // recruit system, or pre-recruit defaults) so they can't be fielded and
         // don't occupy slots that should be free for new recruits.
+        // Only OWNED *and* fully-trusted characters can be fielded — a recruit
+        // you haven't earned the trust of yet can't take a battle slot.
         let owned = RosterStore.persistedOwned().union(CaptureStore.persistedOwned())
-        let filtered = ids.filter { owned.contains($0) }
+        let filtered = ids.filter { owned.contains($0) && TrustStore.persistedIsMaxed($0) }
         let result = filtered.isEmpty ? defaultParty : filtered
         return Array(result.prefix(partySize))
     }
@@ -515,9 +586,9 @@ extension DataSet {
     /// so they're purely additive collectibles. They use the default ability set
     /// (BattleAbilityBook handles unknown ids) and their own hop-strip art.
     static let capturables: [Hero] = [
-        Hero(id: "wild-mutagem", asset: "wild-mutagem-hop", name: "Mutagem", role: "DPS", level: 1, hp: 40, attack: 21, defense: 10, speed: 105, color: Color(hex: "A98FD0"), lore: "A mutated gem-spore that drifts through endless review. Capturing one binds its restless energy to your team."),
-        Hero(id: "wild-spikevyrus", asset: "wild-spikevyrus-hop", name: "Spikevyrus", role: "Tank", level: 1, hp: 54, attack: 15, defense: 20, speed: 90, color: Color(hex: "5FA3D4"), lore: "A spike-shelled virus boss from the campaign depths. Stubborn, sturdy, and surprisingly loyal once captured."),
-        Hero(id: "wild-cytocrawler", asset: "wild-cytocrawler-hop", name: "Cytocrawler", role: "DPS", level: 1, hp: 36, attack: 23, defense: 8, speed: 118, color: Color(hex: "E8C64A"), lore: "A fast cytoplasmic crawler that skitters between waves. Rare, twitchy, and a brutal attacker.")
+        Hero(id: "wild-mutagem", asset: "wild-mutagem-hop", name: "Mutagem", role: "DPS", level: 1, hp: 40, attack: 21, defense: 10, speed: 105, color: Color(hex: "A98FD0"), lore: "A mutated gem-spore that drifts through endless review. Capturing one binds its restless energy to your team.", rarity: .rare),
+        Hero(id: "wild-spikevyrus", asset: "wild-spikevyrus-hop", name: "Spikevyrus", role: "Tank", level: 1, hp: 54, attack: 15, defense: 20, speed: 90, color: Color(hex: "5FA3D4"), lore: "A spike-shelled virus boss from the campaign depths. Stubborn, sturdy, and surprisingly loyal once captured.", rarity: .epic),
+        Hero(id: "wild-cytocrawler", asset: "wild-cytocrawler-hop", name: "Cytocrawler", role: "DPS", level: 1, hp: 36, attack: 23, defense: 8, speed: 118, color: Color(hex: "E8C64A"), lore: "A fast cytoplasmic crawler that skitters between waves. Rare, twitchy, and a brutal attacker.", rarity: .epic)
     ]
 
     static func capturable(id: String) -> Hero? { capturables.first { $0.id == id } }
@@ -546,13 +617,15 @@ enum CampaignRecruits {
     static func heroID(forStage id: Int) -> String? { byStage[id] }
 }
 
-/// Persistent set of OWNED base heroes. A new game starts with only Mito; the
-/// rest are recruited by clearing their campaign boss (see `CampaignRecruits`).
+/// Persistent set of OWNED base heroes. The beta build grants the starter plus
+/// Legendary BioBuds by default; the rest are recruited by clearing campaign
+/// bosses (see `CampaignRecruits`).
 /// This is the base-roster analogue of `CaptureStore` (wild creatures).
 @MainActor
 final class RosterStore: ObservableObject {
     static let shared = RosterStore()
     nonisolated static let starter = "mito"
+    nonisolated static let defaultOwned: Set<String> = ["mito", "prion", "t4phage"]
     nonisolated static let defaultsKey = "roster.owned"
 
     @Published private(set) var owned: Set<String>
@@ -572,9 +645,9 @@ final class RosterStore: ObservableObject {
         return true
     }
 
-    /// Reset to the starter-only roster (account deletion / privacy).
+    /// Reset to the beta default roster (account deletion / privacy).
     func reset() {
-        owned = [RosterStore.starter]
+        owned = RosterStore.defaultOwned
         persist()
     }
 
@@ -582,10 +655,10 @@ final class RosterStore: ObservableObject {
         UserDefaults.standard.set(Array(owned), forKey: RosterStore.defaultsKey)
     }
 
-    /// Owned base-hero ids straight from storage (Mito always included). Readable
-    /// off the main actor so `BattleRules` can sanitize the saved party.
+    /// Owned base-hero ids straight from storage (beta defaults always included).
+    /// Readable off the main actor so `BattleRules` can sanitize the saved party.
     nonisolated static func persistedOwned() -> Set<String> {
-        Set(UserDefaults.standard.stringArray(forKey: defaultsKey) ?? []).union([starter])
+        Set(UserDefaults.standard.stringArray(forKey: defaultsKey) ?? []).union(defaultOwned)
     }
 
     /// Owned base heroes as Hero records, in canonical roster order.
@@ -636,9 +709,138 @@ final class CaptureStore: ObservableObject {
     }
 }
 
+/// Per-character Trust (and post-max Bond). A freshly recruited or captured
+/// character is OWNED but cannot be fielded until you raise their Trust to full
+/// by studying alongside them. Trust is earned by completing study sessions with
+/// the chosen study companion; cancelling a session or leaving them idle for
+/// days erodes it. Once Trust maxes, the character unlocks for battle/upgrades
+/// and further study builds Bond instead (which never decays).
+@MainActor
+final class TrustStore: ObservableObject {
+    static let shared = TrustStore()
+
+    nonisolated static let trustKey = "trust.baseline"      // [id: Double] trust at lastStudied
+    nonisolated static let lastKey = "trust.lastStudied"    // [id: Double] epoch seconds
+    nonisolated static let bondKey = "trust.bond"           // [id: Double]
+    nonisolated static let companionKey = "study.companion" // String
+
+    /// Idle Trust loss: begins after this many days away, at this rate per day
+    /// (in trust-minutes). Maxed characters and Bond never decay.
+    nonisolated static let decayGraceDays: Double = 2
+    nonisolated static let decayPerDay: Double = 8
+
+    @Published private(set) var baseline: [String: Double]
+    @Published private(set) var lastStudied: [String: Double]
+    @Published private(set) var bond: [String: Double]
+    @Published private(set) var companionID: String?
+
+    private init() {
+        // Ensure already-owned characters are granted full Trust before we read
+        // the cache, regardless of when this singleton is first created.
+        GameMigration.runTrustMigrationIfNeeded()
+        let d = UserDefaults.standard
+        baseline = (d.dictionary(forKey: Self.trustKey) as? [String: Double]) ?? [:]
+        lastStudied = (d.dictionary(forKey: Self.lastKey) as? [String: Double]) ?? [:]
+        bond = (d.dictionary(forKey: Self.bondKey) as? [String: Double]) ?? [:]
+        let c = d.string(forKey: Self.companionKey)
+        companionID = (c?.isEmpty == false) ? c : nil
+    }
+
+    // MARK: Reads
+
+    func required(_ hero: Hero) -> Double { Double(hero.rarity.trustMinutesToMax) }
+
+    /// Decay-applied current Trust for a character (clamped 0…required).
+    func trust(_ hero: Hero) -> Double {
+        let req = required(hero)
+        let base = baseline[hero.id] ?? (RosterStore.defaultOwned.contains(hero.id) ? req : 0)
+        if base >= req { return req }   // maxed → frozen, no decay
+        let last = lastStudied[hero.id].map { Date(timeIntervalSince1970: $0) } ?? Date()
+        let daysIdle = max(0, Date().timeIntervalSince(last) / 86400 - Self.decayGraceDays)
+        return max(0, base - daysIdle * Self.decayPerDay)
+    }
+
+    func fraction(_ hero: Hero) -> Double { min(1, trust(hero) / max(1, required(hero))) }
+    func isMaxed(_ hero: Hero) -> Bool { trust(hero) >= required(hero) }
+    func bondValue(_ hero: Hero) -> Double { bond[hero.id] ?? 0 }
+
+    /// Minutes still needed to reach full Trust (0 if already maxed).
+    func minutesRemaining(_ hero: Hero) -> Int {
+        max(0, Int((required(hero) - trust(hero)).rounded(.up)))
+    }
+
+    // MARK: Mutations
+
+    func chooseCompanion(_ id: String?) {
+        companionID = id
+        let d = UserDefaults.standard
+        if let id, !id.isEmpty { d.set(id, forKey: Self.companionKey) }
+        else { d.removeObject(forKey: Self.companionKey) }
+    }
+
+    /// Reward a completed study session: builds Trust (overflow + post-max study
+    /// becomes Bond) and refreshes the idle-decay clock.
+    func addStudyMinutes(_ minutes: Int, to hero: Hero) {
+        let m = Double(max(0, minutes))
+        guard m > 0 else { return }
+        let req = required(hero)
+        let cur = trust(hero)
+        if cur >= req {
+            bond[hero.id] = bondValue(hero) + m
+        } else {
+            let newTrust = cur + m
+            if newTrust >= req {
+                baseline[hero.id] = req
+                let overflow = newTrust - req
+                if overflow > 0 { bond[hero.id] = bondValue(hero) + overflow }
+            } else {
+                baseline[hero.id] = newTrust
+            }
+            lastStudied[hero.id] = Date().timeIntervalSince1970
+        }
+        persist()
+    }
+
+    /// Bailing on a session "breaks trust": halve current progress. Maxed
+    /// (already trusted) characters are never punished.
+    func penalizeCancel(_ hero: Hero) {
+        guard !isMaxed(hero) else { return }
+        baseline[hero.id] = max(0, trust(hero) * 0.5)
+        lastStudied[hero.id] = Date().timeIntervalSince1970
+        persist()
+    }
+
+    /// Reset all trust/bond (account deletion / privacy).
+    func reset() {
+        baseline = [:]; lastStudied = [:]; bond = [:]; companionID = nil
+        let d = UserDefaults.standard
+        d.removeObject(forKey: Self.trustKey)
+        d.removeObject(forKey: Self.lastKey)
+        d.removeObject(forKey: Self.bondKey)
+        d.removeObject(forKey: Self.companionKey)
+    }
+
+    private func persist() {
+        let d = UserDefaults.standard
+        d.set(baseline, forKey: Self.trustKey)
+        d.set(lastStudied, forKey: Self.lastKey)
+        d.set(bond, forKey: Self.bondKey)
+    }
+
+    /// Nonisolated battle-eligibility check (the starter is always trusted), so
+    /// `BattleRules` can sanitize the saved party off the main actor.
+    nonisolated static func persistedIsMaxed(_ id: String) -> Bool {
+        if RosterStore.defaultOwned.contains(id) { return true }
+        guard let hero = DataSet.anyHero(id: id) else { return false }
+        let base = (UserDefaults.standard.dictionary(forKey: trustKey) as? [String: Double])?[id] ?? 0
+        return base >= Double(hero.rarity.trustMinutesToMax)
+    }
+}
+
 /// One-time save migrations. Runs once per device on launch.
 enum GameMigration {
     private static let doneKey = "migration.recruitV1.done"
+    private static let trustDoneKey = "migration.trustV1.done"
 
     /// The recruit/roster/story systems are newer than some saves. A pre-recruit
     /// save had every hero free and may carry campaign progress that would skip
@@ -655,5 +857,23 @@ enum GameMigration {
         if !hasRoster && cleared > 0 {
             d.set(0, forKey: "campaign.cleared")
         }
+    }
+
+    /// Trust is new: grant full Trust to every character the player ALREADY owns
+    /// so existing teams keep working. Only characters recruited/captured *after*
+    /// this migration have to earn trust the new way.
+    static func runTrustMigrationIfNeeded() {
+        let d = UserDefaults.standard
+        guard !d.bool(forKey: trustDoneKey) else { return }
+        d.set(true, forKey: trustDoneKey)
+
+        let owned = RosterStore.persistedOwned().union(CaptureStore.persistedOwned())
+        var base = (d.dictionary(forKey: TrustStore.trustKey) as? [String: Double]) ?? [:]
+        for id in owned {
+            if let hero = DataSet.anyHero(id: id) {
+                base[id] = Double(hero.rarity.trustMinutesToMax)
+            }
+        }
+        d.set(base, forKey: TrustStore.trustKey)
     }
 }

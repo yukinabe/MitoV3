@@ -56,7 +56,13 @@ struct BattleAbilityEffectView: View {
         "neuro-myelin-guard",
         "neuro-synaptic-overload",
         "bcell-affinity-shield",
-        "bcell-memory-response"
+        "bcell-memory-response",
+        "prion-misfold-flick",
+        "prion-chain-conformation",
+        "prion-cascade",
+        "t4-tail-pierce",
+        "t4-genome-injection",
+        "t4-lytic-burst"
     ]
 }
 

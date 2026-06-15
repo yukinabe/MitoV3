@@ -12,6 +12,41 @@ struct FloatingDamage: Identifiable {
     let xJitter: CGFloat
 }
 
+private struct CombatFeedback: Identifiable, Equatable {
+    let id = UUID()
+    let grant: BuffGrant
+    let target: Target
+
+    enum Target: Equatable {
+        case ally(Int)
+        case enemy
+    }
+
+    var text: String {
+        switch grant.kind {
+        case .attack: "+\(Int(grant.magnitude * 100))% ATK"
+        case .defense: "GUARD"
+        case .speed: "+\(Int(grant.magnitude)) SPD"
+        case .shield: "+\(Int(grant.magnitude)) SHIELD"
+        case .heal: "+\(Int(grant.magnitude)) HP"
+        case .ultEnergy: "+\(Int(grant.magnitude)) ENERGY"
+        case .mark: "MARK +\(Int(grant.magnitude * 100))%"
+        }
+    }
+
+    var color: Color {
+        switch grant.kind {
+        case .attack: Color(hex: "FFD24D")
+        case .defense: Color(hex: "7EB9F0")
+        case .speed: Color(hex: "8FE3C0")
+        case .shield: Color(hex: "BFD8FF")
+        case .heal: Color(hex: "B8F58A")
+        case .ultEnergy: Color(hex: "FFF1A8")
+        case .mark: Color(hex: "F2A65A")
+        }
+    }
+}
+
 /// Self-animating damage number: pops in with an overshoot, then rises and fades.
 private struct DamageNumberView: View {
     let damage: FloatingDamage
@@ -50,6 +85,368 @@ private struct DamageNumberView: View {
                     fade = 0
                 }
             }
+    }
+}
+
+private struct CombatFeedbackView: View {
+    let feedback: CombatFeedback
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Text(feedback.grant.kind.icon)
+                .pixelText(size: 8, color: Color(hex: "1A130A"))
+            Text(feedback.text)
+                .pixelText(size: 7, color: Color(hex: "1A130A"))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(feedback.color)
+        .overlay(Rectangle().stroke(Color.white.opacity(0.75), lineWidth: 1))
+        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+        .shadow(color: feedback.color.opacity(0.8), radius: 8)
+    }
+}
+
+private struct LegendaryDirectedStrikeView: View {
+    let ability: BattleAbility
+    let start: CGPoint
+    let end: CGPoint
+    let progress: CGFloat
+
+    private var current: CGPoint {
+        CGPoint(
+            x: start.x + (end.x - start.x) * progress,
+            y: start.y + (end.y - start.y) * progress
+        )
+    }
+
+    var body: some View {
+        ZStack {
+            switch ability.animationKey {
+            case "t4-genome-injection":
+                DnaTether(start: start, end: current, color: Color(hex: "4FDFF2"), accent: Color(hex: "B8FF5B"))
+                PixelSpark(color: Color(hex: "B8FF5B"))
+                    .scaleEffect(0.68 + progress * 0.35)
+                    .position(current)
+            case "t4-tail-pierce":
+                PiercingLine(start: start, end: current, color: Color(hex: "4FDFF2"))
+            case "t4-lytic-burst":
+                DnaTether(start: start, end: current, color: Color(hex: "8DF7FF"), accent: Color(hex: "B8FF5B"))
+                ExpandingHexPulse(center: current, color: Color(hex: "8DF7FF"), progress: progress)
+            case "prion-misfold-flick":
+                MisfoldRibbon(start: start, end: current, color: Color(hex: "C78CFF"), progress: progress, intense: false)
+            case "prion-chain-conformation":
+                MisfoldRibbon(start: start, end: current, color: Color(hex: "B56BFF"), progress: progress, intense: true)
+                MarkEffect(color: Color(hex: "B56BFF"))
+                    .scaleEffect(0.28 + progress * 0.2)
+                    .opacity(Double(progress))
+                    .position(current)
+            case "prion-cascade":
+                MisfoldRibbon(start: start, end: current, color: Color(hex: "E6B7FF"), progress: progress, intense: true)
+                CascadePulse(center: current, color: Color(hex: "E6B7FF"), progress: progress)
+            default:
+                PiercingLine(start: start, end: current, color: ability.color)
+            }
+        }
+    }
+}
+
+private struct LegendaryImpactEffectView: View {
+    let ability: BattleAbility
+
+    var body: some View {
+        GeometryReader { proxy in
+            let center = CGPoint(x: proxy.size.width / 2, y: proxy.size.height / 2)
+            ZStack {
+                switch ability.animationKey {
+                case "t4-genome-injection":
+                    ExpandingHexPulse(center: center, color: Color(hex: "B8FF5B"), progress: 0.95)
+                    DnaImpactCore(color: Color(hex: "4FDFF2"), accent: Color(hex: "B8FF5B"))
+                        .position(center)
+                case "t4-tail-pierce":
+                    PiercingImpact(color: Color(hex: "4FDFF2"))
+                        .position(center)
+                case "t4-lytic-burst":
+                    SpriteSheetAbilityEffect(asset: ability.animationKey, frameCount: 8, frameSize: CGSize(width: 200, height: 128))
+                case "prion-misfold-flick":
+                    CascadePulse(center: center, color: Color(hex: "C78CFF"), progress: 0.72)
+                case "prion-chain-conformation":
+                    MarkEffect(color: Color(hex: "B56BFF"))
+                        .scaleEffect(0.76)
+                        .position(center)
+                    CascadePulse(center: center, color: Color(hex: "B56BFF"), progress: 0.82)
+                case "prion-cascade":
+                    SpriteSheetAbilityEffect(asset: ability.animationKey, frameCount: 8, frameSize: CGSize(width: 200, height: 128))
+                default:
+                    BurstEffect(color: ability.color, intense: ability.kind == .ultimate)
+                        .position(center)
+                }
+            }
+            .frame(width: proxy.size.width, height: proxy.size.height)
+        }
+        .blendMode(.plusLighter)
+    }
+}
+
+private struct DnaImpactCore: View {
+    let color: Color
+    let accent: Color
+
+    var body: some View {
+        ZStack {
+            Capsule()
+                .fill(color.opacity(0.82))
+                .frame(width: 52, height: 12)
+            Capsule()
+                .fill(accent.opacity(0.86))
+                .frame(width: 52, height: 6)
+                .rotationEffect(.degrees(35))
+            Capsule()
+                .fill(Color.white.opacity(0.72))
+                .frame(width: 42, height: 3)
+                .rotationEffect(.degrees(-35))
+            PixelSpark(color: accent)
+                .scaleEffect(0.56)
+                .offset(x: 24)
+        }
+    }
+}
+
+private struct PiercingImpact: View {
+    let color: Color
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<6, id: \.self) { index in
+                Rectangle()
+                    .fill(index.isMultiple(of: 2) ? color : Color.white.opacity(0.82))
+                    .frame(width: 7, height: 58)
+                    .offset(y: -36)
+                    .rotationEffect(.degrees(Double(index) * 60))
+            }
+            Circle()
+                .fill(color.opacity(0.62))
+                .frame(width: 44, height: 44)
+            Circle()
+                .fill(Color.white.opacity(0.74))
+                .frame(width: 17, height: 17)
+        }
+    }
+}
+
+private struct BuffTransferLink: View {
+    let start: CGPoint
+    let end: CGPoint
+    let color: Color
+    let opacity: Double
+
+    var body: some View {
+        ZStack {
+            Path { path in
+                path.move(to: start)
+                let mid = CGPoint(x: (start.x + end.x) / 2, y: min(start.y, end.y) - 24)
+                path.addQuadCurve(to: end, control: mid)
+            }
+            .stroke(color.opacity(opacity * 0.72), style: StrokeStyle(lineWidth: 3, lineCap: .round, dash: [5, 4]))
+            PixelSpark(color: color)
+                .scaleEffect(0.38)
+                .position(end)
+                .opacity(opacity)
+        }
+        .blendMode(.plusLighter)
+    }
+}
+
+private struct DebuffTargetPulse: View {
+    let color: Color
+    let opacity: Double
+
+    var body: some View {
+        ZStack {
+            MarkEffect(color: color)
+                .scaleEffect(0.72)
+            Circle()
+                .stroke(color.opacity(0.85), lineWidth: 5)
+                .frame(width: 112, height: 112)
+            Circle()
+                .stroke(Color.white.opacity(0.55), lineWidth: 2)
+                .frame(width: 82, height: 82)
+        }
+        .opacity(opacity)
+        .blendMode(.plusLighter)
+    }
+}
+
+private struct PiercingLine: View {
+    let start: CGPoint
+    let end: CGPoint
+    let color: Color
+
+    var body: some View {
+        ZStack {
+            Path { path in
+                path.move(to: start)
+                path.addLine(to: end)
+            }
+            .stroke(Color.white.opacity(0.92), style: StrokeStyle(lineWidth: 3, lineCap: .square))
+            Path { path in
+                path.move(to: start)
+                path.addLine(to: end)
+            }
+            .stroke(color.opacity(0.88), style: StrokeStyle(lineWidth: 8, lineCap: .square))
+            .blendMode(.plusLighter)
+        }
+    }
+}
+
+private struct DnaTether: View {
+    let start: CGPoint
+    let end: CGPoint
+    let color: Color
+    let accent: Color
+
+    var body: some View {
+        ZStack {
+            Path { path in
+                let points = wavePoints(phase: 0)
+                guard let first = points.first else { return }
+                path.move(to: first)
+                for point in points.dropFirst() { path.addLine(to: point) }
+            }
+            .stroke(color.opacity(0.92), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+            Path { path in
+                let points = wavePoints(phase: .pi)
+                guard let first = points.first else { return }
+                path.move(to: first)
+                for point in points.dropFirst() { path.addLine(to: point) }
+            }
+            .stroke(accent.opacity(0.9), style: StrokeStyle(lineWidth: 4, lineCap: .round, lineJoin: .round))
+            ForEach(0..<7, id: \.self) { index in
+                let pair = rung(index)
+                Path { path in
+                    path.move(to: pair.0)
+                    path.addLine(to: pair.1)
+                }
+                .stroke(Color.white.opacity(0.72), style: StrokeStyle(lineWidth: 1.5, lineCap: .square))
+            }
+        }
+    }
+
+    private func wavePoints(phase: CGFloat) -> [CGPoint] {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let length = max(1, hypot(dx, dy))
+        let nx = -dy / length
+        let ny = dx / length
+        return (0..<18).map { idx in
+            let t = CGFloat(idx) / 17
+            let amp = sin(t * .pi * 5 + phase) * 8
+            return CGPoint(x: start.x + dx * t + nx * amp, y: start.y + dy * t + ny * amp)
+        }
+    }
+
+    private func rung(_ index: Int) -> (CGPoint, CGPoint) {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let length = max(1, hypot(dx, dy))
+        let nx = -dy / length
+        let ny = dx / length
+        let t = CGFloat(index + 1) / 8
+        let amp = sin(t * .pi * 5) * 8
+        let center = CGPoint(x: start.x + dx * t, y: start.y + dy * t)
+        return (
+            CGPoint(x: center.x + nx * amp, y: center.y + ny * amp),
+            CGPoint(x: center.x - nx * amp, y: center.y - ny * amp)
+        )
+    }
+}
+
+private struct MisfoldRibbon: View {
+    let start: CGPoint
+    let end: CGPoint
+    let color: Color
+    let progress: CGFloat
+    let intense: Bool
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<(intense ? 3 : 2), id: \.self) { strand in
+                Path { path in
+                    let points = ribbonPoints(strand: strand)
+                    guard let first = points.first else { return }
+                    path.move(to: first)
+                    for point in points.dropFirst() { path.addLine(to: point) }
+                }
+                .stroke(strand == 0 ? Color.white.opacity(0.82) : color.opacity(0.88),
+                        style: StrokeStyle(lineWidth: strand == 0 ? 2 : 5, lineCap: .round, lineJoin: .round))
+                .blendMode(.plusLighter)
+            }
+        }
+    }
+
+    private func ribbonPoints(strand: Int) -> [CGPoint] {
+        let dx = end.x - start.x
+        let dy = end.y - start.y
+        let length = max(1, hypot(dx, dy))
+        let nx = -dy / length
+        let ny = dx / length
+        return (0..<10).map { idx in
+            let t = CGFloat(idx) / 9
+            let wobble = sin(t * .pi * CGFloat(intense ? 5 : 3) + CGFloat(strand) * 1.8 + progress * 2) * CGFloat(intense ? 13 : 8)
+            return CGPoint(x: start.x + dx * t + nx * wobble, y: start.y + dy * t + ny * wobble)
+        }
+    }
+}
+
+private struct ExpandingHexPulse: View {
+    let center: CGPoint
+    let color: Color
+    let progress: CGFloat
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<2, id: \.self) { index in
+                HexagonShape()
+                    .stroke(index == 0 ? color.opacity(0.95) : Color.white.opacity(0.7), lineWidth: index == 0 ? 4 : 2)
+                    .frame(width: 32 + progress * CGFloat(72 + index * 20), height: 32 + progress * CGFloat(72 + index * 20))
+                    .position(center)
+            }
+        }
+    }
+}
+
+private struct CascadePulse: View {
+    let center: CGPoint
+    let color: Color
+    let progress: CGFloat
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<3, id: \.self) { index in
+                Ellipse()
+                    .stroke(index == 0 ? color.opacity(0.95) : Color.white.opacity(0.62), lineWidth: index == 0 ? 5 : 2)
+                    .frame(width: 34 + progress * CGFloat(86 + index * 26), height: 18 + progress * CGFloat(50 + index * 14))
+                    .rotationEffect(.degrees(Double(index) * 18))
+                    .position(center)
+            }
+        }
+    }
+}
+
+private struct HexagonShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        let center = CGPoint(x: rect.midX, y: rect.midY)
+        let r = min(rect.width, rect.height) / 2
+        for index in 0..<6 {
+            let angle = -CGFloat.pi / 2 + CGFloat(index) * CGFloat.pi / 3
+            let point = CGPoint(x: center.x + cos(angle) * r, y: center.y + sin(angle) * r)
+            index == 0 ? path.move(to: point) : path.addLine(to: point)
+        }
+        path.closeSubpath()
+        return path
     }
 }
 
@@ -125,6 +522,9 @@ struct BattleCombatView: View {
     @State private var projectileFromIndex = 0
     @State private var impactBurstAbility: BattleAbility?
     @State private var impactBurstToken = 0
+    @State private var combatFeedback: [CombatFeedback] = []
+    @State private var feedbackRise: CGFloat = 0
+    @State private var feedbackOpacity: Double = 0
     @State private var displayedVisualAbility: BattleAbility?
     @State private var displayedVisualToken = 0
     @State private var animatedAttackToken = 0
@@ -143,7 +543,7 @@ struct BattleCombatView: View {
 
     private var currentEnemy: Hero? { DataSet.anyHero(id: currentWildEnemyID) }
 
-    private var enemyName: String { currentEnemy?.name ?? (mode == .endless ? "Mutagem" : "Spikevyrus") }
+    private var enemyName: String { L(currentEnemy?.name ?? (mode == .endless ? "Mutagem" : "Spikevyrus")) }
 
     private var enemyRarity: String? {
         if bossOverrideID != nil { return "BOSS" }
@@ -215,29 +615,74 @@ struct BattleCombatView: View {
                 if let pa = projectileAbility {
                     let start = heroScreenPos(index: projectileFromIndex, in: proxy.size)
                     let end = enemyScreenPos(in: proxy.size)
-                    let pos = CGPoint(x: start.x + (end.x - start.x) * projectileProgress,
-                                      y: start.y + (end.y - start.y) * projectileProgress)
-                    let travelScale = 0.35 + 0.45 * projectileProgress
-                    BattleAbilityEffectView(ability: pa, scale: travelScale, opacity: 1,
-                                            rotation: Double(projectileProgress) * 120)
-                        .frame(width: effectSize(for: pa).width * 0.72,
-                               height: effectSize(for: pa).height * 0.72)
-                        .position(pos)
-                        .allowsHitTesting(false)
-                        .zIndex(7)
+                    if isLegendaryDirectedAbility(pa) {
+                        LegendaryDirectedStrikeView(ability: pa, start: start, end: end, progress: projectileProgress)
+                            .frame(width: proxy.size.width, height: proxy.size.height)
+                            .allowsHitTesting(false)
+                            .zIndex(7)
+                    } else {
+                        let pos = CGPoint(x: start.x + (end.x - start.x) * projectileProgress,
+                                          y: start.y + (end.y - start.y) * projectileProgress)
+                        let travelScale = 0.35 + 0.45 * projectileProgress
+                        BattleAbilityEffectView(ability: pa, scale: travelScale, opacity: 1,
+                                                rotation: Double(projectileProgress) * 120)
+                            .frame(width: effectSize(for: pa).width * 0.72,
+                                   height: effectSize(for: pa).height * 0.72)
+                            .position(pos)
+                            .allowsHitTesting(false)
+                            .zIndex(7)
+                    }
                 }
 
                 // 2) On arrival it bursts on the enemy (every damaging ability, so
                 //    buff-and-attack ultimates still land a visible hit).
                 if let burst = impactBurstAbility {
-                    BattleAbilityEffectView(ability: burst,
-                                            scale: burst.kind == .ultimate ? 1.3 : 1.05,
-                                            opacity: 1, rotation: 0)
-                        .id(impactBurstToken)
-                        .frame(width: effectSize(for: burst).width, height: effectSize(for: burst).height)
-                        .position(enemyScreenPos(in: proxy.size))
+                    if isLegendaryDirectedAbility(burst) {
+                        LegendaryImpactEffectView(ability: burst)
+                            .id(impactBurstToken)
+                            .frame(width: effectSize(for: burst).width, height: effectSize(for: burst).height)
+                            .position(enemyScreenPos(in: proxy.size))
+                            .allowsHitTesting(false)
+                            .zIndex(8)
+                    } else {
+                        BattleAbilityEffectView(ability: burst,
+                                                scale: burst.kind == .ultimate ? 1.3 : 1.05,
+                                                opacity: 1, rotation: 0)
+                            .id(impactBurstToken)
+                            .frame(width: effectSize(for: burst).width, height: effectSize(for: burst).height)
+                            .position(enemyScreenPos(in: proxy.size))
+                            .allowsHitTesting(false)
+                            .zIndex(8)
+                    }
+                }
+
+                ForEach(combatFeedback) { feedback in
+                    switch feedback.target {
+                    case .ally(let index):
+                        BuffTransferLink(
+                            start: heroScreenPos(index: lastActorIndex, in: proxy.size),
+                            end: heroScreenPos(index: index, in: proxy.size),
+                            color: feedback.color,
+                            opacity: feedbackOpacity
+                        )
+                        .frame(width: proxy.size.width, height: proxy.size.height)
                         .allowsHitTesting(false)
-                        .zIndex(8)
+                        .zIndex(8.5)
+                    case .enemy:
+                        DebuffTargetPulse(color: feedback.color, opacity: feedbackOpacity)
+                            .position(enemyScreenPos(in: proxy.size))
+                            .allowsHitTesting(false)
+                            .zIndex(8.5)
+                    }
+                }
+
+                ForEach(combatFeedback) { feedback in
+                    CombatFeedbackView(feedback: feedback)
+                        .position(feedbackPosition(feedback.target, in: proxy.size))
+                        .offset(y: feedbackRise)
+                        .opacity(feedbackOpacity)
+                        .allowsHitTesting(false)
+                        .zIndex(9)
                 }
 
                 // Turn-order timeline (who acts next), Honkai-style, left edge.
@@ -291,6 +736,10 @@ struct BattleCombatView: View {
         Self.partyAuraAnimationKeys.contains(ability.animationKey)
     }
 
+    private func isLegendaryDirectedAbility(_ ability: BattleAbility) -> Bool {
+        Self.legendaryDirectedAnimationKeys.contains(ability.animationKey)
+    }
+
     private func effectSize(for ability: BattleAbility) -> CGSize {
         if isPartyAuraAbility(ability) {
             return CGSize(width: 250, height: 160)
@@ -313,7 +762,13 @@ struct BattleCombatView: View {
         "neuro-myelin-guard",
         "neuro-synaptic-overload",
         "bcell-affinity-shield",
-        "bcell-memory-response"
+        "bcell-memory-response",
+        "prion-misfold-flick",
+        "prion-chain-conformation",
+        "prion-cascade",
+        "t4-tail-pierce",
+        "t4-genome-injection",
+        "t4-lytic-burst"
     ]
 
     private static let partyAuraAnimationKeys: Set<String> = [
@@ -325,6 +780,15 @@ struct BattleCombatView: View {
         "neuro-myelin-guard",
         "bcell-affinity-shield",
         "bcell-memory-response"
+    ]
+
+    private static let legendaryDirectedAnimationKeys: Set<String> = [
+        "prion-misfold-flick",
+        "prion-chain-conformation",
+        "prion-cascade",
+        "t4-tail-pierce",
+        "t4-genome-injection",
+        "t4-lytic-burst"
     ]
 
     private func runHitAnimationIfNeeded() {
@@ -369,31 +833,65 @@ struct BattleCombatView: View {
 
     /// Screen position of a hero in the party row (for directed strikes).
     private func heroScreenPos(index: Int, in size: CGSize) -> CGPoint {
+        // Mirrors `partyRow`: it is inside the main VStack with horizontal padding
+        // and appears below the enemy block, well above the flashcard panel.
         let pad: CGFloat = mode == .endless ? 72 : 42
-        let usable = size.width - pad * 2
-        let n = CGFloat(max(team.count, 1))
-        let x = pad + (CGFloat(index) + 0.5) * (usable / n)
-        let y = size.height * (mode == .endless ? 0.52 : 0.50)
+        let spacing: CGFloat = mode == .endless ? 26 : 16
+        let count = CGFloat(max(team.count, 1))
+        let usable = size.width - pad * 2 - spacing * max(0, count - 1)
+        let slot = usable / count
+        let x = pad + slot * (CGFloat(index) + 0.5) + spacing * CGFloat(index) - (mode == .endless ? 6 : 4)
+        let y = size.height * (mode == .endless ? 0.255 : 0.255)
         return CGPoint(x: x, y: y)
     }
 
     private func enemyScreenPos(in size: CGSize) -> CGPoint {
-        CGPoint(x: size.width / 2, y: size.height * (mode == .endless ? 0.33 : 0.31))
+        CGPoint(x: size.width / 2, y: size.height * (mode == .endless ? 0.16 : 0.16))
+    }
+
+    private func contactDelay(for ability: BattleAbility?) -> TimeInterval {
+        let holdForUITest = ProcessInfo.processInfo.arguments.contains("-uitestHoldAbilityEffects")
+            || ProcessInfo.processInfo.arguments.contains("-uitestSlowAbilityEffects")
+        if holdForUITest, let ability, isLegendaryDirectedAbility(ability) {
+            return 8.0
+        }
+        return impactDelay
+    }
+
+    private func feedbackPosition(_ target: CombatFeedback.Target, in size: CGSize) -> CGPoint {
+        switch target {
+        case .ally(let index):
+            let pos = heroScreenPos(index: index, in: size)
+            return CGPoint(x: pos.x, y: pos.y - 58)
+        case .enemy:
+            let pos = enemyScreenPos(in: size)
+            return CGPoint(x: pos.x, y: pos.y - 70)
+        }
     }
 
     /// Send the ability's effect flying from the hero, then burst it on the enemy.
     private func launchStrike(_ ability: BattleAbility, from index: Int) {
+        let holdForUITest = ProcessInfo.processInfo.arguments.contains("-uitestHoldAbilityEffects")
+            || ProcessInfo.processInfo.arguments.contains("-uitestSlowAbilityEffects")
+        let isHeldDirectedAbility = holdForUITest && isLegendaryDirectedAbility(ability)
+        let travelDuration: TimeInterval = isHeldDirectedAbility ? 0.75 : impactDelay
+        let projectileHoldDuration: TimeInterval = isHeldDirectedAbility ? 30.0 : 0
+        let burstDuration: TimeInterval = holdForUITest ? 8.0 : 0.55
         projectileAbility = ability
         projectileFromIndex = index
         projectileProgress = 0
-        withAnimation(.easeIn(duration: impactDelay)) { projectileProgress = 1 }
-        DispatchQueue.main.asyncAfter(deadline: .now() + impactDelay) {
+        if isHeldDirectedAbility {
+            projectileProgress = 1
+        } else {
+            withAnimation(.easeIn(duration: travelDuration)) { projectileProgress = 1 }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + travelDuration + projectileHoldDuration) {
             projectileAbility = nil
             guard ability.kind != .basic else { return }
             impactBurstToken += 1
             let tok = impactBurstToken
             impactBurstAbility = ability
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + burstDuration) {
                 if impactBurstToken == tok { impactBurstAbility = nil }
             }
         }
@@ -430,7 +928,7 @@ struct BattleCombatView: View {
 
         // 2) On contact: hero springs back and the enemy reacts (shake, flash,
         //    HP drop, damage number) — held off until the lunge connects.
-        DispatchQueue.main.asyncAfter(deadline: .now() + impactDelay) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + contactDelay(for: lastAbility)) {
             withAnimation(.spring(response: 0.45, dampingFraction: 0.6)) { lungeY = 0 }
             applyImpact()
         }
@@ -498,6 +996,9 @@ struct BattleCombatView: View {
 
         // --- Floating damage number (scales with magnitude; gold on crit) ---
         spawnDamageNumber(lastDamage, isCrit: isCrit)
+        if let ability = lastAbility {
+            showCombatFeedback(for: ability)
+        }
 
         // --- Brief freeze, then the visual reaction lands ---
         DispatchQueue.main.asyncAfter(deadline: .now() + hitStop) {
@@ -560,6 +1061,47 @@ struct BattleCombatView: View {
         // Auto-reap after its rise/fade completes.
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.1) {
             floatingDamages.removeAll { $0.id == dmg.id }
+        }
+    }
+
+    private func showCombatFeedback(for ability: BattleAbility) {
+        let grants = ability.grants
+        guard !grants.isEmpty else { return }
+
+        var feedback: [CombatFeedback] = []
+        for grant in grants {
+            switch grant.kind {
+            case .mark:
+                feedback.append(CombatFeedback(grant: grant, target: .enemy))
+            case .attack, .defense, .speed, .shield, .heal, .ultEnergy:
+                feedback.append(contentsOf: team.indices.map { CombatFeedback(grant: grant, target: .ally($0)) })
+            }
+        }
+
+        combatFeedback = feedback
+        feedbackRise = 8
+        feedbackOpacity = 0
+        withAnimation(.spring(response: 0.24, dampingFraction: 0.58)) {
+            feedbackRise = -10
+            feedbackOpacity = 1
+            if feedback.contains(where: { if case .ally = $0.target { true } else { false } }) {
+                partyHopY = -10
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.20) {
+            if partyHopY != 0 {
+                withAnimation(.spring(response: 0.28, dampingFraction: 0.58)) { partyHopY = 0 }
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.72) {
+            withAnimation(.easeOut(duration: 0.25)) {
+                feedbackRise = -32
+                feedbackOpacity = 0
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.02) {
+            combatFeedback = []
+            feedbackRise = 0
         }
     }
 
@@ -1151,4 +1693,3 @@ struct AbilityActionButton: View {
         .opacity(enabled ? 1 : 0.55)
     }
 }
-
