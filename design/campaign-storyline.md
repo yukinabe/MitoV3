@@ -30,12 +30,12 @@ Cozy-but-witty, never grimdark. The stakes are real (memory, decay) but the scri
 
 | Stage | Region | Type | Beat |
 |------|--------|------|------|
-| 1 | Petri Plain | Recruit → **Chloro** | ✅ Mito finds a dimmed chloroplast; restores the light. |
+| 1 | Chloroplast Cove | Recruit → **Chloro** | ✅ Mito finds a dimmed chloroplast; restores the light. |
 | 2 | Membrane Marsh | Story (capture) | ✅ A Spikevyrus *scout* — first proof the Fading is *spread*, not random. Teaches capture. |
-| 3 | Nucleus Hollow | Recruit → **Neuro** | ✅ A neuron with scrambled signals; straighten its wires. Chloro/Neuro friction begins. |
-| 4 | Mitochondria Cave | Recruit → **Astro** | An astrocyte lost in its own network; Mito (home turf) coaxes it back. Astro "hears" the Fading's hum — first hint of a single source. |
-| 5 | Ribosome Ridge | Recruit → **Dendri** | A dendritic scout, hyper-alert and paranoid from watching the spread. Joins; brings the first hard clue (a "patient zero" trail). |
-| 6 | Golgi Gorge | Recruit → **B Cell** | The lorekeeper. Once restored, B Cell *remembers* what the others forgot: the Fading started with one guardian. Team now complete (6). |
+| 3 | Neuron Hollow | Recruit → **Neuro** | ✅ A neuron with scrambled signals; straighten its wires. Chloro/Neuro friction begins. |
+| 4 | Astrocyte Cave | Recruit → **Astro** | An astrocyte lost in its own network; coaxed back. Astro "hears" the Fading's hum — first hint of a single source. |
+| 5 | Dendrite Ridge | Recruit → **Dendri** | A dendritic scout, hyper-alert and paranoid from watching the spread. Joins; brings the first hard clue (a "patient zero" trail). |
+| 6 | Antibody Gorge | Recruit → **B Cell** | The lorekeeper. Once restored, B Cell *remembers* what the others forgot: the Fading started with one guardian. Team now complete (6). |
 | 7 | Lysosome Lair | Story (capture: Cytocrawler) | Following the trail into the body's "recycling." Confront how much has already been lost. Mood darkens a notch. |
 | 8 | Vacuole Vale | **Mini-boss** | A bloated, Fading-saturated lieutenant (corrupted Spikevyrus spawn). First real wall — proves the source is close and strong. |
 | 9 | Cytoskel Span | Story | The team crosses the scaffolding toward the core. Character check-ins; Chloro/Neuro have grown on each other. Quiet-before-the-storm. |
@@ -45,8 +45,7 @@ Cozy-but-witty, never grimdark. The stakes are real (memory, decay) but the scri
 
 ## Open questions / iteration hooks
 
-- **Stage names vs. recruits**: current map names (e.g., "Mitochondria Cave" at the Astro stage) don't always match the hero thematically. Optional polish: rename stages to fit their boss, or re-order recruits to fit the names.
-- **Final boss**: cure Spikevyrus (add to roster, mirrors the theme) vs. defeat-and-seal. Curing is more on-theme and reuses the capture/recruit flow.
+- **Final boss**: cure Spikevyrus (add to roster, mirrors the theme) vs. defeat-and-seal. Curing is more on-theme and reuses the capture/recruit flow. (Open — stage 12 not yet scripted.)
 - **Replayability**: once a stage is cured, it reverts to a generic Spikevyrus fight (already implemented) for farming — story plays once.
 - **Length**: stages 7–11 are currently "story" placeholders; some could become recruit stages if more characters get built, or capture stages for the wild creatures (Mutagem/Cytocrawler).
 

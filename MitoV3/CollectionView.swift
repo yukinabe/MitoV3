@@ -16,6 +16,7 @@ struct TeamScreen: View {
     @ObservedObject private var captures = CaptureStore.shared
     @ObservedObject private var roster = RosterStore.shared
     @ObservedObject private var party = PartyStore.shared
+    @ObservedObject private var trust = TrustStore.shared
     private let maxPartySize = BattleRules.partySize
 
     /// Gold cost to level a hero, rising with its current level.
@@ -182,6 +183,7 @@ struct TeamScreen: View {
                                 InlineCharacterActions(
                                     inParty: activePartySlots.contains { $0 == selectedHeroID },
                                     canAdd: activePartyIDs.count < maxPartySize,
+                                    locked: !trust.isMaxed(selectedHero),
                                     pointerOnTop: !showActionsAbove,
                                     onInfo: { infoHero = selectedHero },
                                     onToggleParty: { togglePartyMembership(for: selectedHero) }
@@ -232,8 +234,12 @@ struct TeamScreen: View {
     private func togglePartyMembership(for hero: Hero) {
         if let index = activePartySlots.firstIndex(where: { $0 == hero.id }) {
             activePartySlots[index] = nil
-        } else if let emptyIndex = activePartySlots.firstIndex(where: { $0 == nil }) {
+        } else if trust.isMaxed(hero), let emptyIndex = activePartySlots.firstIndex(where: { $0 == nil }) {
+            // Only fully-trusted reserves can take a slot.
             activePartySlots[emptyIndex] = hero.id
+        } else {
+            Haptics.warning()
+            return
         }
         selectedHeroID = nil
         // Persist globally so study + battle + meadow immediately reflect it.
@@ -300,6 +306,10 @@ struct TeamRosterCard: View {
     let isInParty: Bool
     var isSelected = false
     var compact = false
+    @ObservedObject private var trust = TrustStore.shared
+
+    /// In-party members are trusted by definition; reserves must earn it.
+    private var maxed: Bool { isInParty || trust.isMaxed(hero) }
 
     private var spriteSize: CGFloat {
         compact ? 46 : 70
@@ -319,11 +329,11 @@ struct TeamRosterCard: View {
                 )
                 VStack(spacing: 2) {
                     HStack(spacing: 4) {
-                        Text(isInParty ? "IN" : "ADD")
+                        Text(isInParty ? "IN" : (maxed ? "ADD" : "🔒"))
                             .pixelText(size: 7, color: Color(hex: "F4E6C0"))
                             .padding(.horizontal, 5)
                             .padding(.vertical, 3)
-                            .background(isInParty ? Color(hex: "6B4324") : Color(hex: "4A8A3C"))
+                            .background(isInParty ? Color(hex: "6B4324") : (maxed ? Color(hex: "4A8A3C") : Color(hex: "B0492F")))
                             .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
 
                         Spacer(minLength: 0)
@@ -346,14 +356,19 @@ struct TeamRosterCard: View {
             .frame(height: imageHeight)
 
             VStack(spacing: 3) {
-                Text(hero.name)
+                Text(L(hero.name))
                     .pixelText(size: compact ? 8 : 10, color: Color(hex: "3A2A18"))
                     .lineLimit(1)
                     .minimumScaleFactor(0.72)
-                Text(hero.role)
+                Text(L(hero.role))
                     .font(.custom(MitoFont.regular, size: compact ? 10 : 12))
                     .foregroundStyle(Color(hex: "6B4324"))
                     .lineLimit(1)
+                if !maxed {
+                    ProgressBar(progress: trust.fraction(hero), color: Color(hex: "4A8A3C"))
+                        .frame(height: 5)
+                        .padding(.top, 1)
+                }
             }
             .frame(maxWidth: .infinity)
             .padding(.horizontal, 4)
@@ -435,13 +450,21 @@ struct TeamCardBoundsKey: PreferenceKey {
 struct InlineCharacterActions: View {
     let inParty: Bool
     let canAdd: Bool
+    var locked = false        // reserve isn't trusted yet → can't be fielded
     var pointerOnTop = true
     let onInfo: () -> Void
     let onToggleParty: () -> Void
 
     private var toggleTitle: String {
         if inParty { return "REMOVE" }
+        if locked { return L("LOCKED") }
         return canAdd ? "ADD" : "FULL"
+    }
+
+    private var toggleColor: Color {
+        if inParty { return Color(hex: "D84A3A") }
+        if locked { return Color(hex: "B0492F") }
+        return canAdd ? Color(hex: "4A8A3C") : Color(hex: "8A6B42")
     }
 
     var body: some View {
@@ -472,17 +495,17 @@ struct InlineCharacterActions: View {
                         .pixelText(size: 8, color: Color(hex: "F4E6C0"))
                         .frame(maxWidth: .infinity)
                         .frame(height: 29)
-                        .background(inParty ? Color(hex: "D84A3A") : (canAdd ? Color(hex: "4A8A3C") : Color(hex: "8A6B42")))
+                        .background(toggleColor)
                 }
                 .buttonStyle(.plain)
-                .disabled(!inParty && !canAdd)
+                .disabled(!inParty && (locked || !canAdd))
                 .accessibilityIdentifier(inParty ? "team-action-remove" : "team-action-add")
             }
             .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
 
             if !pointerOnTop {
                 Triangle()
-                    .fill(inParty ? Color(hex: "D84A3A") : (canAdd ? Color(hex: "4A8A3C") : Color(hex: "8A6B42")))
+                    .fill(toggleColor)
                     .frame(width: 12, height: 8)
                     .rotationEffect(.degrees(180))
             }

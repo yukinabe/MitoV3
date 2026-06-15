@@ -166,10 +166,10 @@ struct OnboardingView: View {
 
     private var goalStep: some View {
         VStack(spacing: 16) {
-            Text("WHAT ARE YOU STUDYING?")
+            Text(L("WHAT ARE YOU STUDYING?"))
                 .pixelText(size: 18, color: Color(hex: "F4E6C0"))
                 .multilineTextAlignment(.center)
-            Text("We'll tune your starter content.")
+            Text(L("We'll tune your starter content."))
                 .font(.custom(MitoFont.regular, size: 15))
                 .foregroundStyle(Color(hex: "EAD4A4"))
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
@@ -179,7 +179,7 @@ struct OnboardingView: View {
                         Task { await backend.logEvent("onboarding_goal", props: ["goal": item]) }
                         withAnimation { step = 1 }
                     } label: {
-                        Text(item.uppercased())
+                        Text(L(item).uppercased())
                             .pixelText(size: 10, color: Color(hex: "3A2A18"))
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 18)
@@ -194,9 +194,9 @@ struct OnboardingView: View {
 
     private var deckStep: some View {
         VStack(spacing: 14) {
-            Text("ADD YOUR FIRST DECK")
+            Text(L("ADD YOUR FIRST DECK"))
                 .pixelText(size: 18, color: Color(hex: "F4E6C0"))
-            Text("Pick a starter deck to study right away.")
+            Text(L("Pick a starter deck to study right away."))
                 .font(.custom(MitoFont.regular, size: 15))
                 .foregroundStyle(Color(hex: "EAD4A4"))
                 .multilineTextAlignment(.center)
@@ -205,10 +205,10 @@ struct OnboardingView: View {
                     Task { await addStarter(template) }
                 } label: {
                     HStack {
-                        Text(template.name.uppercased())
+                        Text(L(template.name).uppercased())
                             .pixelText(size: 12, color: Color(hex: "3A2A18"))
                         Spacer()
-                        Text("\(template.cards.count) CARDS")
+                        Text("\(template.cards.count) " + L("CARDS"))
                             .pixelText(size: 8, color: Color(hex: "6B4324"))
                     }
                     .padding(14)
@@ -219,7 +219,7 @@ struct OnboardingView: View {
                 .disabled(creating)
             }
             Button { withAnimation { step = 2 } } label: {
-                Text("SKIP FOR NOW")
+                Text(L("SKIP FOR NOW"))
                     .pixelText(size: 10, color: Color(hex: "EAD4A4"))
                     .padding(.vertical, 8)
             }
@@ -230,10 +230,10 @@ struct OnboardingView: View {
     private var focusStep: some View {
         VStack(spacing: 16) {
             SpriteView(asset: "hero-mito-hop", size: 96)
-            Text("YOU'RE ALL SET")
+            Text(L("YOU'RE ALL SET"))
                 .pixelText(size: 20, color: Color(hex: "F7C943"))
             Text(createdDeckName == nil
-                 ? "Start a focus session to earn ATP, then review your cards in battle."
+                 ? L("Start a focus session to earn ATP, then review your cards in battle.")
                  : "“\(createdDeckName!)” is ready. Start a focus session to earn ATP, then review it in battle.")
                 .font(.custom(MitoFont.regular, size: 16))
                 .foregroundStyle(Color(hex: "EAD4A4"))
@@ -242,7 +242,7 @@ struct OnboardingView: View {
                 Task { await backend.logEvent("onboarding_completed", props: ["goal": goal]) }
                 onComplete()
             } label: {
-                Text("START STUDYING")
+                Text(L("START STUDYING"))
                     .pixelText(size: 16, color: Color(hex: "F4E6C0"))
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)

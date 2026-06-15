@@ -29,6 +29,15 @@ struct ContentView: View {
     @State private var walletSaveTask: Task<Void, Never>?
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var notifications = NotificationManager.shared
+    @ObservedObject private var loc = LocalizationManager.shared
+    @ObservedObject private var tutorialMgr = TutorialManager.shared
+    @ObservedObject private var storyMgr = CampaignStoryManager.shared
+    /// A dimmed dialogue is on screen — hide the app chrome (header + nav tray)
+    /// so it doesn't bleed through behind the dialogue card.
+    private var dialogueActive: Bool { tutorialMgr.isSaying || storyMgr.isSaying }
+    /// Launch-time tasks must run once, even though `.id(language)` rebuilds the
+    /// tree on a language switch.
+    private static var didRunLaunchTasks = false
     @AppStorage("mito.admitted") private var admitted = false
     @AppStorage("mito.onboarded") private var onboarded = false
     @AppStorage("mito.tutorialSeen") private var tutorialSeen = false
@@ -105,9 +114,14 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .environment(\.locale, Locale(identifier: loc.language.rawValue))
+        // Rebuild the whole tree when the language changes so every `L(...)`
+        // lookup re-evaluates instantly.
+        .id(loc.language)
         .animation(.easeOut(duration: 0.2), value: notifications.showPrimer)
         .onAppear {
             GameMigration.runIfNeeded()
+            GameMigration.runTrustMigrationIfNeeded()
             if forceTutorial || (!bypassGate && onboarded && !tutorialSeen) {
                 TutorialManager.shared.start(goal: goal)
             }
@@ -122,6 +136,7 @@ struct ContentView: View {
                 VStack(spacing: 0) {
                     HeaderChrome(atp: atp, gold: gold, gems: gems, topInset: proxy.safeAreaInsets.top)
                         .frame(height: proxy.safeAreaInsets.top + 52)
+                        .opacity(dialogueActive ? 0 : 1)
                         .zIndex(2)
                     
                     TabView(selection: $selectedTab) {
@@ -141,6 +156,7 @@ struct ContentView: View {
 
                     DeviceBottomBar(selectedTab: $selectedTab)
                         .frame(height: 74)
+                        .opacity(dialogueActive ? 0 : 1)
                         .zIndex(2)
                 }
                 .ignoresSafeArea(edges: [.top, .bottom])
@@ -150,6 +166,8 @@ struct ContentView: View {
         .preferredColorScheme(.dark)
         .onAppear { AudioManager.shared.startMusic(.home) }
         .task {
+            guard !Self.didRunLaunchTasks else { return }
+            Self.didRunLaunchTasks = true
             await backend.bootstrapExistingSession()
             // Load cloud decks/FSRS state and mirror future grades to Supabase.
             await backend.attachSync(to: .shared)
@@ -187,6 +205,12 @@ struct ContentView: View {
                     atp = 0; gold = 0; gems = 0; biomass = 0; shards = 0
                 }
             }
+        }
+        .onChange(of: selectedTab) { old, new in
+            guard old != new else { return }
+            AudioManager.shared.play(.uiTap, volume: 0.7)
+            Haptics.select()
+            TutorialManager.shared.complete("tab.\(new.rawValue)")
         }
         .onChange(of: atp) { _, _ in scheduleWalletSave() }
         .onChange(of: gold) { _, _ in scheduleWalletSave() }
@@ -469,4 +493,3 @@ struct AuthSheet: View {
 }
 
 // MARK: - First-run tutorial (skippable)
-

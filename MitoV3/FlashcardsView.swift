@@ -75,9 +75,9 @@ struct CardsScreen: View {
                     ImportSheet(
                         existingDeckName: importDeckID.flatMap { id in decks.first { $0.id == id }?.name },
                         onCancel: { showingImport = false },
-                        onImport: { deckName, cards in
+                        onImport: { deckName, cards, source in
                             showingImport = false
-                            Task { await runImport(targetDeckID: importDeckID, newDeckName: deckName, cards: cards, source: "paste") }
+                            Task { await runImport(targetDeckID: importDeckID, newDeckName: deckName, cards: cards, source: source) }
                         }
                     )
                     .frame(width: proxy.size.width * 0.92)
@@ -296,8 +296,13 @@ struct CardsScreen: View {
                 resolvedID = record.id
             }
             existing.append(Flashcard(id: resolvedID.uuidString, front: card.front, back: card.back, tags: tags))
-            session.upsertContent(ReviewCard(id: resolvedID, deckID: deckID, deckName: name,
-                                             front: card.front, back: card.back, tags: tags))
+            let reviewCard = ReviewCard(id: resolvedID, deckID: deckID, deckName: name,
+                                        front: card.front, back: card.back, tags: tags,
+                                        sched: card.sched ?? .newCard())
+            session.upsertContent(reviewCard)
+            if card.sched != nil, backend.isReady {
+                try? await backend.upsertCardState(reviewCard)
+            }
         }
         cardsByDeckID[deckID] = existing
         refreshDeckMeta(deckID: deckID)
@@ -719,4 +724,3 @@ struct DeckLibraryRow: View {
         .padding(.horizontal, 16)
     }
 }
-

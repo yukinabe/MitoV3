@@ -18,7 +18,7 @@ struct CapturePopup: View {
         ZStack {
             Color.black.opacity(0.55).ignoresSafeArea()
             VStack(spacing: 14) {
-                Text("A WILD \(creature.name.uppercased()) APPEARED!")
+                Text(Lf("A WILD %@ APPEARED!", L(creature.name).uppercased()))
                     .pixelText(size: 12, color: Color(hex: "FFD24D"))
                     .multilineTextAlignment(.center)
 
@@ -27,9 +27,9 @@ struct CapturePopup: View {
                     .background(creature.color.opacity(0.25))
                     .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
 
-                Text(creature.role.uppercased() + " · LV \(creature.level)")
+                Text(L(creature.role).uppercased() + " · LV \(creature.level)")
                     .pixelText(size: 9, color: Color(hex: "F4E6C0"))
-                Text(creature.lore)
+                Text(L(creature.lore))
                     .font(.custom(MitoFont.regular, size: 14))
                     .foregroundStyle(Color(hex: "E9D8B6"))
                     .multilineTextAlignment(.center)
@@ -37,7 +37,7 @@ struct CapturePopup: View {
 
                 HStack(spacing: 10) {
                     Button(action: onRelease) {
-                        Text("LET GO")
+                        Text(L("LET GO"))
                             .pixelText(size: 12, color: Color(hex: "F4E6C0"))
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
@@ -47,7 +47,7 @@ struct CapturePopup: View {
                     .buttonStyle(.plain)
 
                     Button(action: onCapture) {
-                        Text("✦ CAPTURE")
+                        Text(L("✦ CAPTURE"))
                             .pixelText(size: 13, color: Color(hex: "1A130A"))
                             .frame(maxWidth: .infinity)
                             .frame(height: 46)
@@ -83,7 +83,7 @@ struct RecruitPopup: View {
         ZStack {
             Color.black.opacity(0.6).ignoresSafeArea()
             VStack(spacing: 14) {
-                Text("\(hero.name.uppercased()) JOINED YOUR TEAM!")
+                Text(Lf("%@ JOINED YOUR TEAM!", L(hero.name).uppercased()))
                     .pixelText(size: 12, color: Color(hex: "FFD24D"))
                     .multilineTextAlignment(.center)
 
@@ -92,16 +92,16 @@ struct RecruitPopup: View {
                     .background(hero.color.opacity(0.25))
                     .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
 
-                Text(hero.role.uppercased() + " · LV \(hero.level)")
+                Text(L(hero.role).uppercased() + " · LV \(hero.level)")
                     .pixelText(size: 9, color: Color(hex: "F4E6C0"))
-                Text(hero.lore)
+                Text(L(hero.lore))
                     .font(.custom(MitoFont.regular, size: 14))
                     .foregroundStyle(Color(hex: "E9D8B6"))
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
 
                 Button(action: onJoin) {
-                    Text("✦ ADD TO ROSTER")
+                    Text(L("✦ ADD TO ROSTER"))
                         .pixelText(size: 13, color: Color(hex: "1A130A"))
                         .frame(maxWidth: .infinity)
                         .frame(height: 46)

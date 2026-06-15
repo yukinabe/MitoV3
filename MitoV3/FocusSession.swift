@@ -63,10 +63,19 @@ struct ModePickerPanel: View {
     let close: () -> Void
     let start: (StudyMode) -> Void
 
+    @ObservedObject private var trust = TrustStore.shared
+    @ObservedObject private var roster = RosterStore.shared
+    @ObservedObject private var capture = CaptureStore.shared
+
+    /// Whole owned roster, base heroes then captured creatures.
+    private var ownedRoster: [Hero] {
+        roster.ownedHeroes + capture.capturedHeroes
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("START STUDYING")
+                Text(L("START STUDYING"))
                     .pixelText(size: 15, color: Color(hex: "3A2A18"))
                 Spacer()
                 Button(action: close) {
@@ -77,6 +86,8 @@ struct ModePickerPanel: View {
                 }
                 .buttonStyle(.plain)
             }
+
+            companionPicker
 
             ForEach(StudyMode.allCases) { mode in
                 Button {
@@ -109,6 +120,75 @@ struct ModePickerPanel: View {
         .background(Color(hex: "EAD4A4"))
         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
     }
+
+    /// "Study with" companion strip — pick one owned character to build Trust
+    /// (or Bond, once trusted) with during this session.
+    @ViewBuilder
+    private var companionPicker: some View {
+        if ownedRoster.count > 1 {
+            VStack(alignment: .leading, spacing: 6) {
+                Text(L("STUDY WITH"))
+                    .pixelText(size: 9, color: Color(hex: "6B4324"))
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 6) {
+                        ForEach(ownedRoster) { hero in
+                            CompanionChip(hero: hero, selected: trust.companionID == hero.id) {
+                                trust.chooseCompanion(trust.companionID == hero.id ? nil : hero.id)
+                                Haptics.select()
+                            }
+                        }
+                    }
+                    .padding(.bottom, 2)
+                }
+                if let cid = trust.companionID, let hero = DataSet.anyHero(id: cid) {
+                    Text(companionHint(hero))
+                        .font(.custom(MitoFont.regular, size: 12))
+                        .foregroundStyle(Color(hex: "6B4324"))
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.bottom, 2)
+        }
+    }
+
+    private func companionHint(_ hero: Hero) -> String {
+        if trust.isMaxed(hero) {
+            return Lf("Already trusted. studying deepens your bond with %@.", L(hero.name))
+        }
+        return Lf("Study to earn %@'s trust · %ld min to full.", L(hero.name), trust.minutesRemaining(hero))
+    }
+}
+
+/// One portrait in the companion strip, with a Trust/Bond mini-bar.
+private struct CompanionChip: View {
+    let hero: Hero
+    let selected: Bool
+    let tap: () -> Void
+    @ObservedObject private var trust = TrustStore.shared
+
+    var body: some View {
+        let maxed = trust.isMaxed(hero)
+        Button(action: tap) {
+            VStack(spacing: 3) {
+                SpriteView(asset: hero.asset, size: 38)
+                ZStack(alignment: .leading) {
+                    Rectangle().fill(Color(hex: "B89868")).frame(width: 40, height: 5)
+                    Rectangle()
+                        .fill(maxed ? Color(hex: "C98AE0") : Color(hex: "4A8A3C"))
+                        .frame(width: 40 * CGFloat(maxed ? 1 : trust.fraction(hero)), height: 5)
+                }
+                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 1))
+                Text(maxed ? "✓" : L(hero.name))
+                    .pixelText(size: 6, color: Color(hex: "3A2A18"))
+                    .lineLimit(1)
+                    .frame(width: 42)
+            }
+            .padding(5)
+            .background(selected ? Color(hex: "F7C943") : Color(hex: "F4E6C0"))
+            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: selected ? 3 : 2))
+        }
+        .buttonStyle(.plain)
+    }
 }
 
 // MARK: - Full-screen focus session
@@ -138,7 +218,7 @@ struct FocusSession: View {
                     .frame(width: proxy.size.width, height: proxy.size.height)
                     .clipped()
 
-                ForEach(StudyWanderer.focusTeam()) { wanderer in
+                ForEach(StudyWanderer.focusTeam(companion: TrustStore.shared.companionID)) { wanderer in
                     StudyWanderingCharacter(wanderer: wanderer, canvasSize: proxy.size)
                 }
 

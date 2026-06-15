@@ -70,7 +70,7 @@ struct CampaignStageSetup: View {
                     VStack(alignment: .leading, spacing: 4) {
                         Text(stage.name.uppercased())
                             .pixelText(size: 13, color: Color(hex: "3A2A18"))
-                        Text("\(bossPreview.name) · \(stage.difficulty == "BOSS" ? "boss fight" : "3 waves")")
+                        Text("\(L(bossPreview.name)) · \(stage.difficulty == "BOSS" ? "boss fight" : "3 waves")")
                             .font(.custom(MitoFont.regular, size: 15))
                             .foregroundStyle(Color(hex: "6B4324"))
                     }
@@ -116,6 +116,7 @@ struct CampaignStageSetup: View {
                     .padding(.vertical, 2)
                 }
                 .frame(maxHeight: .infinity)
+                .tutorialAnchor("campaign.pickDeck")
 
                 TagFilterSection(availableTags: availableTags, selectedTags: $selectedTags)
 
@@ -153,6 +154,7 @@ struct CampaignStageSetup: View {
                 .buttonStyle(.plain)
                 .disabled(!canStart)
                 .opacity(canStart ? 1 : 0.62)
+                .tutorialAnchor("campaign.start")
             }
             .padding(.horizontal, 16)
             .padding(.top, 10)
@@ -165,6 +167,7 @@ struct CampaignStageSetup: View {
         if selectedDecks.contains(deck.id) {
             selectedDecks.remove(deck.id)
         } else {
+            TutorialManager.shared.complete("campaign.pickDeck")
             selectedDecks.insert(deck.id)
         }
         selectedTags.formIntersection(Set(availableTags))
@@ -443,7 +446,7 @@ struct EndlessDeckRow: View {
                 .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
 
                 VStack(alignment: .leading, spacing: 5) {
-                    Text(deck.name)
+                    Text(L(deck.name))
                         .pixelText(size: 13, color: Color(hex: "3A2A18"))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)

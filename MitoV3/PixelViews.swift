@@ -23,11 +23,25 @@ struct StudyWanderer: Identifiable {
     }
 
     // Distinct-id copies used by the full-screen focus session so they never
-    // collide with the home-screen wanderers in StudyCollisionRegistry.
-    static func focusTeam() -> [StudyWanderer] {
-        forActiveTeam().map {
+    // collide with the home-screen wanderers in StudyCollisionRegistry. The
+    // optional `companion` is the character you're building Trust with — it
+    // joins your three teammates on screen during the session (skipped if it's
+    // already one of them).
+    static func focusTeam(companion: String? = nil) -> [StudyWanderer] {
+        var out = forActiveTeam().map {
             StudyWanderer(id: $0.id + "-focus", asset: $0.asset, size: $0.size, start: $0.start, seed: $0.seed ^ 0x00F0_C500)
         }
+        if let cid = companion, !cid.isEmpty,
+           !BattleRules.activePartyIDs.contains(cid),
+           let hero = DataSet.anyHero(id: cid) {
+            out.append(StudyWanderer(
+                id: hero.id + "-companion-focus",
+                asset: hero.asset,
+                size: 58,
+                start: CGPoint(x: 0.5, y: 0.56),
+                seed: stableSeed(hero.id) ^ 0x00C0_FFEE))
+        }
+        return out
     }
 
     /// Co-op: the characters belonging to OTHER lobby members, so a friend's

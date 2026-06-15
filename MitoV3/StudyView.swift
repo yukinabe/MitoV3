@@ -17,7 +17,13 @@ struct HomeScreen: View {
     @ObservedObject private var streak = StreakStore.shared
     @ObservedObject private var quests = DailyQuests.shared
     @ObservedObject private var party = PartyStore.shared
+    @ObservedObject private var tutorial = TutorialManager.shared
+    @ObservedObject private var story = CampaignStoryManager.shared
     @AppStorage("settings.animations") private var animationsEnabled = true
+
+    /// A dimmed tutorial/story dialogue is on screen — hide the meadow chrome
+    /// (STUDY button etc.) so it doesn't bleed through behind the dialogue.
+    private var dialogueActive: Bool { tutorial.isSaying || story.isSaying }
 
     var body: some View {
         GeometryReader { proxy in
@@ -142,7 +148,7 @@ struct HomeScreen: View {
                         .padding(.horizontal, 16)
                         .padding(.bottom, 14)
                         .transition(.move(edge: .bottom).combined(with: .opacity))
-                    } else {
+                    } else if !dialogueActive {
                         Button {
                             TutorialManager.shared.complete("study")
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
@@ -238,6 +244,18 @@ struct HomeScreen: View {
             .fullScreenCover(item: $sessionMode) { mode in
                 FocusSession(mode: mode, presented: $sessionMode) { reward, seconds, completed in
                     atp += reward
+                    // Trust: a finished session builds the companion's trust;
+                    // bailing early (or a sub-5-min count-up) breaks it.
+                    if let cid = TrustStore.shared.companionID,
+                       let companion = DataSet.anyHero(id: cid) {
+                        let minutes = max(0, seconds / 60)
+                        let legit = completed || (mode.isCountUp && minutes >= 5)
+                        if legit {
+                            TrustStore.shared.addStudyMinutes(minutes, to: companion)
+                        } else {
+                            TrustStore.shared.penalizeCancel(companion)
+                        }
+                    }
                     Task {
                         try? await backend.recordStudySession(
                             mode: mode.rawValue,

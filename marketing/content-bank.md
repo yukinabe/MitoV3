@@ -4,6 +4,41 @@
 
 Mito content should not open like an ad. Lead with a student pain, study workflow, gamer identity, or useful list. Reveal Mito only after the viewer already cares.
 
+## Native Creative Doctrine
+
+The default goal is not "explain Mito." The default goal is to make a native TikTok/Reels post that people would watch even if Mito did not exist. Mito should appear as the subtle curiosity object: the app in the study vlog, the final item in an app stack, the "great" option in a comparison, or the cute thing people ask about in the comments.
+
+Humans hate feeling marketed to. Treat direct product posts as the exception, not the baseline.
+
+Creative hierarchy:
+
+1. Familiar format people already stop for.
+2. Emotional or useful premise.
+3. Real-looking assets, screenshots, desk photos, app icons, phone UI, or existing Mito sprites.
+4. Mito cameo or reveal.
+5. Soft comment CTA only after curiosity exists.
+
+Avoid:
+
+- Opening with "I built an app" unless it is clearly a creator/build-in-public post.
+- Putting Mito branding on every slide.
+- Explaining features before the viewer has a reason to care.
+- Designing from scratch when a proven inspo format can be closely adapted.
+- Over-polished startup copy.
+
+Prefer these native wrappers:
+
+- "5 study apps I would actually use for finals" with Mito slipped in as one item.
+- "bad / good / great study apps" with Mito as the great option.
+- aesthetic study-with-me vlog where the app is visible on the phone and the comments are expected to ask what it is.
+- funny skit about avoiding Anki, then quietly showing flashcard battles.
+- "what's on my phone as a STEM student" with Mito as one of the apps.
+- cozy desk setup / study reset where Mito is part of the routine, not the headline.
+
+When a post performs, copy the structure aggressively. Preserve the familiar layout, pacing, visual density, and emotional promise, then swap in Mito naturally. Do not try to invent a new format before testing the obvious clone of the proven one.
+
+For mockups, use Figma-first when possible because the user already works there. Use real Mito sprites/screenshots and real-looking imagery. AI image generation is for background/lifestyle assets only, not for fake Mito UI or fake character art.
+
 ## Weekly Production Loop
 
 - Capture: dump every rough hook here immediately.
@@ -11,6 +46,39 @@ Mito content should not open like an ad. Lead with a student pain, study workflo
 - Produce: make simple square carousels first, then reuse the same ideas as UGC videos.
 - Post: ship 2-4 pieces per day across TikTok and Instagram.
 - Track: after 24 hours, mark each post as kill, tweak, or double down.
+
+## UGC Reel System
+
+Default language: call collectible Mito characters **BioBuds**. Use "little biology guys" as casual hook language when it sounds more native.
+
+The main Reel loop should use real phone clips, not polished product mockups. Film the phone in hand or on a study desk so the content feels like a student routine first and a product reveal second.
+
+Core loop clips:
+
+1. Open Mito on the phone.
+2. Import existing cards, preferably from Anki, because it is familiar and removes setup friction.
+3. Enter battle.
+4. Answer a flashcard and trigger an attack.
+5. Defeat the boss and obtain a BioBud.
+6. Study with that BioBud to gain trust.
+7. Upgrade the BioBud.
+8. Repeat with the new BioBud.
+9. Soft CTA: "beta testing rn" or "comment bio."
+
+Do not force every Reel to show every step. Test different lengths aggressively:
+
+- 6-8 seconds: hook, flashcard attack, BioBud reveal, soft CTA.
+- 10-15 seconds: open app, import or deck, battle, BioBud reveal.
+- 18-25 seconds: full loop with trust or upgrade if retention stays strong.
+
+The upgrade step is optional for early viral tests. Keep it only when the video already has enough momentum or when the hook is about progression.
+
+Character test:
+
+- Cute BioBud: round, soft, emotionally attachable, strong for "aww" comments and saves.
+- Cool/tough BioBud: sharper silhouette and stronger attack energy, strong for RPG/gamer-brain hooks.
+
+When testing cute vs cool, keep the edit, audio, caption, and CTA the same. Only change the character so the result is interpretable.
 
 ## Content Pillars
 
@@ -71,6 +139,71 @@ Timely, searchable, and broadly relatable.
 - How I turn Obsidian notes into review sessions
 - The study loop that made finals less miserable
 - What I use instead of doomscrolling before exams
+
+## Native Sneak-In Concepts
+
+These should be produced before more direct Mito explainers.
+
+### 1. Study App Stack
+
+Premise: "5 study apps I would use if finals started tomorrow"
+
+Execution: copy the familiar app-roundup format from Inspo. Use real app icons, phone screenshots, desk background, and short practical notes. Mito appears as one item near the end, framed as "flashcard review, but it feels like a battle." The viewer should feel like they got a useful app list, not a pitch.
+
+Slides:
+
+1. 5 study apps i would use if finals started tomorrow
+2. google calendar - block the exam chaos
+3. obsidian - connect lecture notes
+4. anki / quizlet - active recall
+5. forest - stop touching your phone
+6. mito - flashcards that feel like little battles
+7. save this before finals week
+
+### 2. Bad / Good / Great
+
+Premise: "study apps when your attention span is cooked"
+
+Execution: use a fast comparison format. Keep it short and familiar. Mito should not be introduced as "my app" on the first pass. It is simply the satisfying "great" option with cute character proof.
+
+Slides:
+
+1. study apps when your attention span is cooked
+2. bad: rereading notes and pretending it counts
+3. okay: flashcards you never open
+4. good: spaced repetition reminders
+5. great: flashcards that turn into battles
+6. tiny study squad reveal
+
+### 3. Aesthetic Study Vlog Carousel
+
+Premise: "late night study reset"
+
+Execution: make the post feel like a cozy study routine, not an app demo. Use real desk or realistic lifestyle imagery, timer/notebook shots, and one phone frame where Mito is visible. The caption can seed curiosity: "the app on slide 4 is what made me actually review."
+
+Slides:
+
+1. late night study reset
+2. clear desk, water, one topic only
+3. turn notes into quick cards
+4. phone shot with Mito battle visible
+5. 20 min review block
+6. tiny reward: level up the study squad
+
+### 4. What's On My Phone
+
+Premise: "what's on my phone as a stem student"
+
+Execution: use a familiar phone-home-screen / app-folder layout. Mito is one app among normal tools. This format makes the app feel discovered instead of advertised.
+
+Slides:
+
+1. what's on my phone as a stem student
+2. calendar / reminders
+3. notes / obsidian
+4. anki / quizlet
+5. focus timer
+6. mito for flashcard battles
 
 ## First Carousel: 4.0 Workflow
 

@@ -387,10 +387,12 @@ struct BattleScreen: View {
                         selectedDecks = []
                         selectedTags = []
                         route = .map
+                        TutorialManager.shared.complete("battle.campaign")
                     } label: {
                         FeatureButton(title: "CAMPAIGN MAP", badge: nil, detail: "Regions, bosses and unlockable stages", tint: Color(hex: "6B4324"), height: 66)
                     }
                     .buttonStyle(.plain)
+                    .tutorialAnchor("battle.campaign")
                 }
                 .padding(.horizontal, 18)
                 .position(x: proxy.size.width / 2, y: proxy.size.height - 100)
@@ -454,6 +456,7 @@ struct BattleScreen: View {
                                 guard status != .locked else { return }
                                 selectedStage = stage
                                 route = .stageSetup
+                                TutorialManager.shared.complete("campaign.stage\(stage.id)")
                             } label: {
                                 VStack(spacing: 3) {
                                     Image(status.asset)
@@ -466,6 +469,7 @@ struct BattleScreen: View {
                                 }
                             }
                             .buttonStyle(.plain)
+                            .tutorialAnchor("campaign.stage\(stage.id)")
                             .position(x: proxy.size.width * stage.x, y: proxy.size.height * stage.y)
                         }
                     }
@@ -505,6 +509,7 @@ struct BattleScreen: View {
                 session.start(deckIDs: selectedDecks, tags: selectedTags)
                 prepareAnswerMode()
                 route = .combat
+                TutorialManager.shared.complete("campaign.start")
             }
         )
     }
@@ -585,6 +590,7 @@ struct BattleScreen: View {
                             biomass += clearBiomass
                         }
                         route = .landing
+                        TutorialManager.shared.complete("campaign.return")
                     }
                 }
                 .padding(8)
@@ -995,6 +1001,7 @@ struct BattleScreen: View {
             if battleMode == .campaign, enemyDefeated {
                 DailyQuests.shared.noteBattleWon()
                 clearedStage = max(clearedStage, selectedStage.id)
+                TutorialManager.shared.complete("campaign.cleared.\(selectedStage.id)")
                 // Play the stage's story outro (if any), THEN chain into the
                 // recruit-stage join popup or a wild-creature capture offer.
                 let stage = selectedStage.id

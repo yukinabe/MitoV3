@@ -14,13 +14,15 @@ struct CharacterInfoModal: View {
     let onClose: () -> Void
     let onUpgrade: () -> Void
 
+    @ObservedObject private var trust = TrustStore.shared
+
     var body: some View {
         ScrollView(showsIndicators: false) {
             VStack(alignment: .leading, spacing: 9) {
                 HStack(alignment: .firstTextBaseline, spacing: 8) {
-                    Text(hero.name.uppercased())
+                    Text(L(hero.name).uppercased())
                         .pixelText(size: 17, color: Color(hex: "3A2A18"))
-                    Text(hero.role)
+                    Text(L(hero.role))
                         .font(.custom(MitoFont.regular, size: 16))
                         .foregroundStyle(Color(hex: "6B4324"))
                     Spacer()
@@ -45,17 +47,19 @@ struct CharacterInfoModal: View {
                             .background(Color(hex: "F7C943"))
                             .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                         Spacer()
-                        Text(inParty ? "IN PARTY" : "RESERVE")
+                        Text(partyBadge)
                             .pixelText(size: 10, color: Color(hex: "F4E6C0"))
                             .padding(.horizontal, 10)
                             .padding(.vertical, 6)
-                            .background(inParty ? Color(hex: "4A8A3C") : Color(hex: "6B4324"))
+                            .background(partyBadgeColor)
                             .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     }
                     .padding(10)
                 }
                 .frame(height: 176)
                 .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+
+                trustSection
 
                 HStack(spacing: 8) {
                     ModalStat(label: "HP", value: hero.hp, color: Color(hex: "3F8A3D"))
@@ -64,9 +68,9 @@ struct CharacterInfoModal: View {
                 }
 
                 VStack(alignment: .leading, spacing: 8) {
-                    Text("LORE")
+                    Text(L("LORE"))
                         .pixelText(size: 10, color: Color(hex: "8A6B42"))
-                    Text(hero.lore)
+                    Text(L(hero.lore))
                         .font(.custom(MitoFont.regular, size: 15))
                         .foregroundStyle(Color(hex: "3A2A18"))
                         .lineSpacing(3)
@@ -77,39 +81,56 @@ struct CharacterInfoModal: View {
                 .background(Color(hex: "F4E6C0"))
                 .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
 
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("LEVEL UP")
-                            .pixelText(size: 11, color: Color(hex: "3A2A18"))
-                        Text("+5 HP · +3 ATK · +2 DEF")
+                if trust.isMaxed(hero) {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("LEVEL UP")
+                                .pixelText(size: 11, color: Color(hex: "3A2A18"))
+                            Text("+5 HP · +3 ATK · +2 DEF")
+                                .font(.custom(MitoFont.regular, size: 13))
+                                .foregroundStyle(Color(hex: "6B4324"))
+                            HStack(spacing: 6) {
+                                CurrencyCostChip(asset: "currency-coin", value: goldCost, color: Color(hex: "8A6B42"))
+                                CurrencyCostChip(asset: "currency-biomass", value: bioCost, color: ownedBio >= bioCost ? Color(hex: "4A8A3C") : Color(hex: "C4452F"))
+                                Text("(have \(ownedBio))")
+                                    .font(.custom(MitoFont.regular, size: 12))
+                                    .foregroundStyle(Color(hex: "8A6B42"))
+                            }
+                        }
+                        Spacer()
+                        Button(action: onUpgrade) {
+                            VStack(spacing: 1) {
+                                Text("UPGRADE")
+                                    .pixelText(size: 10, color: Color(hex: "18100A"))
+                                Text(canUpgrade ? "LEVEL UP" : "NEED MATS")
+                                    .pixelText(size: 7, color: Color(hex: "3A2A18"))
+                            }
+                            .frame(width: 84, height: 39)
+                            .background(canUpgrade ? Color(hex: "F7C943") : Color(hex: "8A6B42"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                        }
+                        .buttonStyle(.plain)
+                        .disabled(!canUpgrade)
+                    }
+                    .padding(10)
+                    .background(Color(hex: "F4E6C0"))
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                } else {
+                    // Upgrades are locked until the character trusts you.
+                    HStack(spacing: 8) {
+                        Text("🔒")
+                            .font(.system(size: 20))
+                        Text(L("Study with them to build Trust."))
                             .font(.custom(MitoFont.regular, size: 13))
                             .foregroundStyle(Color(hex: "6B4324"))
-                        HStack(spacing: 6) {
-                            CurrencyCostChip(asset: "currency-coin", value: goldCost, color: Color(hex: "8A6B42"))
-                            CurrencyCostChip(asset: "currency-biomass", value: bioCost, color: ownedBio >= bioCost ? Color(hex: "4A8A3C") : Color(hex: "C4452F"))
-                            Text("(have \(ownedBio))")
-                                .font(.custom(MitoFont.regular, size: 12))
-                                .foregroundStyle(Color(hex: "8A6B42"))
-                        }
+                            .fixedSize(horizontal: false, vertical: true)
+                        Spacer()
                     }
-                    Spacer()
-                    Button(action: onUpgrade) {
-                        VStack(spacing: 1) {
-                            Text("UPGRADE")
-                                .pixelText(size: 10, color: Color(hex: "18100A"))
-                            Text(canUpgrade ? "LEVEL UP" : "NEED MATS")
-                                .pixelText(size: 7, color: Color(hex: "3A2A18"))
-                        }
-                        .frame(width: 84, height: 39)
-                        .background(canUpgrade ? Color(hex: "F7C943") : Color(hex: "8A6B42"))
-                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(!canUpgrade)
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(Color(hex: "EADAC0"))
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                 }
-                .padding(10)
-                .background(Color(hex: "F4E6C0"))
-                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
 
                 VStack(alignment: .leading, spacing: 7) {
                     Text("MOVES")
@@ -128,6 +149,56 @@ struct CharacterInfoModal: View {
         .frame(maxHeight: 690)
         .background(Color(hex: "EAD4A4"))
         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+    }
+
+    private var partyBadge: String {
+        if inParty { return "IN PARTY" }
+        return trust.isMaxed(hero) ? "RESERVE" : L("LOCKED")
+    }
+
+    private var partyBadgeColor: Color {
+        if inParty { return Color(hex: "4A8A3C") }
+        return trust.isMaxed(hero) ? Color(hex: "6B4324") : Color(hex: "B0492F")
+    }
+
+    /// Trust meter (pre-max) that flips to a Bond meter once the character is
+    /// fully trusted. Bond accrues forever (1 "level" per 60 study minutes).
+    @ViewBuilder
+    private var trustSection: some View {
+        let maxed = trust.isMaxed(hero)
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(maxed ? L("BOND") : L("TRUST"))
+                    .pixelText(size: 10, color: maxed ? Color(hex: "9A5BB8") : Color(hex: "8A6B42"))
+                Spacer()
+                Text(trustValueText)
+                    .pixelText(size: 8, color: Color(hex: "6B4324"))
+            }
+            ProgressBar(
+                progress: maxed ? bondFraction : trust.fraction(hero),
+                color: maxed ? Color(hex: "C98AE0") : Color(hex: "4A8A3C"))
+            if !maxed {
+                Text(L("Earn full Trust to use them in battle."))
+                    .font(.custom(MitoFont.regular, size: 12))
+                    .foregroundStyle(Color(hex: "B0492F"))
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(hex: "F4E6C0"))
+        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+    }
+
+    private var trustValueText: String {
+        if trust.isMaxed(hero) {
+            return "LV \(bondLevel)"
+        }
+        return "\(Int(trust.trust(hero)))/\(Int(trust.required(hero))) MIN"
+    }
+
+    private var bondLevel: Int { Int(trust.bondValue(hero) / 60) + 1 }
+    private var bondFraction: Double {
+        (trust.bondValue(hero).truncatingRemainder(dividingBy: 60)) / 60
     }
 }
 
@@ -219,11 +290,11 @@ struct HeroRow: View {
                 SpriteView(asset: hero.asset, size: 58)
                 VStack(alignment: .leading, spacing: 7) {
                     HStack {
-                        Text(hero.name.uppercased())
+                        Text(L(hero.name).uppercased())
                             .pixelText(size: 12, color: Color(hex: "3A2A18"))
                         SmallTag("LV \(hero.level)", active: true)
                     }
-                    Text(hero.role)
+                    Text(L(hero.role))
                         .font(.custom(MitoFont.regular, size: 15))
                         .foregroundStyle(Color(hex: "6B4324"))
                     HPBar(value: hero.hp, max: 60, tint: hero.color)

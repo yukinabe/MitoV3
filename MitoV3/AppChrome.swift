@@ -48,11 +48,11 @@ enum AppTab: String, CaseIterable, Identifiable {
 
     var title: String {
         switch self {
-        case .shop: "Shop"
-        case .team: "Team"
-        case .home: "Home"
-        case .battle: "Battle"
-        case .cards: "Cards"
+        case .shop: L("Shop")
+        case .team: L("Team")
+        case .home: L("Home")
+        case .battle: L("Battle")
+        case .cards: L("Cards")
         }
     }
 }
@@ -138,6 +138,7 @@ struct BottomTray: View {
                             withAnimation(.snappy(duration: 0.28)) {
                                 selectedTab = tab
                             }
+                            // Advances the tutorial's tab spotlights (tab.battle, tab.home …).
                             TutorialManager.shared.complete("tab.\(tab.rawValue)")
                         } label: {
                             ZStack {
@@ -167,4 +168,3 @@ struct BottomTray: View {
 }
 
 // MARK: - Waitlist gate
-
