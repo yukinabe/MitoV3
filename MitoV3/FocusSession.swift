@@ -190,8 +190,16 @@ struct FocusSession: View {
         }
         .ignoresSafeArea()
         .onReceive(ticker) { _ in tick() }
-        .onAppear { lock.beginSession() }
-        .onDisappear { lock.endSession() }
+        .onAppear {
+            lock.beginSession()
+            MitoFocusActivityController.start(mode: mode)
+        }
+        .onDisappear {
+            lock.endSession()
+            if !finished {
+                MitoFocusActivityController.end(elapsed: elapsed, mode: mode, completed: false)
+            }
+        }
         .onChange(of: scenePhase) { _, phase in
             lock.scenePhaseChanged(to: phase)
             // Soft lock: bailing to another app during a countdown voids the
@@ -253,6 +261,7 @@ struct FocusSession: View {
     private func tick() {
         guard !finished else { return }
         elapsed += 1
+        MitoFocusActivityController.update(elapsed: elapsed, mode: mode)
         if !mode.isCountUp && elapsed >= mode.durationSeconds {
             finish()
         }
@@ -263,6 +272,7 @@ struct FocusSession: View {
         lock.endSession()
         // Bailing out of a countdown voids the reward (soft-lock accountability).
         earned = bailed ? 0 : mode.atpReward(studiedSeconds: elapsed)
+        MitoFocusActivityController.end(elapsed: elapsed, mode: mode, completed: !mode.isCountUp && elapsed >= mode.durationSeconds && !bailed)
         // A real session (5+ minutes, earned something) feeds the streak and
         // daily quest, and is the moment we first ask for notifications —
         // right when the user has a streak to protect.

@@ -12,6 +12,7 @@ struct GeneralSettingsSheet: View {
     @AppStorage("audio.sfx") private var soundEnabled = true
     @AppStorage("audio.music") private var musicEnabled = true
     @AppStorage("settings.animations") private var animationsEnabled = true
+    @AppStorage(NotificationManager.cadenceKey) private var dueCadence = NotificationManager.DueCadence.daily.rawValue
     @ObservedObject private var lock = FocusLockManager.shared
     @State private var showingAppPicker = false
     #if os(iOS)
@@ -48,6 +49,7 @@ struct GeneralSettingsSheet: View {
                 SettingsToggleRow(title: "SOUND", detail: "Menu and battle effects.", isOn: $soundEnabled)
                 SettingsToggleRow(title: "MUSIC", detail: "Background music.", isOn: $musicEnabled)
                 SettingsToggleRow(title: "ANIMATION", detail: "Idle character movement.", isOn: $animationsEnabled)
+                SettingsReminderRow(cadenceRaw: $dueCadence)
 
                 Text("FOCUS LOCK")
                     .pixelText(size: 10, color: Color(hex: "3A2A18"))
@@ -91,9 +93,51 @@ struct GeneralSettingsSheet: View {
         .onChange(of: musicEnabled) { _, on in
             AudioManager.shared.musicEnabled = on
         }
+        .onChange(of: dueCadence) { _, _ in
+            NotificationManager.shared.reschedule()
+        }
         .padding(16)
         .background(Color(hex: "EAD4A4"))
         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+    }
+}
+
+private struct SettingsReminderRow: View {
+    @Binding var cadenceRaw: String
+
+    private var cadence: NotificationManager.DueCadence {
+        NotificationManager.DueCadence(rawValue: cadenceRaw) ?? .daily
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("BIO BUD NUDGES")
+                    .pixelText(size: 11, color: Color(hex: "3A2A18"))
+                Text("Due-card reminders from your home-screen buddy.")
+                    .font(.custom(MitoFont.regular, size: 13))
+                    .foregroundStyle(Color(hex: "6B4324"))
+                    .multilineTextAlignment(.leading)
+            }
+            Spacer()
+            Button {
+                let all = NotificationManager.DueCadence.allCases
+                let index = all.firstIndex(of: cadence) ?? 0
+                cadenceRaw = all[(index + 1) % all.count].rawValue
+                Haptics.select()
+            } label: {
+                Text(cadence.label)
+                    .pixelText(size: 9, color: cadence == .off ? Color(hex: "3A2A18") : Color(hex: "F4E6C0"))
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 7)
+                    .background(cadence == .off ? Color(hex: "B89868") : Color(hex: "4A8A3C"))
+                    .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(10)
+        .background(Color(hex: "F4E6C0"))
+        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
     }
 }
 

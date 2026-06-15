@@ -35,6 +35,12 @@
 		1000000000000000000000B9 /* BetaConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000B8 /* BetaConfig.swift */; };
 		1000000000000000000000C5 /* MitoWidget.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000C1 /* MitoWidget.swift */; };
 		1000000000000000000000C6 /* MitoWidget.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000C0 /* MitoWidget.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		AB1000000000000000000001 /* MitoFocusActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000000 /* MitoFocusActivityAttributes.swift */; };
+		AB1000000000000000000002 /* MitoFocusActivityAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000000 /* MitoFocusActivityAttributes.swift */; };
+		AB1000000000000000000004 /* MitoFocusActivityController.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000003 /* MitoFocusActivityController.swift */; };
+		AB1000000000000000000006 /* MitoWidgetReview.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000005 /* MitoWidgetReview.swift */; };
+		AB1000000000000000000008 /* MitoWidgetIntents.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB1000000000000000000007 /* MitoWidgetIntents.swift */; };
+		AB1000000000000000000009 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 10000000000000000000001A /* Assets.xcassets */; };
 		1996D358CB641DD4061773E0 /* Tutorial.swift in Sources */ = {isa = PBXBuildFile; fileRef = F723EFC0A844596637076B64 /* Tutorial.swift */; };
 		34F4826E0C6CF513AE64CC34 /* BattleFlashcardPanels.swift in Sources */ = {isa = PBXBuildFile; fileRef = FC7A3AA0AB939D5A021F571D /* BattleFlashcardPanels.swift */; };
 		52141895C0220415C3EC8C30 /* SettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1BCAE729C84FA6F03A3750B9 /* SettingsSheet.swift */; };
@@ -108,6 +114,10 @@
 		1000000000000000000000C2 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		1000000000000000000000C3 /* MitoWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MitoWidget.entitlements; sourceTree = "<group>"; };
 		1000000000000000000000C4 /* MitoV3.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MitoV3.entitlements; sourceTree = "<group>"; };
+		AB1000000000000000000000 /* MitoFocusActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoV3/MitoFocusActivityAttributes.swift; sourceTree = SOURCE_ROOT; };
+		AB1000000000000000000003 /* MitoFocusActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoFocusActivityController.swift; sourceTree = "<group>"; };
+		AB1000000000000000000005 /* MitoWidgetReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoWidgetReview.swift; sourceTree = "<group>"; };
+		AB1000000000000000000007 /* MitoWidgetIntents.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoWidgetIntents.swift; sourceTree = "<group>"; };
 		1BCAE729C84FA6F03A3750B9 /* SettingsSheet.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = SettingsSheet.swift; sourceTree = "<group>"; };
 		47DAC5AA49829B186532F517 /* Onboarding.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = Onboarding.swift; sourceTree = "<group>"; };
 		5C35F1514D76D52E6B7B7477 /* BattleCapturePopup.swift */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = sourcecode.swift; path = BattleCapturePopup.swift; sourceTree = "<group>"; };
@@ -175,6 +185,8 @@
 				1000000000000000000000B4 /* FocusLock.swift */,
 				1000000000000000000000B6 /* Classes.swift */,
 				1000000000000000000000B8 /* BetaConfig.swift */,
+				AB1000000000000000000000 /* MitoFocusActivityAttributes.swift */,
+				AB1000000000000000000003 /* MitoFocusActivityController.swift */,
 				10000000000000000000001A /* Assets.xcassets */,
 				1000000000000000000000A6 /* Sounds */,
 				10000000000000000000001C /* Silkscreen-Regular.ttf */,
@@ -214,6 +226,8 @@
 			isa = PBXGroup;
 			children = (
 				1000000000000000000000C1 /* MitoWidget.swift */,
+				AB1000000000000000000005 /* MitoWidgetReview.swift */,
+				AB1000000000000000000007 /* MitoWidgetIntents.swift */,
 				1000000000000000000000C2 /* Info.plist */,
 				1000000000000000000000C3 /* MitoWidget.entitlements */,
 			);
@@ -317,6 +331,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				AB1000000000000000000009 /* Assets.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -361,6 +376,8 @@
 				D15DAACDE7446B819535F6BF /* FlashcardEditor.swift in Sources */,
 				9516BB3EF688CC05E0A93391 /* CharacterInfoModal.swift in Sources */,
 				B9D196BCA94B28771C8EDDBE /* FocusSession.swift in Sources */,
+				AB1000000000000000000001 /* MitoFocusActivityAttributes.swift in Sources */,
+				AB1000000000000000000004 /* MitoFocusActivityController.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -369,6 +386,9 @@
 			buildActionMask = 2147483647;
 			files = (
 				1000000000000000000000C5 /* MitoWidget.swift in Sources */,
+				AB1000000000000000000002 /* MitoFocusActivityAttributes.swift in Sources */,
+				AB1000000000000000000006 /* MitoWidgetReview.swift in Sources */,
+				AB1000000000000000000008 /* MitoWidgetIntents.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -516,6 +536,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Mito V3";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -550,6 +571,7 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "Mito V3";
 				INFOPLIST_KEY_ITSAppUsesNonExemptEncryption = NO;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.education";
+				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

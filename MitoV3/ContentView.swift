@@ -163,8 +163,10 @@ struct ContentView: View {
         .onChange(of: scenePhase) { _, phase in
             switch phase {
             case .active:
+                ReviewSession.shared.reloadPersisted()
                 StreakStore.shared.reconcile()
                 DailyQuests.shared.rollover()
+                WidgetBridge.sync()
             case .background:
                 // Recompute the nudges + widget with the freshest due counts.
                 NotificationManager.shared.reschedule()

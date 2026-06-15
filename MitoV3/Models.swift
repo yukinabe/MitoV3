@@ -609,6 +609,20 @@ public final class ReviewSession: ObservableObject {
         cards.values.sorted { ($0.deckName, $0.front) < ($1.deckName, $1.front) }
     }
 
+    /// Refresh from the shared App Group review file. Widget App Intents grade
+    /// cards while the app may be suspended, so the foreground app needs to
+    /// adopt those persisted schedules before showing due counts or queues.
+    public func reloadPersisted() {
+        let saved = Self.load(from: storeURL)
+        guard !saved.isEmpty else { return }
+        cards = Dictionary(uniqueKeysWithValues: saved.map { ($0.id, $0) })
+        queue.removeAll()
+        current = nil
+        remainingDue = 0
+        lastResult = nil
+        catalogVersion += 1
+    }
+
     /// Cards belonging to one deck, ordered by front text.
     public func cards(in deckID: String) -> [ReviewCard] {
         cards.values.filter { $0.deckID == deckID }.sorted { $0.front < $1.front }
@@ -741,6 +755,16 @@ public final class ReviewSession: ObservableObject {
 
     private static func applicationSupportFile(named name: String) -> URL {
         let fm = FileManager.default
+        if let shared = fm.containerURL(forSecurityApplicationGroupIdentifier: "group.com.yukinabe.mitov3") {
+            let sharedURL = shared.appendingPathComponent(name)
+            let legacyBase = (try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
+                ?? fm.temporaryDirectory
+            let legacyURL = legacyBase.appendingPathComponent(name)
+            if !fm.fileExists(atPath: sharedURL.path), fm.fileExists(atPath: legacyURL.path) {
+                try? fm.copyItem(at: legacyURL, to: sharedURL)
+            }
+            return sharedURL
+        }
         let base = (try? fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true))
             ?? fm.temporaryDirectory
         return base.appendingPathComponent(name)

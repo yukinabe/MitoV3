@@ -220,13 +220,28 @@ extension ReviewSession {
 
 // MARK: - Local notifications
 
-/// Two honest, content-driven nudges, recomputed whenever engagement state
+/// Honest, content-driven nudges, recomputed whenever engagement state
 /// changes or the app backgrounds:
-///   • tomorrow 09:00 — how many cards will be due ("your team is waiting")
+///   • default: tomorrow 09:00 — how many cards will be due
+///   • optional: hourly due-card nudges while cards are waiting
 ///   • tonight 20:30 — streak-save, only if the streak is alive and unfed today
 @MainActor
 final class NotificationManager: ObservableObject {
     static let shared = NotificationManager()
+    static let cadenceKey = "notif.dueCadence"
+
+    enum DueCadence: String, CaseIterable {
+        case daily, hourly, off
+
+        var label: String {
+            switch self {
+            case .daily: "DAILY"
+            case .hourly: "HOURLY"
+            case .off: "OFF"
+            }
+        }
+    }
+
     private let center = UNUserNotificationCenter.current()
     private let defaults = UserDefaults.standard
 
@@ -270,18 +285,35 @@ final class NotificationManager: ObservableObject {
 
             let cal = Calendar.current
             let now = Date()
+            let buddy = WidgetBridge.currentBuddy()
+            let cadence = DueCadence(rawValue: defaults.string(forKey: Self.cadenceKey) ?? DueCadence.daily.rawValue) ?? .daily
 
             // Morning review reminder.
-            if let tomorrow9 = cal.nextDate(after: now, matching: DateComponents(hour: 9, minute: 0), matchingPolicy: .nextTime) {
+            if cadence == .daily,
+               let tomorrow9 = cal.nextDate(after: now, matching: DateComponents(hour: 9, minute: 0), matchingPolicy: .nextTime) {
                 let due = ReviewSession.shared.dueCount(by: tomorrow9)
                 if due > 0 {
                     let content = UNMutableNotificationContent()
-                    content.title = "Mito"
+                    content.title = buddy.name
                     content.body = due == 1
-                        ? "1 card is due — your team is waiting."
-                        : "\(due) cards are due — your team is waiting."
+                        ? "I found 1 card due. Want to clear it together?"
+                        : "I found \(due) cards due. Want to clear a few together?"
                     content.sound = .default
                     schedule(id: "mito.due", content: content, at: tomorrow9, calendar: cal)
+                }
+            }
+
+            if cadence == .hourly {
+                let due = ReviewSession.shared.dueCount(by: now)
+                if due > 0 {
+                    let content = UNMutableNotificationContent()
+                    content.title = "\(buddy.name) is waiting"
+                    content.body = due == 1
+                        ? "One tiny review keeps me company."
+                        : "\(due) cards are waiting. One tiny review?"
+                    content.sound = .default
+                    let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3600, repeats: true)
+                    center.add(UNNotificationRequest(identifier: "mito.due.hourly", content: content, trigger: trigger))
                 }
             }
 
@@ -293,7 +325,7 @@ final class NotificationManager: ObservableObject {
                 if let tonight = cal.date(from: comps), tonight > now {
                     let content = UNMutableNotificationContent()
                     content.title = "🔥 \(streak.count)-day streak on the line"
-                    content.body = "One quick focus session keeps it alive."
+                    content.body = "\(buddy.name) can help you save it with one quick session."
                     content.sound = .default
                     schedule(id: "mito.streak", content: content, at: tonight, calendar: cal)
                 }
@@ -317,13 +349,78 @@ final class NotificationManager: ObservableObject {
 enum WidgetBridge {
     static let suiteName = "group.com.yukinabe.mitov3"
 
+    struct Buddy {
+        let id: String
+        let name: String
+        let asset: String
+    }
+
+    static func currentBuddy() -> Buddy {
+        let preferred = UserDefaults.standard.string(forKey: "study.companion")
+            ?? BattleRules.partyHeroes.first?.id
+            ?? RosterStore.starter
+        let hero = DataSet.anyHero(id: preferred) ?? DataSet.anyHero(id: RosterStore.starter)
+        return Buddy(
+            id: hero?.id ?? RosterStore.starter,
+            name: hero?.name ?? "Mito",
+            asset: hero?.asset ?? "hero-mito-hop"
+        )
+    }
+
     static func sync() {
         guard let d = UserDefaults(suiteName: suiteName) else { return }
+        let now = Date()
+        let dueCards = ReviewSession.shared.allCards()
+            .filter { $0.sched.phase == .new || $0.sched.due <= now }
+            .sorted { lhs, rhs in
+                if (lhs.sched.phase == .new) != (rhs.sched.phase == .new) {
+                    return rhs.sched.phase == .new
+                }
+                return lhs.sched.due < rhs.sched.due
+            }
+        let buddy = currentBuddy()
+        let dueCount = dueCards.count
+        let mood = mood(due: dueCount, activeToday: StreakStore.shared.isActiveToday, questsDone: DailyQuests.shared.completedCount, now: now)
         d.set(StreakStore.shared.count, forKey: "widget.streak")
         d.set(StreakStore.shared.isActiveToday, forKey: "widget.activeToday")
-        d.set(ReviewSession.shared.dueCount(by: Date()), forKey: "widget.due")
+        d.set(dueCount, forKey: "widget.due")
         d.set(DailyQuests.shared.completedCount, forKey: "widget.quests")
+        d.set(buddy.id, forKey: "widget.buddy.id")
+        d.set(buddy.name, forKey: "widget.buddy.name")
+        d.set(buddy.asset, forKey: "widget.buddy.asset")
+        d.set(mood.label, forKey: "widget.buddy.mood")
+        d.set(mood.line, forKey: "widget.buddy.line")
+        d.set(now.timeIntervalSince1970, forKey: "widget.syncedAt")
+        if let card = dueCards.first {
+            d.set(card.id.uuidString, forKey: "widget.card.id")
+            d.set(card.deckName.isEmpty ? card.deckID : card.deckName, forKey: "widget.card.deck")
+            d.set(card.front, forKey: "widget.card.front")
+            d.set(card.back, forKey: "widget.card.back")
+        } else {
+            d.removeObject(forKey: "widget.card.id")
+            d.removeObject(forKey: "widget.card.deck")
+            d.removeObject(forKey: "widget.card.front")
+            d.removeObject(forKey: "widget.card.back")
+            d.removeObject(forKey: "widget.card.revealed")
+        }
         WidgetCenter.shared.reloadAllTimelines()
+    }
+
+    private static func mood(due: Int, activeToday: Bool, questsDone: Int, now: Date) -> (label: String, line: String) {
+        if due > 0, !activeToday, StreakStore.shared.count > 0 {
+            return ("worried", "I saved a card for us.")
+        }
+        if due > 0 {
+            return ("waiting", "One card together?")
+        }
+        if activeToday || questsDone >= 3 {
+            return ("proud", "I'm proud of today.")
+        }
+        let hour = Calendar.current.component(.hour, from: now)
+        if hour >= 21 || hour < 7 {
+            return ("sleepy", "Resting till review time.")
+        }
+        return ("relaxed", "No cards due. I'm chilling.")
     }
 }
 
