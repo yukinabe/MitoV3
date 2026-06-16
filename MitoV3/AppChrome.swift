@@ -131,15 +131,12 @@ struct BottomTray: View {
                 HStack(spacing: 0) {
                     ForEach(AppTab.allCases) { tab in
                         Button {
-                            if selectedTab != tab {
-                                AudioManager.shared.play(.uiTap, volume: 0.7)
-                                Haptics.select()
-                            }
                             withAnimation(.snappy(duration: 0.28)) {
                                 selectedTab = tab
                             }
-                            // Advances the tutorial's tab spotlights (tab.battle, tab.home …).
-                            TutorialManager.shared.complete("tab.\(tab.rawValue)")
+                            // Audio, haptics, and the tutorial-spotlight advance are all
+                            // driven by .onChange(of: selectedTab) in ContentView, so a tap
+                            // and a swipe give identical, single feedback (no double tap).
                         } label: {
                             ZStack {
                                 if selectedTab == tab {
