@@ -193,22 +193,28 @@ struct CardsScreen: View {
         return min(count / 12, 1)
     }
 
-    /// Load the user's real decks from Supabase (cards come from the already-
-    /// synced review session). Falls back to the bundled samples when offline.
+    /// Load the library from the SAME source the battle uses — the review
+    /// session's deck summaries — so the Cards screen and battle always agree.
+    /// (Previously this read the Supabase `decks` table directly, which could be
+    /// empty or out of sync with what the session had synced, so battle showed
+    /// cards the Cards screen didn't.) Falls back to bundled samples when empty.
     private func loadLibrary() async {
-        guard !didLoad, backend.isReady else { return }
+        guard !didLoad else { return }
+        // Pull cloud cards into the session when signed in; otherwise the session
+        // already holds local/seed cards. Either way we build from the session.
+        if backend.isReady { await backend.attachSync(to: session) }
+        let summaries = session.deckSummaries
+        guard !summaries.isEmpty else { return }   // nothing yet — keep samples, retry next pass
         didLoad = true
-        await backend.attachSync(to: session) // make sure cloud cards are loaded
-        guard let remote = try? await backend.fetchDecks(), !remote.isEmpty else { return }
 
         var loadedDecks: [Deck] = []
         var byDeck: [String: [Flashcard]] = [:]
-        for record in remote {
-            let id = record.id.uuidString
+        for summary in summaries {
+            let id = summary.id
             let cards = session.cards(in: id)
             byDeck[id] = cards.map { Flashcard(id: $0.id.uuidString, front: $0.front, back: $0.back, tags: $0.tags) }
             let tags = Array(Set(cards.flatMap(\.tags))).sorted()
-            loadedDecks.append(Deck(id: id, name: record.name, cards: cards.count,
+            loadedDecks.append(Deck(id: id, name: summary.name, cards: cards.count,
                                     tags: tags.isEmpty ? ["new"] : tags, color: Self.deckColor(id)))
         }
         decks = loadedDecks

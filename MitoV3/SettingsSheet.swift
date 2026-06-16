@@ -37,6 +37,7 @@ struct GeneralSettingsSheet: View {
                 .buttonStyle(.plain)
             }
 
+            ScrollView(showsIndicators: false) {
             VStack(spacing: 8) {
                 SettingsActionRow(
                     title: backend.isLoggedIn ? L("ACCOUNT") : L("LOGIN"),
@@ -85,6 +86,7 @@ struct GeneralSettingsSheet: View {
                 #if DEBUG
                 DevToolsSection(isPresented: $isPresented)
                 #endif
+            }
             }
         }
         #if os(iOS)

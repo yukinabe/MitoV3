@@ -191,8 +191,9 @@ struct HomeScreen: View {
                             showingAuth = true
                         }
                     )
-                    .frame(width: min(proxy.size.width * 0.86, 360))
-                    .position(x: proxy.size.width / 2, y: proxy.size.height * 0.38)
+                    .frame(width: min(proxy.size.width * 0.86, 360),
+                           height: min(580, proxy.size.height * 0.82))
+                    .position(x: proxy.size.width / 2, y: proxy.size.height * 0.5)
                     .zIndex(5)
                 }
 
