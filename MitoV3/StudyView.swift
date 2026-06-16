@@ -5,6 +5,7 @@ struct HomeScreen: View {
     @Binding var gold: Int
     @Binding var gems: Int
     @ObservedObject var backend: MitoBackend
+    var selectedTab: AppTab = .home
     @State private var showPicker = false
     @State private var sessionMode: StudyMode?
     @State private var showingSettings = false
@@ -272,6 +273,19 @@ struct HomeScreen: View {
                             "atp": "\(reward)"
                         ])
                     }
+                }
+            }
+            .onChange(of: selectedTab) { _, tab in
+                // Close transient sheets/popovers when leaving Home (an active
+                // focus session is a full-screen cover, so it can't be left here).
+                if tab != .home {
+                    showPicker = false
+                    showingSettings = false
+                    showingAuth = false
+                    showingFriends = false
+                    showingClasses = false
+                    showingStreak = false
+                    showingQuests = false
                 }
             }
         }

@@ -4,6 +4,7 @@ struct TeamScreen: View {
     @Binding var atp: Int
     @Binding var gold: Int
     @Binding var biomass: Int
+    var selectedTab: AppTab = .team
     @State private var activePartySlots: [String?] = {
         // Seed from the persisted global party, padded to the fixed slot count.
         var slots = BattleRules.activePartyIDs.map { Optional($0) }
@@ -227,6 +228,13 @@ struct TeamScreen: View {
             .animation(.spring(response: 0.24, dampingFraction: 0.86), value: selectedHeroID)
             .task {
                 await loadCharacterProgress()
+            }
+            .onChange(of: selectedTab) { _, tab in
+                // Close the character popup/info when leaving the Team tab.
+                if tab != .team {
+                    selectedHeroID = nil
+                    infoHero = nil
+                }
             }
         }
     }

@@ -142,13 +142,13 @@ struct ContentView: View {
                     TabView(selection: $selectedTab) {
                         ShopScreen(atp: $atp, gold: $gold, gems: $gems, biomass: $biomass, shards: $shards)
                             .tag(AppTab.shop)
-                        TeamScreen(atp: $atp, gold: $gold, biomass: $biomass)
+                        TeamScreen(atp: $atp, gold: $gold, biomass: $biomass, selectedTab: selectedTab)
                             .tag(AppTab.team)
-                        HomeScreen(atp: $atp, gold: $gold, gems: $gems, backend: backend)
+                        HomeScreen(atp: $atp, gold: $gold, gems: $gems, backend: backend, selectedTab: selectedTab)
                             .tag(AppTab.home)
-                        BattleScreen(atp: $atp, gold: $gold, biomass: $biomass)
+                        BattleScreen(atp: $atp, gold: $gold, biomass: $biomass, selectedTab: selectedTab)
                             .tag(AppTab.battle)
-                        CardsScreen()
+                        CardsScreen(selectedTab: selectedTab)
                             .tag(AppTab.cards)
                     }
                     .tabViewStyle(.page(indexDisplayMode: .never))

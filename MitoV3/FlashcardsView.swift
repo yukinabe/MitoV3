@@ -4,6 +4,7 @@ import Compression
 import SQLite3
 
 struct CardsScreen: View {
+    var selectedTab: AppTab = .cards
     @ObservedObject private var session = ReviewSession.shared
     @ObservedObject private var backend = MitoBackend.shared
     @State private var decks = CardsScreen.seedDecks
@@ -98,6 +99,15 @@ struct CardsScreen: View {
                     showingImport = true
                 }
                 #endif
+            }
+            .onChange(of: selectedTab) { _, tab in
+                // Reset to the deck library on leave, but keep an open editor
+                // so unsaved card edits aren't lost.
+                if tab != .cards {
+                    if case .editor = route {} else { route = .library }
+                    showingNewDeck = false
+                    showingImport = false
+                }
             }
         }
     }

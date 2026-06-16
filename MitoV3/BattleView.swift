@@ -83,6 +83,9 @@ struct BattleScreen: View {
     @Binding var atp: Int
     @Binding var gold: Int
     @Binding var biomass: Int
+    /// The active tab, so this screen can reset to its landing when the player
+    /// leaves (an in-progress combat or result screen is preserved).
+    var selectedTab: AppTab = .battle
 
     @State private var route: BattleRoute = .landing
     @State private var battleMode: BattleMode = .endless
@@ -184,6 +187,13 @@ struct BattleScreen: View {
             }
         }
         .onAppear(perform: maybeJumpToReviewForUITest)
+        .onChange(of: selectedTab) { _, tab in
+            // Reset to the battle landing when leaving — but never abandon an
+            // active fight or its result screen.
+            if tab != .battle, route != .combat, route != .result {
+                route = .landing
+            }
+        }
     }
 
     /// The base hero recruited by clearing the selected campaign stage, if it's a
