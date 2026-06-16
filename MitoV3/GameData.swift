@@ -542,8 +542,8 @@ enum BattleScaling {
 /// screen and both battle modes. Three characters: Support / DPS / Tank.
 enum BattleRules {
     static let partySize = 3
-    /// Beta/default party includes the two Legendary BioBuds for UGC capture.
-    static let defaultParty = ["mito", "prion", "t4phage"]
+    /// Players start with Mito + Prion. T4 Phage is recruited from Campaign Stage 4.
+    static let defaultParty = ["mito", "prion"]
     /// UserDefaults key for the player's persisted active party (see PartyStore).
     static let partyDefaultsKey = "party.active"
 
@@ -633,11 +633,12 @@ enum CampaignRecruits {
     /// (a wild Spikevyrus scout that teaches capturing), so Neuro lands on
     /// campaign 3 and the rest follow.
     static let byStage: [Int: String] = [
-        1: "cloro",   // Chloro  — DPS
-        3: "neuro",   // Neuro   — Tank
-        4: "astro",   // Astro   — Support
-        5: "dendri",  // Dendri  — Support
-        6: "bcell"    // B Cell  — Support
+        1: "cloro",    // Chloro    — DPS
+        3: "neuro",    // Neuro     — Tank
+        4: "t4phage",  // T4 Phage  — Legendary boss recruit (the bacteriophage)
+        5: "dendri",   // Dendri    — Support
+        6: "bcell",    // B Cell    — Support
+        7: "astro"     // Astro     — Support (moved from stage 4)
     ]
 
     static func heroID(forStage id: Int) -> String? { byStage[id] }
@@ -651,7 +652,7 @@ enum CampaignRecruits {
 final class RosterStore: ObservableObject {
     static let shared = RosterStore()
     nonisolated static let starter = "mito"
-    nonisolated static let defaultOwned: Set<String> = ["mito", "prion", "t4phage"]
+    nonisolated static let defaultOwned: Set<String> = ["mito", "prion"]
     nonisolated static let defaultsKey = "roster.owned"
 
     @Published private(set) var owned: Set<String>
