@@ -313,7 +313,7 @@ final class NotificationManager: ObservableObject {
                         : "\(due) cards are waiting. One tiny review?"
                     content.sound = .default
                     let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 3600, repeats: true)
-                    center.add(UNNotificationRequest(identifier: "mito.due.hourly", content: content, trigger: trigger))
+                    try? await center.add(UNNotificationRequest(identifier: "mito.due.hourly", content: content, trigger: trigger))
                 }
             }
 
