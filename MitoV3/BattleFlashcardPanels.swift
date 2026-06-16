@@ -51,10 +51,12 @@ struct BattleFlashcardPanel: View {
             }
 
             Text(text)
-                .font(.custom(MitoFont.regular, size: showingAnswer ? 20 : 21))
+                // The card's own question/answer uses a clean system font (the
+                // pixel font is hard to read for dense study content).
+                .font(.system(size: showingAnswer ? 19 : 20, weight: .medium, design: .rounded))
                 .foregroundStyle(Color(hex: "3A2A18"))
                 .multilineTextAlignment(.leading)
-                .lineSpacing(7)
+                .lineSpacing(5)
                 .minimumScaleFactor(0.72)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                 .padding(.horizontal, 4)
@@ -168,7 +170,8 @@ struct MultipleChoicePanel: View {
             ForEach(options, id: \.self) { option in
                 Button { tap(option) } label: {
                     Text(option)
-                        .pixelText(size: 12, color: Color(hex: "F4E6C0"))
+                        .font(.system(size: 14, weight: .medium, design: .rounded))
+                        .foregroundStyle(Color(hex: "F4E6C0"))
                         .multilineTextAlignment(.center)
                         .minimumScaleFactor(0.6)
                         .lineLimit(2)
@@ -243,7 +246,7 @@ struct TypeInPanel: View {
         VStack(spacing: 8) {
             if let feedback {
                 Text(feedback)
-                    .font(.custom(MitoFont.regular, size: 14))
+                    .font(.system(size: 14, weight: .medium, design: .rounded))
                     .foregroundStyle(Color(hex: "F4E6C0"))
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
@@ -253,7 +256,7 @@ struct TypeInPanel: View {
             }
 
             TextField("", text: $text, prompt: Text("Type your answer…").foregroundColor(Color(hex: "8A6B42")))
-                .font(.custom(MitoFont.regular, size: 16))
+                .font(.system(size: 16, weight: .regular, design: .rounded))
                 .foregroundStyle(Color(hex: "3A2A18"))
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
