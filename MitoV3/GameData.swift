@@ -837,6 +837,14 @@ final class TrustStore: ObservableObject {
         persist()
     }
 
+    #if DEBUG
+    /// Dev tools: instantly max a character's Trust.
+    func devGrantFullTrust(_ hero: Hero) {
+        baseline[hero.id] = required(hero)
+        persist()
+    }
+    #endif
+
     /// Reset all trust/bond (account deletion / privacy).
     func reset() {
         baseline = [:]; lastStudied = [:]; bond = [:]; companionID = nil

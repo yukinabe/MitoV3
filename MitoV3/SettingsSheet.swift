@@ -81,6 +81,10 @@ struct GeneralSettingsSheet: View {
                     }
                 }
                 #endif
+
+                #if DEBUG
+                DevToolsSection(isPresented: $isPresented)
+                #endif
             }
         }
         #if os(iOS)
@@ -251,3 +255,90 @@ private struct SettingsToggleRow: View {
         .buttonStyle(.plain)
     }
 }
+
+#if DEBUG
+/// Developer-only shortcuts (compiled out of release builds). Lives at the bottom
+/// of the Settings sheet.
+private struct DevToolsSection: View {
+    @Binding var isPresented: Bool
+    @State private var note = ""
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("DEV TOOLS")
+                .pixelText(size: 10, color: Color(hex: "C4452F"))
+                .padding(.top, 8)
+
+            FlowLayout(spacing: 6) {
+                devButton("UNLOCK + TRUST ALL") {
+                    for h in DataSet.heroes {
+                        RosterStore.shared.unlock(h.id)
+                        TrustStore.shared.devGrantFullTrust(h)
+                    }
+                    for c in DataSet.capturables {
+                        CaptureStore.shared.capture(c.id)
+                        TrustStore.shared.devGrantFullTrust(c)
+                    }
+                    note = "all characters unlocked + trusted"
+                }
+                devButton("CLEAR CAMPAIGN") {
+                    UserDefaults.standard.set(DataSet.stages.count, forKey: "campaign.cleared")
+                    note = "all stages cleared"
+                }
+                devButton("+99999 CURRENCY") {
+                    for k in ["wallet.atp", "wallet.gold", "wallet.gems", "wallet.biomass", "wallet.shards"] {
+                        UserDefaults.standard.set(99999, forKey: k)
+                    }
+                    note = "currency maxed"
+                }
+                devButton("REPLAY TUTORIAL") {
+                    let d = UserDefaults.standard
+                    d.set(true, forKey: "mito.onboarded")
+                    d.set(false, forKey: "mito.tutorialSeen")
+                    isPresented = false
+                    TutorialManager.shared.start(goal: d.string(forKey: "mito.goal") ?? "")
+                }
+                devButton("RESET SAVE") {
+                    RosterStore.shared.reset()
+                    CaptureStore.shared.reset()
+                    TrustStore.shared.reset()
+                    PartyStore.shared.reset()
+                    let d = UserDefaults.standard
+                    for k in ["mito.onboarded", "mito.tutorialSeen", "campaign.cleared",
+                              "wallet.atp", "wallet.gold", "wallet.gems", "wallet.biomass", "wallet.shards",
+                              "migration.trustV1.done", "migration.recruitV1.done",
+                              "campaign.story.seen", "study.companion"] {
+                        d.removeObject(forKey: k)
+                    }
+                    note = "save reset — relaunch the app"
+                }
+            }
+
+            if !note.isEmpty {
+                Text("✓ \(note)")
+                    .font(.custom(MitoFont.regular, size: 12))
+                    .foregroundStyle(Color(hex: "4A8A3C"))
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(hex: "F4E6C0"))
+        .overlay(Rectangle().stroke(Color(hex: "C4452F"), lineWidth: 2))
+    }
+
+    private func devButton(_ title: String, _ action: @escaping () -> Void) -> some View {
+        Button {
+            action()
+            Haptics.tap()
+        } label: {
+            Text(title)
+                .font(.custom(MitoFont.regular, size: 12))
+                .foregroundStyle(Color(hex: "F4E6C0"))
+                .padding(.horizontal, 9).padding(.vertical, 7)
+                .background(Color(hex: "B0492F"))
+                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
+        }
+        .buttonStyle(.plain)
+    }
+}
+#endif
