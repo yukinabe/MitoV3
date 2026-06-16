@@ -331,17 +331,17 @@ final class LobbyService: ObservableObject {
 
         let presenceTask = Task { [weak self] in
             for await change in ch.presenceChange() {
-                await self?.applyPresence(change)
+                self?.applyPresence(change)
             }
         }
         let eventTask = Task { [weak self] in
             for await json in ch.broadcastStream(event: "game") {
-                await self?.applyEvent(json)
+                self?.applyEvent(json)
             }
         }
         streamTasks = [presenceTask, eventTask]
 
-        await ch.subscribe()
+        try? await ch.subscribeWithError()
         try? await ch.track(me)
         connected = true
     }

@@ -21,7 +21,8 @@ enum MitoBackendConfig {
 /// transparently migrates sessions saved by the old UserDefaults store.
 struct MitoAuthStorage: AuthLocalStorage {
     private let service = "com.yukinabe.mitov3.auth"
-    private let defaults = UserDefaults.standard
+    // UserDefaults is thread-safe but not Sendable-annotated; safe to share here.
+    nonisolated(unsafe) private let defaults = UserDefaults.standard
 
     func store(key: String, value: Data) throws {
         let query = baseQuery(key: key)
