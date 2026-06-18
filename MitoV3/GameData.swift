@@ -136,6 +136,26 @@ struct BuffGrant: Equatable {
     let turns: Int          // duration for timed buffs (0 for instant)
 }
 
+/// How an ability spreads damage across enemies (for multi-enemy battles).
+/// Existing single-enemy fights treat everything as `.single`. AoE trades power
+/// for coverage: an `.all` hit deals ~55–65% of a single-target value.
+enum TargetMode: String, Equatable {
+    case single     // one enemy, full damage
+    case all        // every enemy, reduced per-target (AoE)
+    case splash     // main target full + the rest partial
+    case execute    // single, bonus damage the lower the enemy's HP
+
+    var label: String {
+        switch self {
+        case .single: "ST"
+        case .all: "AOE"
+        case .splash: "SPLASH"
+        case .execute: "EXECUTE"
+        }
+    }
+    var isAOE: Bool { self == .all || self == .splash }
+}
+
 struct BattleAbility: Identifiable, Equatable {
     let id: String
     let name: String
@@ -147,6 +167,12 @@ struct BattleAbility: Identifiable, Equatable {
     let color: Color
     let energyCost: Int?
     let ultimateChargeRequired: Int?
+    /// Multi-enemy targeting. Defaults to single so every existing ability is
+    /// unchanged; new biobuds set `.all` / `.splash` / `.execute`.
+    var target: TargetMode = .single
+    /// Inline buffs for newer abilities. When empty, falls back to the
+    /// animationKey-keyed defaults below (used by the original heroes).
+    var buffs: [BuffGrant] = []
 
     /// Support abilities that buff the whole party (the aura/team-hop visuals).
     static let teamBuffKeys: Set<String> = [
@@ -158,6 +184,7 @@ struct BattleAbility: Identifiable, Equatable {
 
     /// Buffs/effects this ability applies — gives each hero a distinct identity.
     var grants: [BuffGrant] {
+        if !buffs.isEmpty { return buffs }
         switch animationKey {
         // Mito — energy & sustain
         case "mito-cristae-surge":
@@ -334,8 +361,166 @@ struct TurnEngine {
     }
 }
 
+// MARK: - Biology expansion biobuds (v2)
+//
+// 20 collectible biobuds + provisional ability kits. Their validated hop-sprite
+// assets (`biobud-<id>-hop`, 8-frame 1600x128 strips) live in Assets.xcassets.
+// First-pass balance; tune abilities in playtest.
+// `detail` notes special mechanics the current buff system doesn't model yet
+// (lifesteal / taunt / DoT / execute / copy) — implement alongside combat.
+enum ExpansionAbilities {
+    private static func ab(_ id: String, _ name: String, _ kind: AbilityKind, _ dmg: Int,
+                           _ key: String, _ color: Color, energy: Int? = nil, charge: Int? = nil,
+                           target: TargetMode = .single, buffs: [BuffGrant] = [],
+                           _ detail: String = "") -> BattleAbility {
+        BattleAbility(id: id, name: name, kind: kind, damage: dmg, detail: detail,
+                      theme: "", animationKey: key, color: color, energyCost: energy,
+                      ultimateChargeRequired: charge, target: target, buffs: buffs)
+    }
+
+    static let byID: [String: [BattleAbility]] = [
+        // — Cells
+        "redblood": [
+            ab("rbc-tap", "Oxygen Tap", .basic, 16, "rbc-tap", Color(hex: "D94A4A")),
+            ab("rbc-drop", "O₂ Drop", .skill, 14, "rbc-drop", Color(hex: "D94A4A"), energy: 2, buffs: [BuffGrant(kind: .heal, magnitude: 14, turns: 0)], "Delivers oxygen — heals the lowest ally."),
+            ab("rbc-sat", "Full Saturation", .ultimate, 0, "rbc-sat", Color(hex: "D94A4A"), charge: 4, buffs: [BuffGrant(kind: .heal, magnitude: 22, turns: 0), BuffGrant(kind: .attack, magnitude: 0.12, turns: 3)], "Team-wide oxygen wash: heal + ATK up.")
+        ],
+        "macrophage": [
+            ab("macro-chomp", "Chomp", .basic, 18, "macro-chomp", Color(hex: "E8C24A")),
+            ab("macro-engulf", "Engulf", .skill, 30, "macro-engulf", Color(hex: "E8C24A"), energy: 2, "Lifesteal: heals self for 50% of damage dealt."),
+            ab("macro-phago", "Phagocytosis", .ultimate, 34, "macro-phago", Color(hex: "E8C24A"), charge: 4, target: .all, buffs: [BuffGrant(kind: .shield, magnitude: 18, turns: 3)], "Swallows the whole wave (AoE) and shields self.")
+        ],
+        "stemcell": [
+            ab("stem-poke", "Pluripotent Poke", .basic, 16, "stem-poke", Color(hex: "9FD8B0")),
+            ab("stem-diff", "Differentiate", .skill, 0, "stem-diff", Color(hex: "9FD8B0"), energy: 2, "Copies the last ability an ally used this battle."),
+            ab("stem-bloom", "Totipotent Bloom", .ultimate, 0, "stem-bloom", Color(hex: "9FD8B0"), charge: 4, buffs: [BuffGrant(kind: .attack, magnitude: 0.20, turns: 3)], "Grants the team a chosen buff (ATK/DEF/SPD).")
+        ],
+        "platelet": [
+            ab("plat-jab", "Tiny Jab", .basic, 15, "plat-jab", Color(hex: "B07BD0")),
+            ab("plat-clot", "Clot", .skill, 0, "plat-clot", Color(hex: "B07BD0"), energy: 2, buffs: [BuffGrant(kind: .shield, magnitude: 16, turns: 3)], "Team shield."),
+            ab("plat-cascade", "Coagulation Cascade", .ultimate, 0, "plat-cascade", Color(hex: "B07BD0"), charge: 4, buffs: [BuffGrant(kind: .shield, magnitude: 22, turns: 3), BuffGrant(kind: .heal, magnitude: 14, turns: 0)], "Team shield + heal.")
+        ],
+        "epithelial": [
+            ab("epi-slam", "Tile Slam", .basic, 17, "epi-slam", Color(hex: "5FB8A8")),
+            ab("epi-wall", "Wall Up", .skill, 0, "epi-wall", Color(hex: "5FB8A8"), energy: 2, buffs: [BuffGrant(kind: .defense, magnitude: 0.40, turns: 3)], "Taunt + raise own defense (soaks for the team)."),
+            ab("epi-barrier", "Barrier Membrane", .ultimate, 0, "epi-barrier", Color(hex: "5FB8A8"), charge: 4, buffs: [BuffGrant(kind: .defense, magnitude: 0.30, turns: 3)], "Team takes −30% damage for 3 turns.")
+        ],
+        // — Organelles
+        "nucleus": [
+            ab("nuc-signal", "Signal", .basic, 16, "nuc-signal", Color(hex: "8B6BD9")),
+            ab("nuc-order", "Transcription Order", .skill, 0, "nuc-order", Color(hex: "8B6BD9"), energy: 2, buffs: [BuffGrant(kind: .ultEnergy, magnitude: 1, turns: 0)], "+1 ult energy to all allies."),
+            ab("nuc-express", "Gene Expression", .ultimate, 0, "nuc-express", Color(hex: "8B6BD9"), charge: 4, buffs: [BuffGrant(kind: .attack, magnitude: 0.20, turns: 3), BuffGrant(kind: .ultEnergy, magnitude: 1, turns: 0)], "Team ATK up + ult energy.")
+        ],
+        "ribosome": [
+            ab("ribo-pelt", "Peptide Pelt", .basic, 16, "ribo-pelt", Color(hex: "D9B88A")),
+            ab("ribo-synth", "Synthesize", .skill, 0, "ribo-synth", Color(hex: "D9B88A"), energy: 2, buffs: [BuffGrant(kind: .ultEnergy, magnitude: 2, turns: 0)], "+2 ult energy to an ally."),
+            ab("ribo-mass", "Mass Translation", .ultimate, 28, "ribo-mass", Color(hex: "D9B88A"), charge: 4, target: .all, "A stream of protein beads (AoE).")
+        ],
+        "rougher": [
+            ab("rer-fold", "Fold Flick", .basic, 15, "rer-fold", Color(hex: "5FA3D4")),
+            ab("rer-factory", "Protein Factory", .skill, 0, "rer-factory", Color(hex: "5FA3D4"), energy: 2, buffs: [BuffGrant(kind: .shield, magnitude: 14, turns: 3), BuffGrant(kind: .attack, magnitude: 0.10, turns: 3)], "Team shield + small ATK."),
+            ab("rer-secrete", "Secretory Surge", .ultimate, 0, "rer-secrete", Color(hex: "5FA3D4"), charge: 4, buffs: [BuffGrant(kind: .heal, magnitude: 18, turns: 0)], "Heal all allies.")
+        ],
+        "golgi": [
+            ab("golgi-toss", "Vesicle Toss", .basic, 17, "golgi-toss", Color(hex: "E8956B")),
+            ab("golgi-ship", "Package & Ship", .skill, 0, "golgi-ship", Color(hex: "E8956B"), energy: 2, "Copies one active team buff to ALL allies."),
+            ab("golgi-express", "Express Delivery", .ultimate, 0, "golgi-express", Color(hex: "E8956B"), charge: 4, buffs: [BuffGrant(kind: .speed, magnitude: 30, turns: 3), BuffGrant(kind: .heal, magnitude: 16, turns: 0)], "Team SPD up + heal.")
+        ],
+        "lysosome": [
+            ab("lyso-drip", "Acid Drip", .basic, 18, "lyso-drip", Color(hex: "A05BC0")),
+            ab("lyso-digest", "Digest", .skill, 32, "lyso-digest", Color(hex: "A05BC0"), energy: 2, buffs: [BuffGrant(kind: .mark, magnitude: 0.30, turns: 3)], "Melts armor — enemy takes more damage."),
+            ab("lyso-auto", "Autolysis", .ultimate, 48, "lyso-auto", Color(hex: "A05BC0"), charge: 4, buffs: [BuffGrant(kind: .mark, magnitude: 0.25, turns: 3)], "A dissolving acid finisher + mark.")
+        ],
+        // — Immune / microbes
+        "tcell": [
+            ab("tc-recon", "Recon Strike", .basic, 18, "tc-recon", Color(hex: "6BBF8A")),
+            ab("tc-tag", "Tag Target", .skill, 20, "tc-tag", Color(hex: "6BBF8A"), energy: 2, buffs: [BuffGrant(kind: .mark, magnitude: 0.30, turns: 3)], "Marks the enemy for +damage."),
+            ab("tc-assault", "Coordinated Assault", .ultimate, 50, "tc-assault", Color(hex: "6BBF8A"), charge: 4, "Huge single hit; bonus vs marked targets.")
+        ],
+        "nkcell": [
+            ab("nk-slash", "Slash", .basic, 20, "nk-slash", Color(hex: "5A8FD4")),
+            ab("nk-perforin", "Perforin Burst", .skill, 36, "nk-perforin", Color(hex: "5A8FD4"), energy: 2, "Heavy single-target burst."),
+            ab("nk-execute", "Execute", .ultimate, 44, "nk-execute", Color(hex: "5A8FD4"), charge: 4, target: .execute, "Finisher — more damage the lower the enemy's HP.")
+        ],
+        "neutrophil": [
+            ab("neu-bite", "Quick Bite", .basic, 16, "neu-bite", Color(hex: "C79BD8")),
+            ab("neu-swarm", "Swarm", .skill, 26, "neu-swarm", Color(hex: "C79BD8"), energy: 2, target: .all, "First responder — hits the whole wave (AoE)."),
+            ab("neu-burst", "Respiratory Burst", .ultimate, 34, "neu-burst", Color(hex: "C79BD8"), charge: 4, target: .all, buffs: [BuffGrant(kind: .mark, magnitude: 0.20, turns: 2)], "AoE burst that softens all enemies.")
+        ],
+        "antibody": [
+            ab("ab-yjab", "Y-Jab", .basic, 15, "ab-yjab", Color(hex: "F2D85B")),
+            ab("ab-tag", "Tag", .skill, 12, "ab-tag", Color(hex: "F2D85B"), energy: 2, buffs: [BuffGrant(kind: .mark, magnitude: 0.30, turns: 3)], "Marks the enemy."),
+            ab("ab-opson", "Mass Opsonization", .ultimate, 0, "ab-opson", Color(hex: "F2D85B"), charge: 4, target: .all, buffs: [BuffGrant(kind: .mark, magnitude: 0.25, turns: 3)], "Marks ALL enemies (+damage taken).")
+        ],
+        "phage": [
+            ab("ph-stab", "Tail Stab", .basic, 20, "ph-stab", Color(hex: "5FC0B0")),
+            ab("ph-inject", "Inject", .skill, 30, "ph-inject", Color(hex: "5FC0B0"), energy: 2, "Injects — applies poison (8/turn, 3 turns)."),
+            ab("ph-lyse", "Lyse", .ultimate, 52, "ph-lyse", Color(hex: "5FC0B0"), charge: 4, "The target ruptures — massive single hit.")
+        ],
+        // — Molecular
+        "dna": [
+            ab("dna-bolt", "Base Pair Bolt", .basic, 16, "dna-bolt", Color(hex: "6FB8E0")),
+            ab("dna-rep", "Replicate", .skill, 0, "dna-rep", Color(hex: "6FB8E0"), energy: 2, buffs: [BuffGrant(kind: .ultEnergy, magnitude: 2, turns: 0)], "+2 ult energy to all allies."),
+            ab("dna-unlock", "Genome Unlock", .ultimate, 0, "dna-unlock", Color(hex: "6FB8E0"), charge: 4, buffs: [BuffGrant(kind: .attack, magnitude: 0.25, turns: 3), BuffGrant(kind: .speed, magnitude: 20, turns: 3), BuffGrant(kind: .heal, magnitude: 16, turns: 0)], "Team ATK + SPD + heal — the enabler.")
+        ],
+        "mrna": [
+            ab("mrna-cut", "Codon Cut", .basic, 17, "mrna-cut", Color(hex: "AEDC5B")),
+            ab("mrna-trans", "Transcribe", .skill, 0, "mrna-trans", Color(hex: "AEDC5B"), energy: 2, buffs: [BuffGrant(kind: .speed, magnitude: 25, turns: 3)], "Team haste (SPD up)."),
+            ab("mrna-translate", "Translate", .ultimate, 28, "mrna-translate", Color(hex: "AEDC5B"), charge: 4, target: .all, buffs: [BuffGrant(kind: .speed, magnitude: 15, turns: 2)], "AoE + team SPD.")
+        ],
+        "enzyme": [
+            ab("enz-cat", "Catalyze", .basic, 18, "enz-cat", Color(hex: "F0883A")),
+            ab("enz-site", "Active Site", .skill, 30, "enz-site", Color(hex: "F0883A"), energy: 2, buffs: [BuffGrant(kind: .attack, magnitude: 0.20, turns: 3)], "Hit + self ATK ramp."),
+            ab("enz-cascade", "Reaction Cascade", .ultimate, 32, "enz-cascade", Color(hex: "F0883A"), charge: 4, target: .all, "A chain reaction across all enemies (AoE).")
+        ],
+        "atp": [
+            ab("atp-spark", "Spark", .basic, 18, "atp-spark", Color(hex: "F7C943")),
+            ab("atp-transfer", "Energy Transfer", .skill, 0, "atp-transfer", Color(hex: "F7C943"), energy: 2, buffs: [BuffGrant(kind: .ultEnergy, magnitude: 2, turns: 0), BuffGrant(kind: .attack, magnitude: 0.15, turns: 3)], "+2 ult energy + ATK to an ally."),
+            ab("atp-surge", "Power Surge", .ultimate, 0, "atp-surge", Color(hex: "F7C943"), charge: 4, buffs: [BuffGrant(kind: .ultEnergy, magnitude: 1, turns: 0), BuffGrant(kind: .attack, magnitude: 0.18, turns: 3)], "+1 ult energy to all + team ATK.")
+        ],
+        "aminoacid": [
+            ab("aa-block", "Building Block", .basic, 18, "aa-block", Color(hex: "9FB0C0")),
+            ab("aa-bond", "Bond", .skill, 32, "aa-bond", Color(hex: "9FB0C0"), energy: 2, "A solid single hit."),
+            ab("aa-poly", "Polypeptide Punch", .ultimate, 46, "aa-poly", Color(hex: "9FB0C0"), charge: 4, "Spheres chain into a slam.")
+        ],
+    ]
+}
+
+extension DataSet {
+    /// Biology expansion roster. These are appended to `capturables`, so they
+    /// appear locked in the Biodex until hatched and retain the existing
+    /// ownership + Trust-to-field behavior. Stats are first-pass.
+    static let expansionBiobuds: [Hero] = [
+        // Cells
+        Hero(id: "redblood", asset: "biobud-redblood-hop", name: "Red Blood Cell", role: "Support", level: 1, hp: 40, attack: 16, defense: 12, speed: 100, color: Color(hex: "D94A4A"), lore: "Carries oxygen to the whole squad — keeps everyone breathing through long fights.", rarity: .common),
+        Hero(id: "macrophage", asset: "biobud-macrophage-hop", name: "Macrophage", role: "Tank", level: 1, hp: 60, attack: 16, defense: 22, speed: 86, color: Color(hex: "E8C24A"), lore: "The big eater. Engulfs anything that gets close and just gets tankier.", rarity: .epic),
+        Hero(id: "stemcell", asset: "biobud-stemcell-hop", name: "Stem Cell", role: "Support", level: 1, hp: 44, attack: 18, defense: 14, speed: 104, color: Color(hex: "9FD8B0"), lore: "Can become anything. The ultimate wildcard — adapts to whatever the team needs.", rarity: .legendary),
+        Hero(id: "platelet", asset: "biobud-platelet-hop", name: "Platelet", role: "Support", level: 1, hp: 36, attack: 14, defense: 12, speed: 98, color: Color(hex: "B07BD0"), lore: "Small but clutch — clots up wounds and shields the team in a pinch.", rarity: .common),
+        Hero(id: "epithelial", asset: "biobud-epithelial-hop", name: "Epithelial Cell", role: "Tank", level: 1, hp: 56, attack: 15, defense: 22, speed: 84, color: Color(hex: "5FB8A8"), lore: "A living wall. Tiles up into a barrier nothing wants to hit through.", rarity: .common),
+        // Organelles
+        Hero(id: "nucleus", asset: "biobud-nucleus-hop", name: "Nucleus", role: "Support", level: 1, hp: 40, attack: 18, defense: 12, speed: 100, color: Color(hex: "8B6BD9"), lore: "The control center — issues the orders that power up the whole cell.", rarity: .rare),
+        Hero(id: "ribosome", asset: "biobud-ribosome-hop", name: "Ribosome", role: "Support", level: 1, hp: 36, attack: 16, defense: 10, speed: 96, color: Color(hex: "D9B88A"), lore: "A grumpy little factory that never stops building. Fuels its allies' ultimates.", rarity: .common),
+        Hero(id: "rougher", asset: "biobud-rougher-hop", name: "Rough ER", role: "Support", level: 1, hp: 38, attack: 15, defense: 12, speed: 98, color: Color(hex: "5FA3D4"), lore: "Studded with ribosomes — a production line that shields and supplies the team.", rarity: .common),
+        Hero(id: "golgi", asset: "biobud-golgi-hop", name: "Golgi Apparatus", role: "Support", level: 1, hp: 40, attack: 17, defense: 12, speed: 102, color: Color(hex: "E8956B"), lore: "The shipping department. Packages buffs and overnights them to everyone.", rarity: .rare),
+        Hero(id: "lysosome", asset: "biobud-lysosome-hop", name: "Lysosome", role: "DPS", level: 1, hp: 38, attack: 23, defense: 9, speed: 112, color: Color(hex: "A05BC0"), lore: "A sac of digestive enzymes — dissolves armor and anything else in the way.", rarity: .rare),
+        // Immune / microbes
+        Hero(id: "tcell", asset: "biobud-tcell-hop", name: "T-Cell", role: "DPS", level: 1, hp: 40, attack: 22, defense: 10, speed: 110, color: Color(hex: "6BBF8A"), lore: "The coordinator. Marks a target and the whole strike lands harder.", rarity: .rare),
+        Hero(id: "nkcell", asset: "biobud-nkcell-hop", name: "Natural Killer Cell", role: "DPS", level: 1, hp: 42, attack: 26, defense: 9, speed: 116, color: Color(hex: "5A8FD4"), lore: "No permission needed. Hunts the weak and finishes them, no questions asked.", rarity: .epic),
+        Hero(id: "neutrophil", asset: "biobud-neutrophil-hop", name: "Neutrophil", role: "DPS", level: 1, hp: 40, attack: 21, defense: 10, speed: 108, color: Color(hex: "C79BD8"), lore: "First responder — swarms in fast and hits the whole crowd at once.", rarity: .rare),
+        Hero(id: "antibody", asset: "biobud-antibody-hop", name: "Antibody", role: "Support", level: 1, hp: 34, attack: 15, defense: 10, speed: 100, color: Color(hex: "F2D85B"), lore: "Tags enemies so everyone else hits them harder. A pure force multiplier.", rarity: .common),
+        Hero(id: "phage", asset: "biobud-phage-hop", name: "Phage Virus", role: "DPS", level: 1, hp: 46, attack: 26, defense: 13, speed: 114, color: Color(hex: "5FC0B0"), lore: "Lands like a lunar module, injects, and the target ruptures. Brutal and precise.", rarity: .epic),
+        // Molecular
+        Hero(id: "dna", asset: "biobud-dna-hop", name: "DNA", role: "Support", level: 1, hp: 44, attack: 18, defense: 14, speed: 100, color: Color(hex: "6FB8E0"), lore: "The blueprint for everything. Unzips to flood the team with potential.", rarity: .legendary),
+        Hero(id: "mrna", asset: "biobud-mrna-hop", name: "mRNA", role: "Support", level: 1, hp: 38, attack: 18, defense: 10, speed: 112, color: Color(hex: "AEDC5B"), lore: "The messenger — carries the order fast so the whole team acts sooner.", rarity: .rare),
+        Hero(id: "enzyme", asset: "biobud-enzyme-hop", name: "Enzyme", role: "DPS", level: 1, hp: 40, attack: 23, defense: 9, speed: 110, color: Color(hex: "F0883A"), lore: "A catalyst that sets off chain reactions — the more it works, the harder it hits.", rarity: .rare),
+        Hero(id: "atp", asset: "biobud-atp-hop", name: "ATP Molecule", role: "Support", level: 1, hp: 40, attack: 18, defense: 12, speed: 106, color: Color(hex: "F7C943"), lore: "Pure energy currency. Charges allies up and pairs absurdly well with Mito.", rarity: .epic),
+        Hero(id: "aminoacid", asset: "biobud-aminoacid-hop", name: "Amino Acid", role: "DPS", level: 1, hp: 38, attack: 22, defense: 9, speed: 108, color: Color(hex: "9FB0C0"), lore: "A humble building block — links up and throws a surprisingly solid punch.", rarity: .common)
+    ]
+}
+
 enum BattleAbilityBook {
     static func abilities(for hero: Hero) -> [BattleAbility] {
+        if let kit = ExpansionAbilities.byID[hero.id] { return kit }
         switch hero.id {
         case "mito":
             return [
@@ -615,7 +800,7 @@ extension DataSet {
         Hero(id: "wild-mutagem", asset: "wild-mutagem-hop", name: "Mutagem", role: "DPS", level: 1, hp: 40, attack: 21, defense: 10, speed: 105, color: Color(hex: "A98FD0"), lore: "A mutated gem-spore that drifts through endless review. Capturing one binds its restless energy to your team.", rarity: .rare),
         Hero(id: "wild-spikevyrus", asset: "wild-spikevyrus-hop", name: "Spikevyrus", role: "Tank", level: 1, hp: 54, attack: 15, defense: 20, speed: 90, color: Color(hex: "5FA3D4"), lore: "A spike-shelled virus boss from the campaign depths. Stubborn, sturdy, and surprisingly loyal once captured.", rarity: .epic),
         Hero(id: "wild-cytocrawler", asset: "wild-cytocrawler-hop", name: "Cytocrawler", role: "DPS", level: 1, hp: 36, attack: 23, defense: 8, speed: 118, color: Color(hex: "E8C64A"), lore: "A fast cytoplasmic crawler that skitters between waves. Rare, twitchy, and a brutal attacker.", rarity: .epic)
-    ]
+    ] + expansionBiobuds
 
     static func capturable(id: String) -> Hero? { capturables.first { $0.id == id } }
 
@@ -881,7 +1066,9 @@ final class TrustStore: ObservableObject {
 /// campaign-only (the Trust path); this is the "hatch" pool. Expand the list as
 /// new collectible art is added — that's the only change needed to grow it.
 enum GachaPool {
-    static let ids: [String] = ["wild-mutagem", "wild-spikevyrus", "wild-cytocrawler"]
+    static let ids: [String] = [
+        "wild-mutagem", "wild-spikevyrus", "wild-cytocrawler"
+    ] + DataSet.expansionBiobuds.map(\.id)
     static var pool: [Hero] { ids.compactMap { DataSet.anyHero(id: $0) } }
 }
 
