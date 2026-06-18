@@ -118,6 +118,11 @@ struct BattleScreen: View {
     @State private var lastDamage = 0
     @State private var pendingRating: BattleRating?
     @State private var choosingAbility = false
+    /// Endless-only final stand: once the selected review queue is exhausted,
+    /// abilities are free until the current enemy falls, then the run ends.
+    @State private var finishingWithoutCards = false
+    @State private var endlessRunComplete = false
+    @State private var pendingEndlessContinuation: EndlessContinuation?
     @State private var ultimateCharge: [String: Int] = [:]
     /// Auto-battle: when on, the best ability (ult → skill → basic) is cast
     /// automatically after each card is graded. Studying stays manual.
@@ -161,13 +166,15 @@ struct BattleScreen: View {
                     creature: creature,
                     onCapture: {
                         CaptureStore.shared.capture(creature.id)
-                        AudioManager.shared.play(.victory, volume: 0.8)
-                        Haptics.success()
+                    },
+                    onContinue: {
                         captureOffer = nil
+                        resumeEndlessAfterCollectionMoment()
                     },
                     onRelease: {
                         Haptics.tap()
                         captureOffer = nil
+                        resumeEndlessAfterCollectionMoment()
                     }
                 )
                 .zIndex(50)
@@ -178,8 +185,8 @@ struct BattleScreen: View {
                     hero: hero,
                     onJoin: {
                         RosterStore.shared.unlock(hero.id)
-                        AudioManager.shared.play(.victory, volume: 0.85)
-                        Haptics.success()
+                    },
+                    onContinue: {
                         recruitOffer = nil
                     }
                 )
@@ -245,8 +252,12 @@ struct BattleScreen: View {
     private func offerCaptureIfWild() {
         guard let creature = captureCandidate(), !offeredThisRun.contains(creature.id) else { return }
         offeredThisRun.insert(creature.id)
-        // Let the victory beat land first.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.55) { captureOffer = creature }
+        captureOffer = creature
+    }
+
+    private var hasNewCaptureOffer: Bool {
+        guard let creature = captureCandidate() else { return false }
+        return !offeredThisRun.contains(creature.id)
     }
 
     /// UI-test affordance only (DEBUG builds): with `-uitestReview`, drop
@@ -290,6 +301,12 @@ struct BattleScreen: View {
         mobHP = enemyMaxHP
         resetCombatFlow()
         session.start(deckIDs: [])
+        if ProcessInfo.processInfo.arguments.contains("-uitestFinalStand") {
+            finishingWithoutCards = true
+            choosingAbility = true
+            enemyMaxHP = 40
+            mobHP = 40
+        }
         // UI-test: force an answer mode, e.g. -uitestAnswerMode=multipleChoice
         if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-uitestAnswerMode=") }),
            let mode = AnswerMode(rawValue: String(arg.dropFirst("-uitestAnswerMode=".count))) {
@@ -544,6 +561,7 @@ struct BattleScreen: View {
             attackToken: attackToken,
             lastDamage: lastDamage,
             choosingAbility: choosingAbility,
+            finishingWithoutCards: finishingWithoutCards,
             activeHeroAbilities: activeHeroAbilities,
             activeHeroUltCharge: activeHeroUltCharge,
             enemyMaxHP: enemyMaxHP,
@@ -589,13 +607,13 @@ struct BattleScreen: View {
             Color.black.opacity(0.42).ignoresSafeArea()
             ParchmentBox {
                 VStack(spacing: 16) {
-                    Text(mobHP <= 0 ? "STAGE CLEAR" : "TEAM FAINTED")
+                    Text(resultTitle)
                         .pixelText(size: 18, color: Color(hex: "3A2A18"))
-                    Text(mobHP <= 0 ? "+\(clearGold) gold  +\(clearBiomass) biomass" : "Review more cards and try again.")
+                    Text(resultDetail)
                         .font(.custom(MitoFont.regular, size: 18))
                         .foregroundStyle(Color(hex: "4A2F1C"))
                     PixelButton(title: "CONTINUE") {
-                        if mobHP <= 0 {
+                        if battleMode == .campaign, mobHP <= 0 {
                             gold += clearGold
                             biomass += clearBiomass
                         }
@@ -612,6 +630,20 @@ struct BattleScreen: View {
     /// Campaign clear reward scales with the cleared stage's tier.
     private var clearGold: Int { Int(100 * selectedStage.tierMultiplier) }
     private var clearBiomass: Int { Int(6 * selectedStage.tierMultiplier) }
+
+    private var resultTitle: String {
+        if battleMode == .endless, endlessRunComplete { return "REVIEW COMPLETE" }
+        return mobHP <= 0 ? "STAGE CLEAR" : "TEAM FAINTED"
+    }
+
+    private var resultDetail: String {
+        if battleMode == .endless, endlessRunComplete {
+            return "\(reviewedCards) cards reviewed · \(wave) waves cleared"
+        }
+        return mobHP <= 0
+            ? "+\(clearGold) gold  +\(clearBiomass) biomass"
+            : "Review more cards and try again."
+    }
 
     private var selectedCardCount: Int {
         pickerDecks.filter { selectedDecks.contains($0.id) }.reduce(0) { $0 + $1.cards }
@@ -805,6 +837,9 @@ struct BattleScreen: View {
         lastDamage = 0
         pendingRating = nil
         choosingAbility = false
+        finishingWithoutCards = false
+        endlessRunComplete = false
+        pendingEndlessContinuation = nil
         captureOffer = nil
         offeredThisRun = []
         combatBuffs = CombatBuffs()
@@ -862,6 +897,11 @@ struct BattleScreen: View {
     private func autoChosenAbility() -> BattleAbility? {
         guard let hero = activeHero else { return nil }
         let abilities = hero.abilities
+        if finishingWithoutCards {
+            return abilities.first { $0.kind == .ultimate }
+                ?? abilities.first { $0.kind == .skill }
+                ?? abilities.first
+        }
         if let ult = abilities.first(where: { $0.kind == .ultimate }) {
             let required = ult.ultimateChargeRequired ?? 4
             if (ultimateCharge[hero.id] ?? 0) >= required { return ult }
@@ -887,17 +927,19 @@ struct BattleScreen: View {
     }
 
     private func useAbility(_ ability: BattleAbility) {
-        guard let rating = pendingRating else { return }
+        let isFreeFinisher = battleMode == .endless && finishingWithoutCards
+        guard let rating = pendingRating ?? (isFreeFinisher ? .good : nil) else { return }
         TutorialManager.shared.complete("battle.ability")
-        // Schedule the current card with FSRS and persist before advancing.
-        session.grade(rating.fsrs)
-        // Endless review loops forever: rebuild the queue once it drains.
-        if session.current == nil {
-            session.start(deckIDs: selectedDecks, tags: selectedTags)
+        if !isFreeFinisher {
+            // Schedule the current card with FSRS and persist before advancing.
+            session.grade(rating.fsrs)
+            if battleMode == .endless, session.current == nil {
+                finishingWithoutCards = true
+            }
         }
 
         let boundedIndex = min(max(activeHeroIndex, 0), max(activeTeam.count - 1, 0))
-        if ability.kind == .ultimate, activeTeam.indices.contains(boundedIndex) {
+        if !isFreeFinisher, ability.kind == .ultimate, activeTeam.indices.contains(boundedIndex) {
             ultimateCharge[activeTeam[boundedIndex].id] = 0
         }
 
@@ -913,14 +955,16 @@ struct BattleScreen: View {
         // End of turn: existing buffs tick down, then this ability's grants apply.
         combatBuffs.tickAll()
         applyGrants(ability)
-        // Skill cooldown: every answered card ticks all cooldowns down; casting
-        // a skill benches that hero's skill for `cooldownTurns` more cards.
+        // Skill cooldowns and ult charge are ignored during the no-card final
+        // stand so every ability is genuinely free.
         let actorId = actor.id
-        for hero in activeTeam {
-            skillCooldown[hero.id] = max(0, (skillCooldown[hero.id] ?? 0) - 1)
-        }
-        if ability.kind == .skill {
-            skillCooldown[actorId] = ability.cooldownTurns
+        if !isFreeFinisher {
+            for hero in activeTeam {
+                skillCooldown[hero.id] = max(0, (skillCooldown[hero.id] ?? 0) - 1)
+            }
+            if ability.kind == .skill {
+                skillCooldown[actorId] = ability.cooldownTurns
+            }
         }
         // Drive the combat juice (hit flash, shake, floating number, lunge).
         lastDamage = damage
@@ -946,9 +990,11 @@ struct BattleScreen: View {
         }
         attackToken += 1
         mobHP = max(0, mobHP - damage)
-        reviewedCards += 1
-        streak = battleMode == .endless ? streak + 1 : (rating == .again ? 0 : streak + 1)
-        currentCard += 1
+        if !isFreeFinisher {
+            reviewedCards += 1
+            streak = battleMode == .endless ? streak + 1 : (rating == .again ? 0 : streak + 1)
+            currentCard += 1
+        }
         showingAnswer = false
         pendingRating = nil
         choosingAbility = false
@@ -981,43 +1027,99 @@ struct BattleScreen: View {
         }
 
         let modeName = battleMode == .endless ? "endless" : "campaign"
-        Task {
-            await MitoBackend.shared.logEvent("review_graded", props: [
-                "rating": rating.title, "mode": modeName, "damage": "\(damage)",
-                "ability": ability.id, "ability_kind": ability.kind.rawValue
-            ])
+        if !isFreeFinisher {
+            Task {
+                await MitoBackend.shared.logEvent("review_graded", props: [
+                    "rating": rating.title, "mode": modeName, "damage": "\(damage)",
+                    "ability": ability.id, "ability_kind": ability.kind.rawValue
+                ])
+            }
         }
 
         if battleMode == .endless, enemyDefeated {
-            DailyQuests.shared.noteBattleWon()
-            // Wild encounter: offer to capture the creature you just beat.
-            offerCaptureIfWild()
-            // Next wave: stronger enemy + bigger loot.
+            resolveEndlessEnemyDefeat(runComplete: finishingWithoutCards)
+        } else if enemyDefeated || teamDefeated {
+            resolveCampaignOutcome(enemyDefeated: enemyDefeated, teamDefeated: teamDefeated, modeName: modeName)
+        } else if finishingWithoutCards {
+            // Re-open the free ability picker after the current hit settles.
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.42) {
+                if finishingWithoutCards, mobHP > 0 {
+                    choosingAbility = true
+                    if autoMode, let next = autoChosenAbility() { autoCast(next) }
+                }
+            }
+        }
+    }
+
+    private func resolveEndlessEnemyDefeat(runComplete: Bool) {
+        DailyQuests.shared.noteBattleWon()
+        let reward = BattleScaling.endlessReward(wave: wave)
+        gold += reward.gold
+        biomass += reward.biomass
+        let clearedWave = wave
+        pendingEndlessContinuation = runComplete ? .finishRun : .nextWave
+
+        Task {
+            await MitoBackend.shared.logEvent("battle_wave_cleared", props: [
+                "wave": "\(clearedWave)", "mode": "endless",
+                "cards_exhausted": runComplete ? "true" : "false"
+            ])
+        }
+
+        // The combat view owns the kill animation. Only continue after its
+        // shrink/fade has fully landed.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.95) {
+            if hasNewCaptureOffer {
+                offerCaptureIfWild()
+            } else {
+                resumeEndlessAfterCollectionMoment()
+            }
+        }
+    }
+
+    private func resumeEndlessAfterCollectionMoment() {
+        guard let continuation = pendingEndlessContinuation else { return }
+        pendingEndlessContinuation = nil
+        switch continuation {
+        case .nextWave:
             wave += 1
             enemyMaxHP = BattleScaling.endlessEnemyHP(teamLevel: teamLevel, wave: wave)
             mobHP = enemyMaxHP
-            let reward = BattleScaling.endlessReward(wave: wave)
-            gold += reward.gold
-            biomass += reward.biomass
-            let clearedWave = wave - 1
-            Task { await MitoBackend.shared.logEvent("battle_wave_cleared", props: ["wave": "\(clearedWave)", "mode": "endless"]) }
-        } else if enemyDefeated || teamDefeated {
-            // Outcome sting (delayed slightly so the finishing hit lands first).
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
-                AudioManager.shared.play(enemyDefeated ? .victory : .defeat, volume: 0.9)
-            }
-            if teamDefeated { Haptics.warning() } else { Haptics.success() }
-            // Campaign progression: clearing a stage unlocks the next one.
-            if battleMode == .campaign, enemyDefeated {
+            choosingAbility = false
+        case .finishRun:
+            endlessRunComplete = true
+            choosingAbility = false
+            AudioManager.shared.play(.victory, volume: 0.9)
+            Haptics.success()
+            route = .result
+        }
+    }
+
+    private func resolveCampaignOutcome(enemyDefeated: Bool, teamDefeated: Bool, modeName: String) {
+        // Outcome sting lands after the finishing hit, while the combat screen
+        // remains visible long enough for the enemy to fade away.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.35) {
+            AudioManager.shared.play(enemyDefeated ? .victory : .defeat, volume: 0.9)
+        }
+        if teamDefeated { Haptics.warning() } else { Haptics.success() }
+
+        let stageID = selectedStage.id
+        let reviewed = reviewedCards
+        Task {
+            await MitoBackend.shared.logEvent("battle_run", props: [
+                "outcome": enemyDefeated ? "win" : "loss", "mode": modeName,
+                "stage": "\(stageID)", "reviewed": "\(reviewed)"
+            ])
+        }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + (enemyDefeated ? 0.95 : 0.45)) {
+            if enemyDefeated {
                 DailyQuests.shared.noteBattleWon()
                 clearedStage = max(clearedStage, selectedStage.id)
                 TutorialManager.shared.complete("campaign.cleared.\(selectedStage.id)")
-                // Play the stage's story outro (if any), THEN chain into the
-                // recruit-stage join popup or a wild-creature capture offer.
-                let stage = selectedStage.id
-                let recruit = campaignRecruitHero   // capture before it's unlocked
+                let recruit = campaignRecruitHero
                 CampaignStoryManager.shared.playOnce(
-                    "outro.\(stage)", CampaignStoryScript.outro(stage: stage)
+                    "outro.\(stageID)", CampaignStoryScript.outro(stage: stageID)
                 ) {
                     if let recruit {
                         recruitOffer = recruit
@@ -1025,15 +1127,6 @@ struct BattleScreen: View {
                         offerCaptureIfWild()
                     }
                 }
-            }
-            let outcome = enemyDefeated ? "win" : "loss"
-            let stageID = selectedStage.id
-            let reviewed = reviewedCards
-            Task {
-                await MitoBackend.shared.logEvent("battle_run", props: [
-                    "outcome": outcome, "mode": modeName,
-                    "stage": "\(stageID)", "reviewed": "\(reviewed)"
-                ])
             }
             route = .result
         }
@@ -1058,5 +1151,10 @@ struct BattleScreen: View {
         case stageSetup
         case combat
         case result
+    }
+
+    private enum EndlessContinuation {
+        case nextWave
+        case finishRun
     }
 }

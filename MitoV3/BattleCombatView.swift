@@ -469,6 +469,7 @@ struct BattleCombatView: View {
     let attackToken: Int
     let lastDamage: Int
     let choosingAbility: Bool
+    let finishingWithoutCards: Bool
     let activeHeroAbilities: [BattleAbility]
     let activeHeroUltCharge: Int
     let enemyMaxHP: Int
@@ -589,18 +590,24 @@ struct BattleCombatView: View {
                         .padding(.horizontal, 34)
                         .padding(.bottom, 7)
 
-                    BattleFlashcardPanel(
-                        mode: mode,
-                        currentCard: currentCard,
-                        showingAnswer: showingAnswer,
-                        questionText: questionText,
-                        answerText: answerText,
-                        cardTag: cardTag,
-                        // In choice/type-in modes the answer is revealed by
-                        // answering, so hide the manual "SHOW ANSWER" button.
-                        allowManualReveal: answerMode == .classic && !choosingAbility,
-                        onReveal: onReveal
-                    )
+                    Group {
+                        if finishingWithoutCards {
+                            finalStandPanel
+                        } else {
+                            BattleFlashcardPanel(
+                                mode: mode,
+                                currentCard: currentCard,
+                                showingAnswer: showingAnswer,
+                                questionText: questionText,
+                                answerText: answerText,
+                                cardTag: cardTag,
+                                // In choice/type-in modes the answer is revealed by
+                                // answering, so hide the manual "SHOW ANSWER" button.
+                                allowManualReveal: answerMode == .classic && !choosingAbility,
+                                onReveal: onReveal
+                            )
+                        }
+                    }
                     .padding(.horizontal, 12)
 
                     gradeRow
@@ -720,6 +727,12 @@ struct BattleCombatView: View {
             .onChange(of: attackToken) { _, _ in
                 syncVisualAbilityIfNeeded()
                 runHitAnimationIfNeeded()
+            }
+            .onChange(of: wave) { _, _ in
+                guard mode == .endless, mobHP > 0 else { return }
+                displayedMobHP = mobHP
+                displayedMobHPChip = mobHP
+                playEnemyEnter()
             }
             .onChange(of: scenePhase) { _, phase in
                 if phase != .active { paused = true }
@@ -977,9 +990,7 @@ struct BattleCombatView: View {
 
     private func applyImpact() {
         let kind = lastAbility?.kind ?? .basic
-        // A kill happened if HP hit zero (campaign) or jumped up because a new
-        // enemy spawned (endless). Ultimates always crit-pop; so do finishers.
-        let enemyDied = mobHP == 0 || mobHP > displayedMobHP
+        let enemyDied = mobHP == 0
         let isCrit = kind == .ultimate || enemyDied
         let hitStop: TimeInterval = isCrit ? 0.07 : 0
 
@@ -1002,20 +1013,10 @@ struct BattleCombatView: View {
 
         // --- Brief freeze, then the visual reaction lands ---
         DispatchQueue.main.asyncAfter(deadline: .now() + hitStop) {
-            if enemyDied, mode == .endless {
-                // Death beat: empty the bar on the dying enemy, then bring the
-                // next one in. Purely visual — mobHP is already the new enemy,
-                // so the review loop keeps going and a fast answer just lands on
-                // the incoming foe.
+            if enemyDied {
                 withAnimation(.easeOut(duration: 0.16)) {
                     displayedMobHP = 0
                     displayedMobHPChip = 0
-                }
-                let incomingHP = mobHP
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) {
-                    displayedMobHP = incomingHP
-                    displayedMobHPChip = incomingHP
-                    playEnemyEnter()
                 }
             } else if mobHP < displayedMobHP {
                 // HP bar drains; chip bar trails behind for readable damage size.
@@ -1119,28 +1120,35 @@ struct BattleCombatView: View {
         enemyDying = true
         enemyDeathScale = 1
         enemyDeathSpin = 0
-        // Shrink + spin + fade — the "pop" of a kill.
-        withAnimation(.easeIn(duration: 0.38)) {
-            enemyDeathScale = 0.02
-            enemyDeathSpin = 220
+        enemyEnterY = 0
+        enemyEnterOpacity = 1
+        // Hold the defeated silhouette for a beat, then collapse and fade.
+        withAnimation(.easeOut(duration: 0.16)) {
+            enemyDeathScale = 1.12
         }
-        // Reset the death transform once it's offscreen. The enemy-enter
-        // animation (endless) takes over opacity/offset from here.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.40) {
-            enemyDying = false
-            enemyDeathScale = 1
-            enemyDeathSpin = 0
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.16) {
+            withAnimation(.easeIn(duration: 0.52)) {
+                enemyDeathScale = 0.62
+                enemyDeathSpin = 18
+                enemyEnterY = 28
+                enemyEnterOpacity = 0
+            }
         }
     }
 
     /// The next enemy drops in and fades up after the previous one dies
     /// (endless). Spring-settled so it feels like an arrival, not a pop.
     private func playEnemyEnter() {
+        enemyDying = false
+        enemyDeathScale = 1
+        enemyDeathSpin = 0
         enemyEnterY = -46
         enemyEnterOpacity = 0
-        withAnimation(.spring(response: 0.40, dampingFraction: 0.7)) {
-            enemyEnterY = 0
-            enemyEnterOpacity = 1
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.06) {
+            withAnimation(.spring(response: 0.46, dampingFraction: 0.68)) {
+                enemyEnterY = 0
+                enemyEnterOpacity = 1
+            }
         }
     }
 
@@ -1328,7 +1336,7 @@ struct BattleCombatView: View {
                     )
                     .scaleEffect(enemyHitScale * enemyBreath * enemyDeathScale)
                     .rotationEffect(.degrees(enemyDeathSpin))
-                    .opacity(enemyDying ? Double(Swift.max(enemyDeathScale, 0)) : enemyEnterOpacity)
+                    .opacity(enemyEnterOpacity)
                     .offset(x: enemyShakeX, y: enemyEnterY)
 
                 ForEach(floatingDamages) { dmg in
@@ -1538,6 +1546,24 @@ struct BattleCombatView: View {
         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
     }
 
+    private var finalStandPanel: some View {
+        VStack(spacing: 8) {
+            Text("FINAL STAND")
+                .pixelText(size: 14, color: Color(hex: "FFD24D"))
+            Text("Review complete. Finish this enemy with free abilities.")
+                .font(.custom(MitoFont.regular, size: 15))
+                .foregroundStyle(Color(hex: "F4E6C0"))
+                .multilineTextAlignment(.center)
+            Text("NO COOLDOWNS · NO CHARGE REQUIRED")
+                .pixelText(size: 8, color: Color(hex: "9CD67D"))
+        }
+        .frame(maxWidth: .infinity)
+        .frame(height: 138)
+        .padding(.horizontal, 16)
+        .background(Color(hex: "182116").opacity(0.94))
+        .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 3))
+    }
+
     private func heroSize(for index: Int) -> CGFloat {
         let base: CGFloat = mode == .endless ? 43 : 42
         let big: CGFloat = mode == .endless ? 49 : 48
@@ -1610,8 +1636,8 @@ struct BattleCombatView: View {
                 AbilityActionButton(
                     ability: skill,
                     charge: nil,
-                    cooldown: skillCooldownTurns,
-                    enabled: skillCooldownTurns == 0,
+                    cooldown: finishingWithoutCards ? 0 : skillCooldownTurns,
+                    enabled: finishingWithoutCards || skillCooldownTurns == 0,
                     width: 84,
                     action: { onAbility(skill) }
                 )
@@ -1621,8 +1647,8 @@ struct BattleCombatView: View {
                 let required = ultimate.ultimateChargeRequired ?? 4
                 AbilityActionButton(
                     ability: ultimate,
-                    charge: (activeHeroUltCharge, required),
-                    enabled: activeHeroUltCharge >= required,
+                    charge: finishingWithoutCards ? nil : (activeHeroUltCharge, required),
+                    enabled: finishingWithoutCards || activeHeroUltCharge >= required,
                     width: 157,
                     action: { onAbility(ultimate) }
                 )

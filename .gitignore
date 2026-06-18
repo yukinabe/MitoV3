@@ -16,3 +16,4 @@ marketing_exports/reels/*.mp4
 # Local scratch / CLI cache
 tmp/
 supabase/.temp/
+*.xcsettings

@@ -14,6 +14,7 @@ struct TeamScreen: View {
     @State private var selectedHeroID: String?
     @State private var infoHero: Hero?
     @State private var characterProgress: [String: CharacterProgress] = [:]
+    @State private var collectionShareImage: Image?
     @ObservedObject private var captures = CaptureStore.shared
     @ObservedObject private var roster = RosterStore.shared
     @ObservedObject private var party = PartyStore.shared
@@ -35,6 +36,27 @@ struct TeamScreen: View {
             }
             return hero
         }
+    }
+
+    private var allBiobuds: [Hero] {
+        (DataSet.heroes + DataSet.capturables).map { hero in
+            if let progress = characterProgress[hero.id] {
+                return hero.applying(progress)
+            }
+            return hero
+        }
+    }
+
+    private var ownedIDs: Set<String> {
+        roster.owned.union(captures.owned)
+    }
+
+    private var collectedCount: Int {
+        allBiobuds.filter { ownedIDs.contains($0.id) }.count
+    }
+
+    private var collectionShareSignature: String {
+        ownedIDs.sorted().joined(separator: ",") + "|" + activePartyIDs.joined(separator: ",")
     }
 
     private var activePartyIDs: [String] {
@@ -165,7 +187,9 @@ struct TeamScreen: View {
                             }
                             .padding(.horizontal, 12)
                         }
-                        .padding(.bottom, 104)
+
+                        biodex
+                            .padding(.bottom, 104)
                     }
                     .overlayPreferenceValue(TeamCardBoundsKey.self) { anchors in
                         GeometryReader { overlayProxy in
@@ -229,6 +253,14 @@ struct TeamScreen: View {
             .task {
                 await loadCharacterProgress()
             }
+            .task(id: collectionShareSignature) {
+                collectionShareImage = BiodexShareCard.render(
+                    heroes: allBiobuds.filter { ownedIDs.contains($0.id) },
+                    party: partyHeroes,
+                    collected: collectedCount,
+                    total: allBiobuds.count
+                )
+            }
             .onChange(of: selectedTab) { _, tab in
                 // Close the character popup/info when leaving the Team tab.
                 if tab != .team {
@@ -237,6 +269,67 @@ struct TeamScreen: View {
                 }
             }
         }
+    }
+
+    private var biodex: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack(spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L("BIODEX"))
+                        .pixelText(size: 16, color: Color(hex: "F4E6C0"))
+                    Text("\(collectedCount) / \(allBiobuds.count) \(L("COLLECTED"))")
+                        .pixelText(size: 9, color: Color(hex: "FFD24D"))
+                }
+                Spacer()
+                if let collectionShareImage {
+                    ShareLink(
+                        item: collectionShareImage,
+                        preview: SharePreview("My Mito BioBud collection", image: collectionShareImage)
+                    ) {
+                        Text(L("SHARE"))
+                            .pixelText(size: 9, color: Color(hex: "18100A"))
+                            .padding(.horizontal, 11)
+                            .frame(height: 34)
+                            .background(Color(hex: "FFD24D"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+
+            LazyVGrid(
+                columns: Array(repeating: GridItem(.flexible(), spacing: 7), count: 4),
+                spacing: 7
+            ) {
+                ForEach(allBiobuds) { hero in
+                    let owned = ownedIDs.contains(hero.id)
+                    Button {
+                        guard owned else {
+                            Haptics.warning()
+                            return
+                        }
+                        selectedHeroID = nil
+                        infoHero = hero
+                    } label: {
+                        BiodexCell(hero: hero, owned: owned)
+                    }
+                    .buttonStyle(.plain)
+                    .contentShape(Rectangle())
+                    .accessibilityLabel(owned ? "\(hero.name), collected" : "Locked BioBud")
+                }
+            }
+
+            if collectedCount < allBiobuds.count {
+                Text(L("NEXT DISCOVERY: Keep reviewing and clearing Campaign stages."))
+                    .font(.custom(MitoFont.regular, size: 12))
+                    .foregroundStyle(Color(hex: "E9D8B6"))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+        .padding(11)
+        .background(Color(hex: "1A1009").opacity(0.88))
+        .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 3))
+        .padding(.horizontal, 12)
     }
 
     private func togglePartyMembership(for hero: Hero) {
@@ -290,6 +383,139 @@ struct TeamScreen: View {
                 defense: progress.defense
             )
         }
+    }
+}
+
+private struct BiodexCell: View {
+    let hero: Hero
+    let owned: Bool
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ZStack {
+                LinearGradient(
+                    colors: owned
+                        ? [hero.rarity.color.opacity(0.46), Color(hex: "2A1B0E")]
+                        : [Color(hex: "302B27"), Color(hex: "120E0B")],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                SpriteView(asset: hero.asset, size: 57, frame: 0)
+                    .colorMultiply(owned ? .white : .black)
+                    .opacity(owned ? 1 : 0.62)
+
+                if !owned {
+                    Text("?")
+                        .pixelText(size: 24, color: Color(hex: "F4E6C0").opacity(0.86))
+                }
+            }
+            .frame(height: 68)
+
+            VStack(spacing: 2) {
+                Text(owned ? L(hero.name).uppercased() : "???")
+                    .pixelText(size: 7, color: owned ? Color(hex: "3A2A18") : Color(hex: "8A6B42"))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+                Text(owned ? hero.rarity.label : L("LOCKED"))
+                    .pixelText(size: 6, color: owned ? hero.rarity.color : Color(hex: "8A6B42"))
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 2)
+            .padding(.vertical, 5)
+            .background(owned ? Color(hex: "EAD4A4") : Color(hex: "B5A487"))
+        }
+        .overlay(Rectangle().stroke(owned ? hero.rarity.color : Color(hex: "40372F"), lineWidth: 3))
+        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 1).padding(3))
+    }
+}
+
+private struct BiodexShareCard: View {
+    let heroes: [Hero]
+    let party: [Hero]
+    let collected: Int
+    let total: Int
+
+    private var featured: [Hero] {
+        let partyIDs = Set(party.map(\.id))
+        return Array((party + heroes.filter { !partyIDs.contains($0.id) }).prefix(6))
+    }
+
+    var body: some View {
+        ZStack {
+            Image("team-bg")
+                .resizable()
+                .interpolation(.none)
+                .scaledToFill()
+                .frame(width: 300, height: 533)
+                .clipped()
+            Color(hex: "1A1009").opacity(0.64)
+
+            VStack(spacing: 16) {
+                Text("MITO")
+                    .pixelText(size: 23, color: Color(hex: "FFD24D"))
+                    .padding(.top, 30)
+                Text(L("MY BIOBUD SQUAD"))
+                    .pixelText(size: 16, color: Color(hex: "F4E6C0"))
+
+                LazyVGrid(
+                    columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 3),
+                    spacing: 8
+                ) {
+                    ForEach(featured) { hero in
+                        VStack(spacing: 3) {
+                            ZStack {
+                                hero.rarity.color.opacity(0.25)
+                                SpriteView(asset: hero.asset, size: 67, frame: 0)
+                            }
+                            .frame(height: 78)
+                            .overlay(Rectangle().stroke(hero.rarity.color, lineWidth: 3))
+                            Text(L(hero.name).uppercased())
+                                .pixelText(size: 7, color: Color(hex: "F4E6C0"))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.6)
+                        }
+                    }
+                }
+                .padding(.horizontal, 22)
+
+                VStack(spacing: 6) {
+                    Text("\(collected) / \(total)")
+                        .pixelText(size: 30, color: Color(hex: "FFD24D"))
+                    Text(L("BIOBUDS COLLECTED"))
+                        .pixelText(size: 10, color: Color(hex: "F4E6C0"))
+                }
+                .padding(.horizontal, 18)
+                .padding(.vertical, 12)
+                .background(Color(hex: "1A1009").opacity(0.88))
+                .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 3))
+
+                Spacer()
+                Text(L("STUDY · BATTLE · COLLECT"))
+                    .pixelText(size: 9, color: Color(hex: "9CD67D"))
+                    .padding(.bottom, 26)
+            }
+        }
+        .frame(width: 300, height: 533)
+        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 6))
+    }
+
+    @MainActor
+    static func render(
+        heroes: [Hero],
+        party: [Hero],
+        collected: Int,
+        total: Int
+    ) -> Image? {
+        let renderer = ImageRenderer(content: BiodexShareCard(
+            heroes: heroes,
+            party: party,
+            collected: collected,
+            total: total
+        ))
+        renderer.scale = 3
+        guard let ui = renderer.uiImage else { return nil }
+        return Image(uiImage: ui)
     }
 }
 
@@ -520,4 +746,3 @@ struct InlineCharacterActions: View {
         }
     }
 }
-

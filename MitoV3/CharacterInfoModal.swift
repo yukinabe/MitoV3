@@ -59,17 +59,9 @@ struct CharacterInfoModal: View {
                 .frame(height: 176)
                 .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
 
-                trustSection
-
-                HStack(spacing: 8) {
-                    ModalStat(label: "HP", value: hero.hp, color: Color(hex: "3F8A3D"))
-                    ModalStat(label: "ATK", value: hero.attack, color: Color(hex: "D4873A"))
-                    ModalStat(label: "DEF", value: hero.defense, color: Color(hex: "4277D9"))
-                }
-
-                VStack(alignment: .leading, spacing: 8) {
-                    Text(L("LORE"))
-                        .pixelText(size: 10, color: Color(hex: "8A6B42"))
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L("PERSONALITY"))
+                        .pixelText(size: 10, color: hero.rarity.color)
                     Text(L(hero.lore))
                         .font(.custom(MitoFont.regular, size: 15))
                         .foregroundStyle(Color(hex: "3A2A18"))
@@ -79,7 +71,15 @@ struct CharacterInfoModal: View {
                 .padding(10)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(Color(hex: "F4E6C0"))
-                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                .overlay(Rectangle().stroke(hero.rarity.color, lineWidth: 3))
+
+                trustSection
+
+                HStack(spacing: 8) {
+                    ModalStat(label: "HP", value: hero.hp, color: Color(hex: "3F8A3D"))
+                    ModalStat(label: "ATK", value: hero.attack, color: Color(hex: "D4873A"))
+                    ModalStat(label: "DEF", value: hero.defense, color: Color(hex: "4277D9"))
+                }
 
                 if trust.isMaxed(hero) {
                     HStack {
