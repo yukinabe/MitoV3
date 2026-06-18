@@ -369,11 +369,34 @@ private struct BioBudShareCard: View {
 /// Eggs are earned by studying; here you spend them to hatch biobuds (×1 or
 /// ×10). Reuses the NewBioBudReveal for the new-biobud moment.
 struct HatchView: View {
+    private enum HatchPhase: Equatable {
+        case home
+        case zooming(Int)
+        case drawing(Int)
+        case cracking(Int)
+
+        var eggCount: Int? {
+            switch self {
+            case .home: nil
+            case let .zooming(count), let .drawing(count), let .cracking(count): count
+            }
+        }
+    }
+
     @Binding var isPresented: Bool
     @ObservedObject private var egg = EggStore.shared
     @State private var single: HatchResult?
     @State private var multi: [HatchResult]?
+    @State private var shareImage: Image?
     @State private var eggWobble = false
+    @State private var phase: HatchPhase = .home
+    @State private var drawnPoints: [CGPoint] = []
+    @State private var strokeLength: CGFloat = 0
+    @State private var ritualScale: CGFloat = 0.58
+    @State private var ritualOpacity = 0.0
+    @State private var crackPulse = false
+    @State private var flashOpacity = 0.0
+    @State private var nudge = false
 
     var body: some View {
         ZStack {
@@ -386,10 +409,17 @@ struct HatchView: View {
             if let single {
                 singleReveal(single)
             } else if let multi {
-                multiResults(multi)
+                MultiRevealSequence(results: multi) { self.multi = nil }
+            } else if phase != .home {
+                hatchRitual
             } else {
                 hatchHome
             }
+
+            Color.white
+                .ignoresSafeArea()
+                .opacity(flashOpacity)
+                .allowsHitTesting(false)
         }
     }
 
@@ -404,8 +434,8 @@ struct HatchView: View {
                 .buttonStyle(.plain)
             }
             Spacer()
-            Text("🥚")
-                .font(.system(size: 92))
+            HatchEgg()
+                .frame(width: 112, height: 142)
                 .rotationEffect(.degrees(eggWobble ? 6 : -6))
                 .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: eggWobble)
             Text("\(egg.eggs)")
@@ -422,15 +452,10 @@ struct HatchView: View {
             Spacer()
             VStack(spacing: 10) {
                 hatchButton("HATCH ×1", enabled: egg.canHatchOne) {
-                    if let r = egg.hatch(1).first {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { single = r }
-                    }
+                    beginRitual(count: 1)
                 }
                 hatchButton("HATCH ×10", enabled: egg.canHatchTen) {
-                    let r = egg.hatch(10)
-                    if !r.isEmpty {
-                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { multi = r }
-                    }
+                    beginRitual(count: 10)
                 }
             }
             .padding(.bottom, 34)
@@ -442,8 +467,8 @@ struct HatchView: View {
     private func hatchButton(_ title: String, enabled: Bool, _ action: @escaping () -> Void) -> some View {
         Button {
             guard enabled else { return }
-            AudioManager.shared.play(.reward)
-            Haptics.success()
+            AudioManager.shared.play(.uiTap)
+            Haptics.tap()
             action()
         } label: {
             Text(title)
@@ -457,11 +482,238 @@ struct HatchView: View {
         .opacity(enabled ? 1 : 0.55)
     }
 
+    // MARK: Hatch ritual
+    private var hatchRitual: some View {
+        GeometryReader { proxy in
+            let eggWidth = min(proxy.size.width * 0.78, 330)
+            let eggHeight = min(proxy.size.height * 0.53, 430)
+
+            ZStack {
+                RadialGradient(
+                    colors: [
+                        Color(hex: "F7C943").opacity(phaseIsCracking ? 0.34 : 0.16),
+                        Color.clear
+                    ],
+                    center: .center,
+                    startRadius: 12,
+                    endRadius: eggWidth * 0.78
+                )
+                .scaleEffect(crackPulse ? 1.14 : 0.9)
+                .opacity(crackPulse ? 1 : 0.62)
+
+                VStack(spacing: 18) {
+                    Spacer(minLength: 34)
+
+                    VStack(spacing: 7) {
+                        Text(phaseIsCracking ? "THE EGG IS OPENING" : "DRAW THE FIRST CRACK")
+                            .pixelText(size: 15, color: Color(hex: "FFD24D"))
+                            .multilineTextAlignment(.center)
+                            .shadow(color: Color(hex: "FFD24D").opacity(0.65), radius: phaseIsCracking ? 12 : 3)
+
+                        Text(nudge ? "DRAW A LINE ACROSS THE EGG" : "ONE STROKE  •  RELEASE TO HATCH")
+                            .pixelText(size: 8, color: nudge ? Color(hex: "FF9E6B") : Color(hex: "E9D8B6"))
+                            .opacity(phaseIsDrawing ? 1 : 0)
+                    }
+
+                    ZStack {
+                        HatchEgg(glowing: phaseIsCracking)
+
+                        HatchStroke(points: drawnPoints)
+                        .stroke(
+                            phaseIsCracking ? Color(hex: "FFD24D") : Color(hex: "FFF3C4"),
+                            style: StrokeStyle(
+                                lineWidth: phaseIsCracking ? 9 : 6,
+                                lineCap: .round,
+                                lineJoin: .round
+                            )
+                        )
+                        .shadow(
+                            color: phaseIsCracking ? Color(hex: "FFD24D") : Color.white,
+                            radius: phaseIsCracking ? 16 : 5
+                        )
+                        .clipShape(HatchEggShape())
+
+                        if phaseIsCracking {
+                            CrackBranches(points: drawnPoints)
+                                .stroke(
+                                    Color(hex: "FFD24D"),
+                                    style: StrokeStyle(lineWidth: 6, lineCap: .square, lineJoin: .miter)
+                                )
+                                .shadow(color: Color(hex: "FFD24D"), radius: 12)
+                                .clipShape(HatchEggShape())
+                                .transition(.opacity)
+                        }
+                    }
+                    .frame(width: eggWidth, height: eggHeight)
+                    .contentShape(HatchEggShape())
+                    .gesture(drawingGesture(in: CGSize(width: eggWidth, height: eggHeight)))
+                    .rotationEffect(.degrees(crackRotation))
+                    .offset(x: crackOffset)
+                    .scaleEffect(crackPulse ? 1.035 : 1)
+                    .accessibilityLabel("Egg drawing surface")
+                    .accessibilityHint("Draw one continuous crack and release to hatch")
+
+                    Text(phase.eggCount == 10 ? "10 EGGS • ONE RITUAL" : "MAKE YOUR MARK")
+                        .pixelText(size: 8, color: Color(hex: "C7A6F2"))
+                        .opacity(phaseIsDrawing ? 1 : 0)
+
+                    Spacer(minLength: 30)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            }
+            .scaleEffect(ritualScale)
+            .opacity(ritualOpacity)
+        }
+        .allowsHitTesting(phaseIsDrawing)
+    }
+
+    private var phaseIsDrawing: Bool {
+        if case .drawing = phase { return true }
+        return false
+    }
+
+    private var phaseIsCracking: Bool {
+        if case .cracking = phase { return true }
+        return false
+    }
+
+    private var crackRotation: Double {
+        guard phaseIsCracking else { return 0 }
+        return crackPulse ? 4.5 : -4.5
+    }
+
+    private var crackOffset: CGFloat {
+        guard phaseIsCracking else { return 0 }
+        return crackPulse ? 7 : -7
+    }
+
+    private func beginRitual(count: Int) {
+        guard phase == .home else { return }
+        drawnPoints = []
+        strokeLength = 0
+        ritualScale = 0.58
+        ritualOpacity = 0
+        crackPulse = false
+        nudge = false
+        phase = .zooming(count)
+
+        withAnimation(.spring(response: 0.58, dampingFraction: 0.76)) {
+            ritualScale = 1
+            ritualOpacity = 1
+        }
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(480))
+            guard phase == .zooming(count) else { return }
+            Haptics.support()
+            withAnimation(.easeOut(duration: 0.2)) {
+                phase = .drawing(count)
+            }
+        }
+    }
+
+    private func drawingGesture(in size: CGSize) -> some Gesture {
+        DragGesture(minimumDistance: 0, coordinateSpace: .local)
+            .onChanged { value in
+                guard phaseIsDrawing, HatchEggShape.contains(value.location, in: size) else { return }
+                if let last = drawnPoints.last {
+                    let distance = hypot(value.location.x - last.x, value.location.y - last.y)
+                    guard distance >= 2 else { return }
+                    strokeLength += distance
+                }
+                drawnPoints.append(value.location)
+            }
+            .onEnded { _ in
+                guard phaseIsDrawing else { return }
+                guard strokeLength >= 32, drawnPoints.count >= 2 else {
+                    Haptics.warning()
+                    withAnimation(.easeOut(duration: 0.18)) {
+                        drawnPoints = []
+                        strokeLength = 0
+                        nudge = true
+                    }
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(1300))
+                        withAnimation(.easeOut(duration: 0.3)) { nudge = false }
+                    }
+                    return
+                }
+                completeRitualStroke()
+            }
+    }
+
+    private func completeRitualStroke() {
+        guard case let .drawing(count) = phase else { return }
+        withAnimation(.easeOut(duration: 0.16)) {
+            phase = .cracking(count)
+            crackPulse = true
+        }
+        AudioManager.shared.play(.hitSkill, volume: 0.72)
+        Haptics.skill()
+
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(260))
+            guard phase == .cracking(count) else { return }
+            withAnimation(.linear(duration: 0.08).repeatCount(5, autoreverses: true)) {
+                crackPulse.toggle()
+            }
+            AudioManager.shared.play(.hitBasic, volume: 0.82)
+            Haptics.hit()
+
+            try? await Task.sleep(for: .milliseconds(520))
+            guard phase == .cracking(count) else { return }
+            AudioManager.shared.play(.crit, volume: 0.9)
+            Haptics.crit()
+            withAnimation(.easeIn(duration: 0.18)) {
+                flashOpacity = 1
+            }
+
+            try? await Task.sleep(for: .milliseconds(190))
+            guard phase == .cracking(count) else { return }
+            resolveHatch(count: count)
+            AudioManager.shared.play(.reward)
+            Haptics.success()
+
+            try? await Task.sleep(for: .milliseconds(120))
+            withAnimation(.easeOut(duration: 0.48)) {
+                flashOpacity = 0
+            }
+        }
+    }
+
+    private func resolveHatch(count: Int) {
+        let results = egg.hatch(count)
+        guard !results.isEmpty else {
+            resetRitual()
+            return
+        }
+        if count == 1 {
+            single = results[0]
+            shareImage = BioBudShareCard.render(hero: results[0].hero)
+        } else {
+            multi = results
+        }
+        resetRitual()
+    }
+
+    private func resetRitual() {
+        phase = .home
+        drawnPoints = []
+        strokeLength = 0
+        ritualScale = 0.58
+        ritualOpacity = 0
+        crackPulse = false
+        nudge = false
+    }
+
     // MARK: Single hatch
     @ViewBuilder
     private func singleReveal(_ result: HatchResult) -> some View {
         if result.isNew {
             NewBioBudReveal(hero: result.hero, collected: true) {
+                if let shareImage {
+                    BioBudShareButton(image: shareImage, hero: result.hero)
+                }
                 Button { single = nil } label: {
                     RevealActionLabel(title: L("CONTINUE"), color: Color(hex: "4A8A3C"))
                 }
@@ -490,8 +742,73 @@ struct HatchView: View {
         }
     }
 
-    // MARK: 10× hatch
-    private func multiResults(_ results: [HatchResult]) -> some View {
+}
+
+/// Sequential ×10 reveal — one biobud at a time, with an anticipation flash
+/// (tinted to the card's rarity, held longer + a crit sting for rare and up)
+/// before each pops in. Ends on the full grid summary. Tap to advance; tapping
+/// during a flash skips straight to the card so impatient pulls stay snappy.
+private struct MultiRevealSequence: View {
+    let results: [HatchResult]
+    let onClose: () -> Void
+
+    @State private var index = 0
+    @State private var showCard = false
+    @State private var flash = false
+    @State private var done = false
+
+    private var current: HatchResult { results[min(index, results.count - 1)] }
+
+    var body: some View {
+        ZStack {
+            Color.black.opacity(0.9).ignoresSafeArea()
+
+            if done {
+                summaryGrid
+            } else {
+                RadialGradient(
+                    colors: [current.hero.rarity.color.opacity(flash ? 0.6 : 0), .clear],
+                    center: .center, startRadius: 8, endRadius: 380
+                )
+                .ignoresSafeArea()
+
+                VStack(spacing: 14) {
+                    Text("\(index + 1) / \(results.count)")
+                        .pixelText(size: 9, color: Color(hex: "E9D8B6"))
+                        .opacity(0.8)
+
+                    Spacer()
+
+                    if showCard {
+                        VStack(spacing: 10) {
+                            BioBudBurst(rarity: current.hero.rarity)
+                                .frame(height: 0)
+                            SpriteView(asset: current.hero.asset, size: 150)
+                            Text(current.hero.rarity.label.uppercased())
+                                .pixelText(size: 10, color: current.hero.rarity.color)
+                            Text(L(current.hero.name).uppercased())
+                                .pixelText(size: 16, color: Color(hex: "FFF3C4"))
+                            Text(current.isNew ? "NEW" : "✦ +\(current.shardsGained) SHARDS")
+                                .pixelText(size: 9, color: current.isNew ? Color(hex: "9CD67D") : Color(hex: "C7A6F2"))
+                        }
+                        .transition(.scale(scale: 0.7).combined(with: .opacity))
+                    }
+
+                    Spacer()
+
+                    Text(index + 1 < results.count ? "TAP TO CONTINUE" : "TAP TO SEE ALL")
+                        .pixelText(size: 8, color: Color(hex: "E9D8B6"))
+                        .opacity(showCard ? 0.85 : 0)
+                        .padding(.bottom, 40)
+                }
+            }
+        }
+        .contentShape(Rectangle())
+        .onTapGesture { advance() }
+        .onAppear { present() }
+    }
+
+    private var summaryGrid: some View {
         VStack(spacing: 14) {
             Text("10× HATCH")
                 .pixelText(size: 18, color: Color(hex: "F7C943"))
@@ -512,12 +829,159 @@ struct HatchView: View {
                 }
                 .padding(.horizontal, 16)
             }
-            Button { multi = nil } label: {
+            Button { onClose() } label: {
                 RevealActionLabel(title: L("CONTINUE"), color: Color(hex: "4A8A3C"))
             }
             .buttonStyle(.plain)
             .frame(width: 220)
             .padding(.bottom, 32)
         }
+    }
+
+    private func present() {
+        let r = current
+        let isRare = r.hero.rarity >= .rare
+        showCard = false
+        withAnimation(.easeOut(duration: 0.18)) { flash = true }
+        if isRare {
+            AudioManager.shared.play(.crit, volume: 0.85)
+            Haptics.crit()
+        } else {
+            Haptics.tap()
+        }
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(isRare ? 560 : 210))
+            guard !showCard else { return }
+            reveal(r)
+        }
+    }
+
+    private func reveal(_ r: HatchResult) {
+        withAnimation(.spring(response: 0.42, dampingFraction: 0.7)) { showCard = true }
+        withAnimation(.easeOut(duration: 0.5)) { flash = false }
+        AudioManager.shared.play(r.isNew ? .reward : .uiTap)
+        if r.isNew { Haptics.success() }
+    }
+
+    private func advance() {
+        if !showCard {
+            reveal(current)        // impatient tap — show the card now
+            return
+        }
+        if index + 1 < results.count {
+            index += 1
+            present()
+        } else {
+            withAnimation(.easeInOut(duration: 0.25)) { done = true }
+        }
+    }
+}
+
+private struct HatchEggShape: Shape {
+    func path(in rect: CGRect) -> Path {
+        var path = Path()
+        path.move(to: CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.025))
+        path.addCurve(
+            to: CGPoint(x: rect.maxX - rect.width * 0.025, y: rect.height * 0.65),
+            control1: CGPoint(x: rect.maxX - rect.width * 0.12, y: rect.height * 0.12),
+            control2: CGPoint(x: rect.maxX + rect.width * 0.02, y: rect.height * 0.43)
+        )
+        path.addCurve(
+            to: CGPoint(x: rect.midX, y: rect.maxY - rect.height * 0.02),
+            control1: CGPoint(x: rect.maxX - rect.width * 0.04, y: rect.height * 0.91),
+            control2: CGPoint(x: rect.width * 0.73, y: rect.maxY)
+        )
+        path.addCurve(
+            to: CGPoint(x: rect.minX + rect.width * 0.025, y: rect.height * 0.65),
+            control1: CGPoint(x: rect.width * 0.27, y: rect.maxY),
+            control2: CGPoint(x: rect.minX + rect.width * 0.04, y: rect.height * 0.91)
+        )
+        path.addCurve(
+            to: CGPoint(x: rect.midX, y: rect.minY + rect.height * 0.025),
+            control1: CGPoint(x: rect.minX - rect.width * 0.02, y: rect.height * 0.43),
+            control2: CGPoint(x: rect.minX + rect.width * 0.12, y: rect.height * 0.12)
+        )
+        path.closeSubpath()
+        return path
+    }
+
+    static func contains(_ point: CGPoint, in size: CGSize) -> Bool {
+        HatchEggShape().path(in: CGRect(origin: .zero, size: size)).contains(point)
+    }
+}
+
+private struct HatchEgg: View {
+    var glowing = false
+
+    var body: some View {
+        HatchEggShape()
+            .fill(
+                LinearGradient(
+                    colors: [
+                        Color(hex: "FFF5CE"),
+                        Color(hex: "F4D98A"),
+                        Color(hex: "C8873F")
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            )
+            .overlay {
+                HatchEggShape()
+                    .stroke(Color(hex: "5A3017"), lineWidth: 7)
+            }
+            .overlay {
+                GeometryReader { proxy in
+                    ZStack {
+                        Ellipse()
+                            .fill(Color.white.opacity(0.42))
+                            .frame(width: proxy.size.width * 0.22, height: proxy.size.height * 0.38)
+                            .rotationEffect(.degrees(22))
+                            .position(x: proxy.size.width * 0.31, y: proxy.size.height * 0.34)
+                        Circle()
+                            .fill(Color(hex: "D99A4E").opacity(0.48))
+                            .frame(width: proxy.size.width * 0.11)
+                            .position(x: proxy.size.width * 0.66, y: proxy.size.height * 0.34)
+                        Circle()
+                            .fill(Color(hex: "B96C32").opacity(0.32))
+                            .frame(width: proxy.size.width * 0.075)
+                            .position(x: proxy.size.width * 0.38, y: proxy.size.height * 0.7)
+                    }
+                    .clipShape(HatchEggShape())
+                }
+            }
+            .shadow(color: Color(hex: "FFD24D").opacity(glowing ? 0.9 : 0.22), radius: glowing ? 30 : 10)
+    }
+}
+
+private struct HatchStroke: Shape {
+    let points: [CGPoint]
+
+    func path(in rect: CGRect) -> Path {
+        guard let first = points.first else { return Path() }
+        var path = Path()
+        path.move(to: first)
+        for point in points.dropFirst() {
+            path.addLine(to: point)
+        }
+        return path
+    }
+}
+
+private struct CrackBranches: Shape {
+    let points: [CGPoint]
+
+    func path(in rect: CGRect) -> Path {
+        guard points.count >= 4 else { return Path() }
+        var path = Path()
+        let indices = [points.count / 3, points.count / 2, points.count * 2 / 3]
+        for (branch, index) in indices.enumerated() {
+            let origin = points[min(index, points.count - 1)]
+            let direction: CGFloat = branch.isMultiple(of: 2) ? -1 : 1
+            path.move(to: origin)
+            path.addLine(to: CGPoint(x: origin.x + 24 * direction, y: origin.y - 18))
+            path.addLine(to: CGPoint(x: origin.x + 39 * direction, y: origin.y - 9))
+        }
+        return path
     }
 }
