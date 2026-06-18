@@ -382,7 +382,7 @@ enum ExpansionAbilities {
         // — Cells
         "redblood": [
             ab("rbc-tap", "Oxygen Tap", .basic, 16, "rbc-tap", Color(hex: "D94A4A")),
-            ab("rbc-drop", "O₂ Drop", .skill, 14, "rbc-drop", Color(hex: "D94A4A"), energy: 2, buffs: [BuffGrant(kind: .heal, magnitude: 14, turns: 0)], "Delivers oxygen — heals the lowest ally."),
+            ab("rbc-drop", "O₂ Drop", .skill, 14, "rbc-drop", Color(hex: "D94A4A"), energy: 2, buffs: [BuffGrant(kind: .heal, magnitude: 14, turns: 0)], "Delivers oxygen and heals the lowest ally."),
             ab("rbc-sat", "Full Saturation", .ultimate, 0, "rbc-sat", Color(hex: "D94A4A"), charge: 4, buffs: [BuffGrant(kind: .heal, magnitude: 22, turns: 0), BuffGrant(kind: .attack, magnitude: 0.12, turns: 3)], "Team-wide oxygen wash: heal + ATK up.")
         ],
         "macrophage": [
@@ -428,7 +428,7 @@ enum ExpansionAbilities {
         ],
         "lysosome": [
             ab("lyso-drip", "Acid Drip", .basic, 18, "lyso-drip", Color(hex: "A05BC0")),
-            ab("lyso-digest", "Digest", .skill, 32, "lyso-digest", Color(hex: "A05BC0"), energy: 2, buffs: [BuffGrant(kind: .mark, magnitude: 0.30, turns: 3)], "Melts armor — enemy takes more damage."),
+            ab("lyso-digest", "Digest", .skill, 32, "lyso-digest", Color(hex: "A05BC0"), energy: 2, buffs: [BuffGrant(kind: .mark, magnitude: 0.30, turns: 3)], "Melts armor so the enemy takes more damage."),
             ab("lyso-auto", "Autolysis", .ultimate, 48, "lyso-auto", Color(hex: "A05BC0"), charge: 4, buffs: [BuffGrant(kind: .mark, magnitude: 0.25, turns: 3)], "A dissolving acid finisher + mark.")
         ],
         // — Immune / microbes
@@ -440,11 +440,11 @@ enum ExpansionAbilities {
         "nkcell": [
             ab("nk-slash", "Slash", .basic, 20, "nk-slash", Color(hex: "5A8FD4")),
             ab("nk-perforin", "Perforin Burst", .skill, 36, "nk-perforin", Color(hex: "5A8FD4"), energy: 2, "Heavy single-target burst."),
-            ab("nk-execute", "Execute", .ultimate, 44, "nk-execute", Color(hex: "5A8FD4"), charge: 4, target: .execute, "Finisher — more damage the lower the enemy's HP.")
+            ab("nk-execute", "Execute", .ultimate, 44, "nk-execute", Color(hex: "5A8FD4"), charge: 4, target: .execute, "Finisher that deals more damage the lower the enemy's HP.")
         ],
         "neutrophil": [
             ab("neu-bite", "Quick Bite", .basic, 16, "neu-bite", Color(hex: "C79BD8")),
-            ab("neu-swarm", "Swarm", .skill, 26, "neu-swarm", Color(hex: "C79BD8"), energy: 2, target: .all, "First responder — hits the whole wave (AoE)."),
+            ab("neu-swarm", "Swarm", .skill, 26, "neu-swarm", Color(hex: "C79BD8"), energy: 2, target: .all, "First responder that hits the whole wave (AoE)."),
             ab("neu-burst", "Respiratory Burst", .ultimate, 34, "neu-burst", Color(hex: "C79BD8"), charge: 4, target: .all, buffs: [BuffGrant(kind: .mark, magnitude: 0.20, turns: 2)], "AoE burst that softens all enemies.")
         ],
         "antibody": [
@@ -454,14 +454,14 @@ enum ExpansionAbilities {
         ],
         "phage": [
             ab("ph-stab", "Tail Stab", .basic, 20, "ph-stab", Color(hex: "5FC0B0")),
-            ab("ph-inject", "Inject", .skill, 30, "ph-inject", Color(hex: "5FC0B0"), energy: 2, "Injects — applies poison (8/turn, 3 turns)."),
-            ab("ph-lyse", "Lyse", .ultimate, 52, "ph-lyse", Color(hex: "5FC0B0"), charge: 4, "The target ruptures — massive single hit.")
+            ab("ph-inject", "Inject", .skill, 30, "ph-inject", Color(hex: "5FC0B0"), energy: 2, "Injects and applies poison (8/turn, 3 turns)."),
+            ab("ph-lyse", "Lyse", .ultimate, 52, "ph-lyse", Color(hex: "5FC0B0"), charge: 4, "The target ruptures in a massive single hit.")
         ],
         // — Molecular
         "dna": [
             ab("dna-bolt", "Base Pair Bolt", .basic, 16, "dna-bolt", Color(hex: "6FB8E0")),
             ab("dna-rep", "Replicate", .skill, 0, "dna-rep", Color(hex: "6FB8E0"), energy: 2, buffs: [BuffGrant(kind: .ultEnergy, magnitude: 2, turns: 0)], "+2 ult energy to all allies."),
-            ab("dna-unlock", "Genome Unlock", .ultimate, 0, "dna-unlock", Color(hex: "6FB8E0"), charge: 4, buffs: [BuffGrant(kind: .attack, magnitude: 0.25, turns: 3), BuffGrant(kind: .speed, magnitude: 20, turns: 3), BuffGrant(kind: .heal, magnitude: 16, turns: 0)], "Team ATK + SPD + heal — the enabler.")
+            ab("dna-unlock", "Genome Unlock", .ultimate, 0, "dna-unlock", Color(hex: "6FB8E0"), charge: 4, buffs: [BuffGrant(kind: .attack, magnitude: 0.25, turns: 3), BuffGrant(kind: .speed, magnitude: 20, turns: 3), BuffGrant(kind: .heal, magnitude: 16, turns: 0)], "Team ATK + SPD + heal. The enabler.")
         ],
         "mrna": [
             ab("mrna-cut", "Codon Cut", .basic, 17, "mrna-cut", Color(hex: "AEDC5B")),
@@ -492,29 +492,29 @@ extension DataSet {
     /// ownership + Trust-to-field behavior. Stats are first-pass.
     static let expansionBiobuds: [Hero] = [
         // Cells
-        Hero(id: "redblood", asset: "biobud-redblood-hop", name: "Red Blood Cell", role: "Support", level: 1, hp: 40, attack: 16, defense: 12, speed: 100, color: Color(hex: "D94A4A"), lore: "Carries oxygen to the whole squad — keeps everyone breathing through long fights.", rarity: .common),
+        Hero(id: "redblood", asset: "biobud-redblood-hop", name: "Red Blood Cell", role: "Support", level: 1, hp: 40, attack: 16, defense: 12, speed: 100, color: Color(hex: "D94A4A"), lore: "Carries oxygen to the whole squad and keeps everyone breathing through long fights.", rarity: .common),
         Hero(id: "macrophage", asset: "biobud-macrophage-hop", name: "Macrophage", role: "Tank", level: 1, hp: 60, attack: 16, defense: 22, speed: 86, color: Color(hex: "E8C24A"), lore: "The big eater. Engulfs anything that gets close and just gets tankier.", rarity: .epic),
-        Hero(id: "stemcell", asset: "biobud-stemcell-hop", name: "Stem Cell", role: "Support", level: 1, hp: 44, attack: 18, defense: 14, speed: 104, color: Color(hex: "9FD8B0"), lore: "Can become anything. The ultimate wildcard — adapts to whatever the team needs.", rarity: .legendary),
-        Hero(id: "platelet", asset: "biobud-platelet-hop", name: "Platelet", role: "Support", level: 1, hp: 36, attack: 14, defense: 12, speed: 98, color: Color(hex: "B07BD0"), lore: "Small but clutch — clots up wounds and shields the team in a pinch.", rarity: .common),
+        Hero(id: "stemcell", asset: "biobud-stemcell-hop", name: "Stem Cell", role: "Support", level: 1, hp: 44, attack: 18, defense: 14, speed: 104, color: Color(hex: "9FD8B0"), lore: "Can become anything. The ultimate wildcard that adapts to whatever the team needs.", rarity: .legendary),
+        Hero(id: "platelet", asset: "biobud-platelet-hop", name: "Platelet", role: "Support", level: 1, hp: 36, attack: 14, defense: 12, speed: 98, color: Color(hex: "B07BD0"), lore: "Small but clutch. Clots up wounds and shields the team in a pinch.", rarity: .common),
         Hero(id: "epithelial", asset: "biobud-epithelial-hop", name: "Epithelial Cell", role: "Tank", level: 1, hp: 56, attack: 15, defense: 22, speed: 84, color: Color(hex: "5FB8A8"), lore: "A living wall. Tiles up into a barrier nothing wants to hit through.", rarity: .common),
         // Organelles
-        Hero(id: "nucleus", asset: "biobud-nucleus-hop", name: "Nucleus", role: "Support", level: 1, hp: 40, attack: 18, defense: 12, speed: 100, color: Color(hex: "8B6BD9"), lore: "The control center — issues the orders that power up the whole cell.", rarity: .rare),
+        Hero(id: "nucleus", asset: "biobud-nucleus-hop", name: "Nucleus", role: "Support", level: 1, hp: 40, attack: 18, defense: 12, speed: 100, color: Color(hex: "8B6BD9"), lore: "The control center that issues the orders to power up the whole cell.", rarity: .rare),
         Hero(id: "ribosome", asset: "biobud-ribosome-hop", name: "Ribosome", role: "Support", level: 1, hp: 36, attack: 16, defense: 10, speed: 96, color: Color(hex: "D9B88A"), lore: "A grumpy little factory that never stops building. Fuels its allies' ultimates.", rarity: .common),
-        Hero(id: "rougher", asset: "biobud-rougher-hop", name: "Rough ER", role: "Support", level: 1, hp: 38, attack: 15, defense: 12, speed: 98, color: Color(hex: "5FA3D4"), lore: "Studded with ribosomes — a production line that shields and supplies the team.", rarity: .common),
+        Hero(id: "rougher", asset: "biobud-rougher-hop", name: "Rough ER", role: "Support", level: 1, hp: 38, attack: 15, defense: 12, speed: 98, color: Color(hex: "5FA3D4"), lore: "Studded with ribosomes, a production line that shields and supplies the team.", rarity: .common),
         Hero(id: "golgi", asset: "biobud-golgi-hop", name: "Golgi Apparatus", role: "Support", level: 1, hp: 40, attack: 17, defense: 12, speed: 102, color: Color(hex: "E8956B"), lore: "The shipping department. Packages buffs and overnights them to everyone.", rarity: .rare),
-        Hero(id: "lysosome", asset: "biobud-lysosome-hop", name: "Lysosome", role: "DPS", level: 1, hp: 38, attack: 23, defense: 9, speed: 112, color: Color(hex: "A05BC0"), lore: "A sac of digestive enzymes — dissolves armor and anything else in the way.", rarity: .rare),
+        Hero(id: "lysosome", asset: "biobud-lysosome-hop", name: "Lysosome", role: "DPS", level: 1, hp: 38, attack: 23, defense: 9, speed: 112, color: Color(hex: "A05BC0"), lore: "A sac of digestive enzymes that dissolves armor and anything else in the way.", rarity: .rare),
         // Immune / microbes
         Hero(id: "tcell", asset: "biobud-tcell-hop", name: "T-Cell", role: "DPS", level: 1, hp: 40, attack: 22, defense: 10, speed: 110, color: Color(hex: "6BBF8A"), lore: "The coordinator. Marks a target and the whole strike lands harder.", rarity: .rare),
         Hero(id: "nkcell", asset: "biobud-nkcell-hop", name: "Natural Killer Cell", role: "DPS", level: 1, hp: 42, attack: 26, defense: 9, speed: 116, color: Color(hex: "5A8FD4"), lore: "No permission needed. Hunts the weak and finishes them, no questions asked.", rarity: .epic),
-        Hero(id: "neutrophil", asset: "biobud-neutrophil-hop", name: "Neutrophil", role: "DPS", level: 1, hp: 40, attack: 21, defense: 10, speed: 108, color: Color(hex: "C79BD8"), lore: "First responder — swarms in fast and hits the whole crowd at once.", rarity: .rare),
+        Hero(id: "neutrophil", asset: "biobud-neutrophil-hop", name: "Neutrophil", role: "DPS", level: 1, hp: 40, attack: 21, defense: 10, speed: 108, color: Color(hex: "C79BD8"), lore: "First responder that swarms in fast and hits the whole crowd at once.", rarity: .rare),
         Hero(id: "antibody", asset: "biobud-antibody-hop", name: "Antibody", role: "Support", level: 1, hp: 34, attack: 15, defense: 10, speed: 100, color: Color(hex: "F2D85B"), lore: "Tags enemies so everyone else hits them harder. A pure force multiplier.", rarity: .common),
         Hero(id: "phage", asset: "biobud-phage-hop", name: "Phage Virus", role: "DPS", level: 1, hp: 46, attack: 26, defense: 13, speed: 114, color: Color(hex: "5FC0B0"), lore: "Lands like a lunar module, injects, and the target ruptures. Brutal and precise.", rarity: .epic),
         // Molecular
         Hero(id: "dna", asset: "biobud-dna-hop", name: "DNA", role: "Support", level: 1, hp: 44, attack: 18, defense: 14, speed: 100, color: Color(hex: "6FB8E0"), lore: "The blueprint for everything. Unzips to flood the team with potential.", rarity: .legendary),
-        Hero(id: "mrna", asset: "biobud-mrna-hop", name: "mRNA", role: "Support", level: 1, hp: 38, attack: 18, defense: 10, speed: 112, color: Color(hex: "AEDC5B"), lore: "The messenger — carries the order fast so the whole team acts sooner.", rarity: .rare),
-        Hero(id: "enzyme", asset: "biobud-enzyme-hop", name: "Enzyme", role: "DPS", level: 1, hp: 40, attack: 23, defense: 9, speed: 110, color: Color(hex: "F0883A"), lore: "A catalyst that sets off chain reactions — the more it works, the harder it hits.", rarity: .rare),
+        Hero(id: "mrna", asset: "biobud-mrna-hop", name: "mRNA", role: "Support", level: 1, hp: 38, attack: 18, defense: 10, speed: 112, color: Color(hex: "AEDC5B"), lore: "The messenger that carries the order fast so the whole team acts sooner.", rarity: .rare),
+        Hero(id: "enzyme", asset: "biobud-enzyme-hop", name: "Enzyme", role: "DPS", level: 1, hp: 40, attack: 23, defense: 9, speed: 110, color: Color(hex: "F0883A"), lore: "A catalyst that sets off chain reactions. The more it works, the harder it hits.", rarity: .rare),
         Hero(id: "atp", asset: "biobud-atp-hop", name: "ATP Molecule", role: "Support", level: 1, hp: 40, attack: 18, defense: 12, speed: 106, color: Color(hex: "F7C943"), lore: "Pure energy currency. Charges allies up and pairs absurdly well with Mito.", rarity: .epic),
-        Hero(id: "aminoacid", asset: "biobud-aminoacid-hop", name: "Amino Acid", role: "DPS", level: 1, hp: 38, attack: 22, defense: 9, speed: 108, color: Color(hex: "9FB0C0"), lore: "A humble building block — links up and throws a surprisingly solid punch.", rarity: .common)
+        Hero(id: "aminoacid", asset: "biobud-aminoacid-hop", name: "Amino Acid", role: "DPS", level: 1, hp: 38, attack: 22, defense: 9, speed: 108, color: Color(hex: "9FB0C0"), lore: "A humble building block that links up and throws a surprisingly solid punch.", rarity: .common)
     ]
 }
 

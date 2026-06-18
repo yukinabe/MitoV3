@@ -135,6 +135,10 @@ private struct NewBioBudReveal<Actions: View>: View {
                 )
                 .ignoresSafeArea()
 
+                if hero.rarity >= .rare {
+                    RarityBeams(rarity: hero.rarity)
+                }
+
                 BioBudBurst(rarity: hero.rarity)
 
                 VStack(spacing: 12) {
@@ -149,6 +153,10 @@ private struct NewBioBudReveal<Actions: View>: View {
                             size: 10,
                             color: collected ? Color(hex: "9CD67D") : Color(hex: "F4E6C0")
                         )
+
+                    if hero.rarity >= .rare {
+                        RarityBanner(rarity: hero.rarity)
+                    }
 
                     ZStack {
                         Rectangle()
@@ -205,7 +213,10 @@ private struct NewBioBudReveal<Actions: View>: View {
             }
         }
         .onAppear {
-            withAnimation(.spring(response: 0.62, dampingFraction: 0.58)) {
+            // Higher rarity = a slower, more dramatic grow from a smaller start.
+            revealScale = legendary ? 0.24 : (hero.rarity >= .epic ? 0.34 : 0.45)
+            let response = legendary ? 1.05 : (hero.rarity >= .epic ? 0.82 : 0.62)
+            withAnimation(.spring(response: response, dampingFraction: 0.6)) {
                 revealScale = 1
                 revealOpacity = 1
             }
@@ -264,6 +275,109 @@ private struct BioBudBurst: View {
             }
         }
         .allowsHitTesting(false)
+    }
+}
+
+/// Rotating god-rays behind a rare-or-better reveal. Ray count, width, opacity
+/// and spin speed all step up with rarity so a legendary pull reads as obviously
+/// bigger than a rare one. Gold for legendary, the rarity tint otherwise.
+private struct RarityBeams: View {
+    let rarity: Rarity
+    @State private var spin = false
+
+    private var rayCount: Int {
+        switch rarity {
+        case .legendary: 18
+        case .epic: 13
+        default: 10
+        }
+    }
+    private var rayWidth: CGFloat { rarity == .legendary ? 30 : (rarity == .epic ? 22 : 16) }
+    private var color: Color { rarity == .legendary ? Color(hex: "FFE27A") : rarity.color }
+    private var maxOpacity: Double {
+        switch rarity {
+        case .legendary: 0.6
+        case .epic: 0.42
+        default: 0.28
+        }
+    }
+    private var spinSeconds: Double { rarity == .legendary ? 16 : 24 }
+
+    var body: some View {
+        GeometryReader { proxy in
+            let dim = max(proxy.size.width, proxy.size.height) * 1.5
+            ZStack {
+                // Soft halo so the area behind the sprite glows.
+                Circle()
+                    .fill(
+                        RadialGradient(
+                            colors: [color.opacity(maxOpacity * 0.9), .clear],
+                            center: .center, startRadius: 0, endRadius: dim * 0.26
+                        )
+                    )
+                    .frame(width: dim, height: dim)
+
+                // God-rays: each spoke is brightest at the centre and fades outward.
+                ZStack {
+                    ForEach(0..<rayCount, id: \.self) { i in
+                        Capsule()
+                            .fill(
+                                LinearGradient(
+                                    colors: [color.opacity(maxOpacity), .clear],
+                                    startPoint: .bottom, endPoint: .top
+                                )
+                            )
+                            .frame(width: rayWidth, height: dim * 0.5)
+                            .offset(y: -dim * 0.25)
+                            .rotationEffect(.degrees(Double(i) / Double(rayCount) * 360))
+                    }
+                }
+                .frame(width: dim, height: dim)
+                .rotationEffect(.degrees(spin ? 360 : 0))
+            }
+            .position(x: proxy.size.width / 2, y: proxy.size.height * 0.43)
+        }
+        .allowsHitTesting(false)
+        .onAppear {
+            withAnimation(.linear(duration: spinSeconds).repeatForever(autoreverses: false)) {
+                spin = true
+            }
+        }
+    }
+}
+
+/// The rarity word that slams in on a rare-or-better reveal. Legendary gets stars
+/// and a gold tint; the punch (overshoot scale) is sized by rarity.
+private struct RarityBanner: View {
+    let rarity: Rarity
+    @State private var punch = false
+
+    private var text: String {
+        switch rarity {
+        case .legendary: "★  LEGENDARY  ★"
+        case .epic: "✦  EPIC  ✦"
+        case .rare: "RARE"
+        case .common: ""
+        }
+    }
+    private var color: Color { rarity == .legendary ? Color(hex: "FFE27A") : rarity.color }
+    private var size: CGFloat {
+        switch rarity {
+        case .legendary: 18
+        case .epic: 14
+        default: 11
+        }
+    }
+
+    var body: some View {
+        Text(text)
+            .pixelText(size: size, color: color)
+            .shadow(color: color.opacity(0.8), radius: rarity == .legendary ? 14 : 6)
+            .scaleEffect(punch ? 1 : (rarity == .legendary ? 1.7 : 1.3))
+            .opacity(punch ? 1 : 0)
+            .onAppear {
+                withAnimation(.spring(response: 0.34, dampingFraction: 0.55)) { punch = true }
+            }
     }
 }
 
@@ -767,10 +881,16 @@ private struct MultiRevealSequence: View {
                 summaryGrid
             } else {
                 RadialGradient(
-                    colors: [current.hero.rarity.color.opacity(flash ? 0.6 : 0), .clear],
+                    colors: [current.hero.rarity.color.opacity(flash ? flashPeak : 0), .clear],
                     center: .center, startRadius: 8, endRadius: 380
                 )
                 .ignoresSafeArea()
+
+                if showCard && current.hero.rarity >= .rare {
+                    RarityBeams(rarity: current.hero.rarity)
+                        .ignoresSafeArea()
+                        .transition(.opacity)
+                }
 
                 VStack(spacing: 14) {
                     Text("\(index + 1) / \(results.count)")
@@ -783,11 +903,15 @@ private struct MultiRevealSequence: View {
                         VStack(spacing: 10) {
                             BioBudBurst(rarity: current.hero.rarity)
                                 .frame(height: 0)
-                            SpriteView(asset: current.hero.asset, size: 150)
-                            Text(current.hero.rarity.label.uppercased())
-                                .pixelText(size: 10, color: current.hero.rarity.color)
+                            SpriteView(asset: current.hero.asset, size: current.hero.rarity == .legendary ? 178 : 150)
+                            if current.hero.rarity >= .rare {
+                                RarityBanner(rarity: current.hero.rarity)
+                            } else {
+                                Text(current.hero.rarity.label.uppercased())
+                                    .pixelText(size: 10, color: current.hero.rarity.color)
+                            }
                             Text(L(current.hero.name).uppercased())
-                                .pixelText(size: 16, color: Color(hex: "FFF3C4"))
+                                .pixelText(size: current.hero.rarity == .legendary ? 19 : 16, color: Color(hex: "FFF3C4"))
                             Text(current.isNew ? "NEW" : "✦ +\(current.shardsGained) SHARDS")
                                 .pixelText(size: 9, color: current.isNew ? Color(hex: "9CD67D") : Color(hex: "C7A6F2"))
                         }
@@ -838,29 +962,52 @@ private struct MultiRevealSequence: View {
         }
     }
 
+    // The brighter the flash and the longer the anticipation hold, the rarer the
+    // pull — so a legendary lands with an unmistakably bigger beat than a common.
+    private var flashPeak: Double {
+        switch current.hero.rarity {
+        case .legendary: 0.9
+        case .epic: 0.72
+        default: 0.55
+        }
+    }
+
+    private func holdMillis(_ rarity: Rarity) -> Int {
+        switch rarity {
+        case .legendary: 900
+        case .epic: 620
+        case .rare: 460
+        case .common: 210
+        }
+    }
+
     private func present() {
         let r = current
         let isRare = r.hero.rarity >= .rare
         showCard = false
         withAnimation(.easeOut(duration: 0.18)) { flash = true }
         if isRare {
-            AudioManager.shared.play(.crit, volume: 0.85)
+            AudioManager.shared.play(.crit, volume: r.hero.rarity == .legendary ? 1 : 0.85)
             Haptics.crit()
         } else {
             Haptics.tap()
         }
         Task { @MainActor in
-            try? await Task.sleep(for: .milliseconds(isRare ? 560 : 210))
+            try? await Task.sleep(for: .milliseconds(holdMillis(r.hero.rarity)))
             guard !showCard else { return }
             reveal(r)
         }
     }
 
     private func reveal(_ r: HatchResult) {
-        withAnimation(.spring(response: 0.42, dampingFraction: 0.7)) { showCard = true }
+        let spring: Animation = r.hero.rarity == .legendary
+            ? .spring(response: 0.6, dampingFraction: 0.55)
+            : .spring(response: 0.42, dampingFraction: 0.7)
+        withAnimation(spring) { showCard = true }
         withAnimation(.easeOut(duration: 0.5)) { flash = false }
         AudioManager.shared.play(r.isNew ? .reward : .uiTap)
         if r.isNew { Haptics.success() }
+        if r.hero.rarity == .legendary { Haptics.crit() }
     }
 
     private func advance() {
