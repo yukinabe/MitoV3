@@ -837,12 +837,15 @@ final class TrustStore: ObservableObject {
         persist()
     }
 
-    #if DEBUG
-    /// Dev tools: instantly max a character's Trust.
-    func devGrantFullTrust(_ hero: Hero) {
+    /// Mark a character as fully trusted — a hatched biobud is ready to field
+    /// immediately (the studying that earned the egg was the cost).
+    func grantFullTrust(_ hero: Hero) {
         baseline[hero.id] = required(hero)
         persist()
     }
+
+    #if DEBUG
+    func devGrantFullTrust(_ hero: Hero) { grantFullTrust(hero) }
     #endif
 
     /// Reset all trust/bond (account deletion / privacy).
@@ -869,6 +872,137 @@ final class TrustStore: ObservableObject {
         guard let hero = DataSet.anyHero(id: id) else { return false }
         let base = (UserDefaults.standard.dictionary(forKey: trustKey) as? [String: Double])?[id] ?? 0
         return base >= Double(hero.rarity.trustMinutesToMax)
+    }
+}
+
+// MARK: - Egg gacha
+
+/// The biobuds obtainable from study eggs. Campaign-recruit heroes stay
+/// campaign-only (the Trust path); this is the "hatch" pool. Expand the list as
+/// new collectible art is added — that's the only change needed to grow it.
+enum GachaPool {
+    static let ids: [String] = ["wild-mutagem", "wild-spikevyrus", "wild-cytocrawler"]
+    static var pool: [Hero] { ids.compactMap { DataSet.anyHero(id: $0) } }
+}
+
+/// One hatched egg's outcome.
+struct HatchResult: Identifiable {
+    let id = UUID()
+    let hero: Hero
+    let isNew: Bool
+    let shardsGained: Int
+}
+
+/// Study-earned eggs + the hatch (gacha) logic. Eggs are earned ONLY by
+/// completing study sessions (never purchasable — that's the whole point), bank
+/// up, and are spent on the hatch screen. Dupes convert to shards; a 10-hatch
+/// guarantees a rare+; a pity counter forces a rare+ after a dry streak.
+@MainActor
+final class EggStore: ObservableObject {
+    static let shared = EggStore()
+    nonisolated static let eggKey = "gacha.eggs"
+    nonisolated static let shardKey = "gacha.shards"
+    nonisolated static let pityKey = "gacha.pity"
+    nonisolated static let pityThreshold = 10
+
+    @Published private(set) var eggs: Int
+    @Published private(set) var shards: Int
+    @Published private(set) var pity: Int
+
+    private init() {
+        let d = UserDefaults.standard
+        eggs = d.integer(forKey: Self.eggKey)
+        shards = d.integer(forKey: Self.shardKey)
+        pity = d.integer(forKey: Self.pityKey)
+    }
+
+    /// Eggs from a completed study session: ~1 per 25 minutes, minimum 1.
+    func awardEggs(forMinutes minutes: Int) {
+        eggs += max(1, minutes / 25)
+        persist()
+    }
+
+    var canHatchOne: Bool { eggs >= 1 && !GachaPool.pool.isEmpty }
+    var canHatchTen: Bool { eggs >= 10 && !GachaPool.pool.isEmpty }
+
+    /// Spend up to `count` eggs and hatch them. Returns one HatchResult per egg.
+    func hatch(_ count: Int) -> [HatchResult] {
+        let n = min(count, eggs)
+        guard n > 0, !GachaPool.pool.isEmpty else { return [] }
+        eggs -= n
+
+        var results: [HatchResult] = []
+        var gotRarePlus = false
+        for i in 0..<n {
+            let forceRare = pity + 1 >= Self.pityThreshold
+                || (count >= 10 && i == n - 1 && !gotRarePlus)
+            let hero = rollHero(forceRarePlus: forceRare)
+            if hero.rarity >= .rare { gotRarePlus = true; pity = 0 } else { pity += 1 }
+
+            if ownedIDs().contains(hero.id) {
+                let s = shardValue(hero.rarity)
+                shards += s
+                results.append(HatchResult(hero: hero, isNew: false, shardsGained: s))
+            } else {
+                grantOwnership(hero)        // hatched biobuds are ready to field
+                results.append(HatchResult(hero: hero, isNew: true, shardsGained: 0))
+            }
+        }
+        persist()
+        return results
+    }
+
+    func reset() {
+        eggs = 0; shards = 0; pity = 0
+        let d = UserDefaults.standard
+        d.removeObject(forKey: Self.eggKey)
+        d.removeObject(forKey: Self.shardKey)
+        d.removeObject(forKey: Self.pityKey)
+    }
+
+    private func rollHero(forceRarePlus: Bool) -> Hero {
+        let filtered = forceRarePlus ? GachaPool.pool.filter { $0.rarity >= .rare } : GachaPool.pool
+        let pool = filtered.isEmpty ? GachaPool.pool : filtered
+        let weighted = pool.flatMap { hero in Array(repeating: hero, count: rarityWeight(hero.rarity)) }
+        return weighted.randomElement() ?? pool[0]
+    }
+
+    private func rarityWeight(_ r: Rarity) -> Int {
+        switch r {
+        case .common: 56
+        case .rare: 30
+        case .epic: 12
+        case .legendary: 2
+        }
+    }
+
+    private func shardValue(_ r: Rarity) -> Int {
+        switch r {
+        case .common: 5
+        case .rare: 12
+        case .epic: 25
+        case .legendary: 60
+        }
+    }
+
+    private func ownedIDs() -> Set<String> {
+        RosterStore.persistedOwned().union(CaptureStore.persistedOwned())
+    }
+
+    private func grantOwnership(_ hero: Hero) {
+        if DataSet.capturables.contains(where: { $0.id == hero.id }) {
+            CaptureStore.shared.capture(hero.id)
+        } else {
+            RosterStore.shared.unlock(hero.id)
+        }
+        TrustStore.shared.grantFullTrust(hero)
+    }
+
+    private func persist() {
+        let d = UserDefaults.standard
+        d.set(eggs, forKey: Self.eggKey)
+        d.set(shards, forKey: Self.shardKey)
+        d.set(pity, forKey: Self.pityKey)
     }
 }
 

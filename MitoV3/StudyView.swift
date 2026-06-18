@@ -14,6 +14,8 @@ struct HomeScreen: View {
     @State private var showingClasses = false
     @State private var showingStreak = false
     @State private var showingQuests = false
+    @State private var showingHatch = false
+    @ObservedObject private var eggs = EggStore.shared
     @ObservedObject private var lobby = LobbyService.shared
     @ObservedObject private var streak = StreakStore.shared
     @ObservedObject private var quests = DailyQuests.shared
@@ -85,6 +87,22 @@ struct HomeScreen: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Daily quests: \(quests.completedCount) of 3 done")
+
+                        Button {
+                            showingHatch = true
+                        } label: {
+                            HStack(spacing: 4) {
+                                Text("🥚").font(.system(size: 14))
+                                Text("\(eggs.eggs)")
+                                    .pixelText(size: 11, color: eggs.eggs > 0 ? Color(hex: "F7C943") : Color(hex: "F4E6C0"))
+                            }
+                            .padding(.horizontal, 10)
+                            .frame(height: 34)
+                            .background(Color(hex: "1A1009").opacity(0.82))
+                            .overlay(Rectangle().stroke(eggs.eggs > 0 ? Color(hex: "F7C943") : Color(hex: "18100A"), lineWidth: 3))
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel("Eggs: \(eggs.eggs). Tap to hatch.")
 
                         Spacer()
                         Button {
@@ -246,12 +264,14 @@ struct HomeScreen: View {
             .fullScreenCover(item: $sessionMode) { mode in
                 FocusSession(mode: mode, presented: $sessionMode) { reward, seconds, completed in
                     atp += reward
+                    let minutes = max(0, seconds / 60)
+                    let legit = completed || (mode.isCountUp && minutes >= 5)
+                    // A real session hatches an egg (or more, for longer focus).
+                    if legit { EggStore.shared.awardEggs(forMinutes: minutes) }
                     // Trust: a finished session builds the companion's trust;
                     // bailing early (or a sub-5-min count-up) breaks it.
                     if let cid = TrustStore.shared.companionID,
                        let companion = DataSet.anyHero(id: cid) {
-                        let minutes = max(0, seconds / 60)
-                        let legit = completed || (mode.isCountUp && minutes >= 5)
                         if legit {
                             TrustStore.shared.addStudyMinutes(minutes, to: companion)
                         } else {
@@ -274,6 +294,9 @@ struct HomeScreen: View {
                         ])
                     }
                 }
+            }
+            .fullScreenCover(isPresented: $showingHatch) {
+                HatchView(isPresented: $showingHatch)
             }
             .onChange(of: selectedTab) { _, tab in
                 // Close transient sheets/popovers when leaving Home (an active

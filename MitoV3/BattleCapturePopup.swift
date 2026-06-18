@@ -362,3 +362,162 @@ private struct BioBudShareCard: View {
         return Image(uiImage: ui)
     }
 }
+
+// MARK: - Egg hatch (gacha) screen
+
+/// Full-screen hatch screen, reached from the egg button on the home meadow.
+/// Eggs are earned by studying; here you spend them to hatch biobuds (×1 or
+/// ×10). Reuses the NewBioBudReveal for the new-biobud moment.
+struct HatchView: View {
+    @Binding var isPresented: Bool
+    @ObservedObject private var egg = EggStore.shared
+    @State private var single: HatchResult?
+    @State private var multi: [HatchResult]?
+    @State private var eggWobble = false
+
+    var body: some View {
+        ZStack {
+            RadialGradient(
+                colors: [Color(hex: "3A2A18"), Color(hex: "140D07"), Color.black],
+                center: .center, startRadius: 24, endRadius: 560
+            )
+            .ignoresSafeArea()
+
+            if let single {
+                singleReveal(single)
+            } else if let multi {
+                multiResults(multi)
+            } else {
+                hatchHome
+            }
+        }
+    }
+
+    // MARK: Home
+    private var hatchHome: some View {
+        VStack(spacing: 16) {
+            HStack {
+                Spacer()
+                Button { isPresented = false } label: {
+                    Text("X").pixelText(size: 14, color: Color(hex: "F4E6C0")).padding(12)
+                }
+                .buttonStyle(.plain)
+            }
+            Spacer()
+            Text("🥚")
+                .font(.system(size: 92))
+                .rotationEffect(.degrees(eggWobble ? 6 : -6))
+                .animation(.easeInOut(duration: 0.9).repeatForever(autoreverses: true), value: eggWobble)
+            Text("\(egg.eggs)")
+                .pixelText(size: 30, color: Color(hex: "F7C943"))
+            Text(egg.eggs == 1 ? "EGG" : "EGGS")
+                .pixelText(size: 10, color: Color(hex: "E9D8B6"))
+            Text("study sessions hatch biobuds")
+                .font(.custom(MitoFont.regular, size: 14))
+                .foregroundStyle(Color(hex: "E9D8B6"))
+            if egg.shards > 0 {
+                Text("✦ \(egg.shards) SHARDS")
+                    .pixelText(size: 9, color: Color(hex: "C7A6F2"))
+            }
+            Spacer()
+            VStack(spacing: 10) {
+                hatchButton("HATCH ×1", enabled: egg.canHatchOne) {
+                    if let r = egg.hatch(1).first {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { single = r }
+                    }
+                }
+                hatchButton("HATCH ×10", enabled: egg.canHatchTen) {
+                    let r = egg.hatch(10)
+                    if !r.isEmpty {
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) { multi = r }
+                    }
+                }
+            }
+            .padding(.bottom, 34)
+        }
+        .padding(.horizontal, 22)
+        .onAppear { eggWobble = true }
+    }
+
+    private func hatchButton(_ title: String, enabled: Bool, _ action: @escaping () -> Void) -> some View {
+        Button {
+            guard enabled else { return }
+            AudioManager.shared.play(.reward)
+            Haptics.success()
+            action()
+        } label: {
+            Text(title)
+                .pixelText(size: 15, color: Color(hex: "1A130A"))
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(enabled ? Color(hex: "F7C943") : Color(hex: "6B4324"))
+                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+        }
+        .buttonStyle(.plain)
+        .opacity(enabled ? 1 : 0.55)
+    }
+
+    // MARK: Single hatch
+    @ViewBuilder
+    private func singleReveal(_ result: HatchResult) -> some View {
+        if result.isNew {
+            NewBioBudReveal(hero: result.hero, collected: true) {
+                Button { single = nil } label: {
+                    RevealActionLabel(title: L("CONTINUE"), color: Color(hex: "4A8A3C"))
+                }
+                .buttonStyle(.plain)
+            }
+        } else {
+            ZStack {
+                Color.black.opacity(0.84).ignoresSafeArea()
+                BioBudBurst(rarity: result.hero.rarity)
+                VStack(spacing: 12) {
+                    SpriteView(asset: result.hero.asset, size: 150)
+                    Text(L(result.hero.name).uppercased())
+                        .pixelText(size: 16, color: result.hero.rarity.color)
+                    Text("ALREADY IN YOUR COLLECTION")
+                        .pixelText(size: 8, color: Color(hex: "E9D8B6"))
+                    Text("✦ +\(result.shardsGained) SHARDS")
+                        .pixelText(size: 12, color: Color(hex: "C7A6F2"))
+                    Button { single = nil } label: {
+                        RevealActionLabel(title: L("CONTINUE"), color: Color(hex: "4A8A3C"))
+                    }
+                    .buttonStyle(.plain)
+                    .frame(width: 210)
+                    .padding(.top, 8)
+                }
+            }
+        }
+    }
+
+    // MARK: 10× hatch
+    private func multiResults(_ results: [HatchResult]) -> some View {
+        VStack(spacing: 14) {
+            Text("10× HATCH")
+                .pixelText(size: 18, color: Color(hex: "F7C943"))
+                .padding(.top, 44)
+            ScrollView(showsIndicators: false) {
+                LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8), count: 4), spacing: 8) {
+                    ForEach(results) { r in
+                        VStack(spacing: 3) {
+                            SpriteView(asset: r.hero.asset, size: 44)
+                            Text(r.isNew ? "NEW" : "+\(r.shardsGained)")
+                                .pixelText(size: 7, color: r.isNew ? Color(hex: "9CD67D") : Color(hex: "C7A6F2"))
+                        }
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 6)
+                        .background(Color(hex: "F4E6C0").opacity(0.10))
+                        .overlay(Rectangle().stroke(r.hero.rarity.color, lineWidth: 2))
+                    }
+                }
+                .padding(.horizontal, 16)
+            }
+            Button { multi = nil } label: {
+                RevealActionLabel(title: L("CONTINUE"), color: Color(hex: "4A8A3C"))
+            }
+            .buttonStyle(.plain)
+            .frame(width: 220)
+            .padding(.bottom, 32)
+        }
+    }
+}

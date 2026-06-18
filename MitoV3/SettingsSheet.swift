@@ -293,6 +293,10 @@ private struct DevToolsSection: View {
                     }
                     note = "currency maxed"
                 }
+                devButton("+30 EGGS") {
+                    for _ in 0..<3 { EggStore.shared.awardEggs(forMinutes: 250) }
+                    note = "+30 eggs"
+                }
                 devButton("REPLAY TUTORIAL") {
                     let d = UserDefaults.standard
                     d.set(true, forKey: "mito.onboarded")
