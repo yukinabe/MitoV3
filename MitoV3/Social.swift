@@ -91,7 +91,7 @@ struct FriendsView: View {
                     .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
             }
             .buttonStyle(.plain)
-            Text("Payments coming soon — this dev build unlocks instantly.")
+            Text("Payments coming soon. This dev build unlocks instantly.")
                 .font(.custom(MitoFont.regular, size: 11))
                 .foregroundStyle(Color(hex: "6B4324"))
         }
@@ -110,7 +110,7 @@ struct FriendsView: View {
                             .textSelection(.enabled)
                         Spacer()
                         if !myCode.isEmpty {
-                            ShareLink(item: "Study with me on Mito, the pixel study RPG! 🔥 Add me with friend code \(myCode) — we can run co-op focus sessions and deck duels.") {
+                            ShareLink(item: "Study with me on Mito, the pixel study RPG! 🔥 Add me with friend code \(myCode) so we can run co-op focus sessions and deck duels.") {
                                 Text("INVITE")
                                     .pixelText(size: 11, color: .white)
                                     .padding(.horizontal, 14)
@@ -165,7 +165,7 @@ struct FriendsView: View {
                     HStack { Spacer(); ProgressView().tint(Color(hex: "6B4324")); Spacer() }
                         .padding(.vertical, 6)
                 } else if accepted.isEmpty {
-                    Text("No friends yet — share your code above.")
+                    Text("No friends yet. Share your code above.")
                         .font(.custom(MitoFont.regular, size: 13))
                         .foregroundStyle(Color(hex: "6B4324"))
                 }
@@ -246,7 +246,7 @@ struct FriendsView: View {
     private func load() async {
         guard BetaConfig.premiumActive, backend.isReady, !loading else { return }
         loading = true; defer { loading = false }
-        myCode = (try? await backend.myFriendCode()) ?? "—"
+        myCode = (try? await backend.myFriendCode()) ?? "..."
         friends = (try? await backend.fetchFriends()) ?? []
         league = (try? await backend.fetchLeague()) ?? []
     }

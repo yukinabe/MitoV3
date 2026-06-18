@@ -264,7 +264,7 @@ struct NotificationPrimerView: View {
                 Text("🔔").font(.system(size: 40))
                 Text("STAY ON TRACK")
                     .pixelText(size: 17, color: Color(hex: "3A2A18"))
-                Text("Mito can remind you when your cards are due and when your streak is about to break. Just the two nudges — no spam.")
+                Text("Mito can remind you when your cards are due and when your streak is about to break. Just the two nudges, no spam.")
                     .font(.custom(MitoFont.regular, size: 14))
                     .foregroundStyle(Color(hex: "6B4324"))
                     .multilineTextAlignment(.center)

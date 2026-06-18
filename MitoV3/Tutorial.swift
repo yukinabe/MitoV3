@@ -30,6 +30,8 @@ enum TutorialBeat: Equatable {
     /// player fights/navigates freely. Advances when `TutorialManager.complete(target)` fires —
     /// used to wait out a campaign battle or a post-win popup without blocking the screen.
     case wait(target: String, caption: String?)
+    /// Point out a real control without forcing the player to use it right now.
+    case coach(target: String, caption: String)
 
     var spotlightTarget: String? {
         if case .spotlight(let t, _) = self { return t }
@@ -41,7 +43,7 @@ enum TutorialBeat: Equatable {
         switch self {
         case .spotlight(let t, _): return t
         case .wait(let t, _): return t
-        case .say: return nil
+        case .say, .coach: return nil
         }
     }
 }
@@ -125,14 +127,18 @@ enum TutorialScript {
                  text: L("let's go! that's the whole loop. answer, hit, repeat. you've basically got it.")),
             // — Bridge to study / ATP
             .say(speaker: mito, name: L("Mito"),
-                 text: L("battles train your memory. and studying earns ATP to level the team up.")),
+                 text: L("battles train your memory. real focus sessions earn ATP, eggs, and time with the BioBud studying beside you.")),
             .spotlight(target: "tab.home", caption: L("back to your meadow")),
-            .spotlight(target: "study", caption: L("this is your real focus time. every session earns ATP")),
+            .spotlight(target: "study", caption: L("open the study menu")),
+            .coach(target: "study.companion",
+                   caption: L("Choose a BioBud under STUDY WITH. Completed focus time builds that character's Trust.")),
+            .coach(target: "home.eggs",
+                   caption: L("Completed study sessions also earn eggs. Tap this counter later to draw a crack and hatch a new BioBud.")),
             // — Point them at the campaign / first recruit
             .say(speaker: mito, name: L("Mito"),
                  text: L("one more thing. we don't have to fight solo forever.")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("clear a Campaign stage and its boss joins the team. first up is Chloro, a chloroplast who hits HARD."),
+                 text: L("clear a Campaign boss and they join your roster. first up is Chloro, a chloroplast who hits HARD."),
                  partner: "hero-chloroplast-hop", partnerName: L("Chloro")),
             // — Forced campaign: stage 1 (recruit Chloro)
             .spotlight(target: "tab.battle", caption: L("head to Battle ⚔")),
@@ -142,18 +148,22 @@ enum TutorialScript {
             .spotlight(target: "campaign.start", caption: L("start the fight")),
             .wait(target: "campaign.cleared.1", caption: L("defeat the boss to free Chloro!")),
             .wait(target: "campaign.return", caption: L("nice! head back when you're done")),
-            // — Forced campaign: stage 2 (learn to capture)
+            // — Explain collection + Trust without forcing another full battle
             .say(speaker: mito, name: L("Mito"),
-                 text: L("Chloro's with us now. one more: Stage 2 teaches you to capture a wild one."),
+                 text: L("Chloro joined your roster, but campaign recruits need to trust you before they can fight. Pick Chloro under STUDY WITH and finish sessions together to fully unlock them."),
                  partner: "hero-chloroplast-hop", partnerName: L("Chloro")),
-            .spotlight(target: "battle.campaign", caption: L("open the Campaign map")),
-            .spotlight(target: "campaign.stage2", caption: L("tap Stage 2")),
-            .spotlight(target: "campaign.pickDeck", caption: L("pick a deck to fight with")),
-            .spotlight(target: "campaign.start", caption: L("start the fight")),
-            .wait(target: "campaign.cleared.2", caption: L("beat it down, then CAPTURE it!")),
-            .wait(target: "campaign.return", caption: L("all done! head back when you're ready")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("that's the whole loop: study, battle, recruit, capture. go get 'em. 🫡")),
+                 text: L("you can capture wild BioBuds after certain fights too. Recruits and captures build Trust; BioBuds hatched from study eggs arrive ready to fight.")),
+            // — Cards: create manually or bring an existing Anki collection
+            .spotlight(target: "tab.cards", caption: L("last stop: your flashcard library")),
+            .say(speaker: mito, name: L("Mito"),
+                 text: L("decks power every review battle. Make a deck, open it, then add cards with a front, back, and optional tags. Saved cards are immediately available in Battle.")),
+            .coach(target: "cards.new",
+                   caption: L("Use + NEW to create a deck. Open that deck and tap + ADD CARD to write the front, back, and tags.")),
+            .coach(target: "cards.import",
+                   caption: L("Already use Anki? Tap IMPORT, then IMPORT ANKI DECK and choose the .apkg file exported from Anki.")),
+            .say(speaker: mito, name: L("Mito"),
+                 text: L("that's Mito: make or import cards, review them in battle, clear Campaign bosses, and turn real study time into ATP, Trust, eggs, and new BioBuds. 🫡")),
         ]
     }
 }
@@ -181,6 +191,15 @@ struct TutorialHost: View {
                 TutorialWaitBanner(caption: caption, onSkip: { manager.skip() })
                     .transition(.opacity)
                     .zIndex(60)
+            case let .coach(target, caption):
+                TutorialSpotlight(
+                    rect: anchors[target],
+                    caption: caption,
+                    size: size,
+                    onAdvance: { manager.advance() },
+                    onSkip: { manager.skip() }
+                )
+                .zIndex(60)
             }
         }
     }
@@ -311,6 +330,7 @@ private struct TutorialSpotlight: View {
     let rect: CGRect?
     let caption: String?
     let size: CGSize
+    var onAdvance: (() -> Void)? = nil
     let onSkip: () -> Void
     @State private var pulse = false
 
@@ -345,6 +365,25 @@ private struct TutorialSpotlight: View {
                                   y: r.minY > 120 ? r.minY - 34 : r.maxY + 40)
                         .allowsHitTesting(false)
                 }
+
+                if let onAdvance {
+                    Color.clear
+                        .frame(width: r.width, height: r.height)
+                        .contentShape(Rectangle())
+                        .position(x: r.midX, y: r.midY)
+                        .onTapGesture { }
+
+                    Button(action: onAdvance) {
+                        Text("NEXT ▸")
+                            .pixelText(size: 11, color: Color(hex: "18100A"))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 11)
+                            .background(Color(hex: "FFD24D"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+                    .position(x: size.width / 2, y: min(size.height - 72, r.maxY + 92))
+                }
             } else {
                 // Target not on-screen yet: dim + caption + wait (advance comes from `complete`).
                 Color.black.opacity(0.6)
@@ -360,6 +399,19 @@ private struct TutorialSpotlight: View {
                         .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 2))
                         .position(x: size.width / 2, y: size.height * 0.5)
                         .allowsHitTesting(false)
+                }
+
+                if let onAdvance {
+                    Button(action: onAdvance) {
+                        Text("NEXT ▸")
+                            .pixelText(size: 11, color: Color(hex: "18100A"))
+                            .padding(.horizontal, 18)
+                            .padding(.vertical, 11)
+                            .background(Color(hex: "FFD24D"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+                    .position(x: size.width / 2, y: size.height - 72)
                 }
             }
 

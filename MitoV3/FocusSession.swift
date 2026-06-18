@@ -23,7 +23,7 @@ enum StudyMode: String, CaseIterable, Identifiable {
         switch self {
         case .focus: "25 minute sprint"
         case .deepFocus: "50 minute deep work"
-        case .countUp: "Open · 5 min – 2 hr"
+        case .countUp: "Open · 5 min to 2 hr"
         }
     }
 
@@ -148,6 +148,7 @@ struct ModePickerPanel: View {
                 }
             }
             .padding(.bottom, 2)
+            .tutorialAnchor("study.companion")
         }
     }
 
@@ -238,7 +239,7 @@ struct FocusSession: View {
                     .padding(.top, 64)
 
                     if lock.softLockEnabled && !mode.isCountUp {
-                        Text("🔒 STAY IN MITO — LEAVING VOIDS THE RUN")
+                        Text("🔒 STAY IN MITO. LEAVING VOIDS THE RUN")
                             .pixelText(size: 8, color: Color(hex: "F4E6C0").opacity(0.8))
                             .padding(.horizontal, 12)
                             .padding(.vertical, 7)
@@ -302,7 +303,7 @@ struct FocusSession: View {
                 Text("Studied \(studiedText)")
                     .font(.custom(MitoFont.regular, size: 14))
                     .foregroundStyle(Color(hex: "6B4324"))
-                Text(earned > 0 ? "+\(earned) ATP" : (bailed ? "No reward — you left the app" : "No reward (study 5+ min)"))
+                Text(earned > 0 ? "+\(earned) ATP" : (bailed ? "No reward. You left the app" : "No reward (study 5+ min)"))
                     .pixelText(size: 15, color: earned > 0 ? Color(hex: "C8881A") : Color(hex: "8A6A40"))
                 if let shareImage, earned > 0 {
                     ShareLink(
@@ -384,7 +385,7 @@ struct FocusSession: View {
     }
 
     private var headline: String {
-        if bailed { return "YOU LEFT — RUN VOID" }
+        if bailed { return "YOU LEFT. RUN VOID" }
         if !mode.isCountUp && elapsed >= mode.durationSeconds {
             return "SESSION COMPLETE"
         }

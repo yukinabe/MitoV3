@@ -103,6 +103,7 @@ struct HomeScreen: View {
                         }
                         .buttonStyle(.plain)
                         .accessibilityLabel("Eggs: \(eggs.eggs). Tap to hatch.")
+                        .tutorialAnchor("home.eggs")
 
                         Spacer()
                         Button {

@@ -142,7 +142,7 @@ struct ClassesView: View {
         if loading && classes.isEmpty {
             HStack { Spacer(); ProgressView().tint(cBark); Spacer() }.padding(.vertical, 6)
         } else if classes.isEmpty {
-            Text("No classes yet — create one or join with a code.")
+            Text("No classes yet. Create one or join with a code.")
                 .font(.custom(MitoFont.regular, size: 13)).foregroundStyle(cBark)
         }
         ForEach(classes) { klass in
@@ -197,7 +197,7 @@ struct ClassesView: View {
             } else {
                 message = "No class with that code."
             }
-        } catch { message = "Couldn't join — the class may be full." }
+        } catch { message = "Couldn't join. The class may be full." }
     }
 }
 
@@ -288,7 +288,7 @@ struct ClassDetailView: View {
     @ViewBuilder private var sharedDecksSection: some View {
         Text("SHARED DECKS (\(decks.count))").pixelText(size: 10, color: cInk)
         if decks.isEmpty {
-            Text("No shared decks yet — share one above to help the class.")
+            Text("No shared decks yet. Share one above to help the class.")
                 .font(.custom(MitoFont.regular, size: 12)).foregroundStyle(cBark)
         }
         ForEach(decks) { deck in
@@ -354,7 +354,7 @@ struct ClassDetailView: View {
             return
         }
         guard let cards = try? await backend.fetchClassDeckCards(deck.id), !cards.isEmpty else {
-            message = "Couldn't copy — deck was empty."; return
+            message = "Couldn't copy. The deck was empty."; return
         }
         // Persist into the player's own cloud decks, then reload the review
         // session so the copy is immediately studyable and syncs across devices.

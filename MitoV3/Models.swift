@@ -497,14 +497,14 @@ public enum DeckLimits {
 /// Stable UUIDs keep scheduling state attached across relaunches.
 public enum SeedContent {
     public static let cards: [ReviewCard] = [
-        card("11111111-0000-0000-0000-000000000001", "bio", "Biology 220", "What molecule stores usable cellular energy after mitochondria charge it?", "ATP — adenosine triphosphate.", ["cell", "energy"]),
+        card("11111111-0000-0000-0000-000000000001", "bio", "Biology 220", "What molecule stores usable cellular energy after mitochondria charge it?", "ATP, adenosine triphosphate.", ["cell", "energy"]),
         card("11111111-0000-0000-0000-000000000002", "bio", "Biology 220", "What structure controls what enters and leaves the cell?", "The plasma membrane.", ["cell", "organelles"]),
         card("11111111-0000-0000-0000-000000000003", "bio", "Biology 220", "Which organelle packages and ships proteins?", "The Golgi apparatus.", ["organelles"]),
         card("11111111-0000-0000-0000-000000000004", "bio", "Biology 220", "What carries electrons into the electron transport chain?", "NADH and FADH₂.", ["enzymes", "energy"]),
         card("11111111-0000-0000-0000-000000000005", "bio", "Biology 220", "Where does the citric acid (Krebs) cycle take place?", "The mitochondrial matrix.", ["energy"]),
         card("22222222-0000-0000-0000-000000000001", "phys", "Physics formulas", "State Newton's second law as an equation.", "F = m·a.", ["vectors"]),
         card("22222222-0000-0000-0000-000000000002", "phys", "Physics formulas", "What is the kinetic energy of a moving body?", "KE = ½·m·v².", ["energy"]),
-        card("22222222-0000-0000-0000-000000000003", "phys", "Physics formulas", "What stays constant in uniform circular motion: speed or velocity?", "Speed — velocity changes because direction changes.", ["vectors"]),
+        card("22222222-0000-0000-0000-000000000003", "phys", "Physics formulas", "What stays constant in uniform circular motion: speed or velocity?", "Speed. Velocity changes because direction changes.", ["vectors"]),
         card("33333333-0000-0000-0000-000000000001", "orgo", "Organic mechanisms", "What stereochemical outcome does an SN2 reaction give?", "Inversion of configuration (Walden inversion).", ["exam"]),
         card("33333333-0000-0000-0000-000000000002", "orgo", "Organic mechanisms", "Which mechanism is favoured by tertiary substrates and weak nucleophiles?", "SN1.", ["exam"]),
     ]

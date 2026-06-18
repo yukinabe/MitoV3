@@ -94,7 +94,7 @@ struct WaitlistGate: View {
         await backend.logEvent("waitlist_joined")
         working = false
         joined = ok
-        message = ok ? "You're on the list — we'll email your invite. Have a code? Enter it above to jump in now."
+        message = ok ? "You're on the list. We'll email your invite. Have a code? Enter it above to jump in now."
                      : "Couldn't reach the server. Check your connection and try again."
     }
 }

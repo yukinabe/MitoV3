@@ -60,7 +60,7 @@ struct ShopScreen: View {
             VStack(alignment: .leading, spacing: 4) {
                 Text("RIBO'S SHOP")
                     .pixelText(size: 15, color: Color(hex: "3A2A18"))
-                Text("\"Coins for the journey, gems for flair — but ATP? You earn that.\"")
+                Text("\"Coins for the journey, gems for flair. But ATP? You earn that.\"")
                     .font(.custom(MitoFont.regular, size: 13))
                     .foregroundStyle(Color(hex: "5B442A"))
                     .lineLimit(2)
@@ -81,7 +81,7 @@ struct ShopScreen: View {
             ShopOfferCard(
                 art: .asset("btn-pot"),
                 title: "Daily Reward",
-                detail: dailyClaimed ? "Claimed — come back tomorrow." : "Free every day. +25 gems and +500 coins.",
+                detail: dailyClaimed ? "Claimed. Come back tomorrow." : "Free every day. +25 gems and +500 coins.",
                 actionTitle: dailyClaimed ? "DONE" : "CLAIM",
                 actionTint: dailyClaimed ? Color(hex: "8A6B42") : Color(hex: "4A8A3C"),
                 enabled: !dailyClaimed,
@@ -296,7 +296,7 @@ struct GemPack: Identifiable {
         GemPack(gems: 100, price: "$0.99", bonus: "Starter handful."),
         GemPack(gems: 550, price: "$4.99", bonus: "+10% bonus gems."),
         GemPack(gems: 1200, price: "$9.99", bonus: "+20% bonus gems."),
-        GemPack(gems: 3000, price: "$19.99", bonus: "+30% — best value.")
+        GemPack(gems: 3000, price: "$19.99", bonus: "+30% bonus. Best value.")
     ]
 }
 

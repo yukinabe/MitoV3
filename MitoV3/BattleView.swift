@@ -79,6 +79,19 @@ enum BattleRating: CaseIterable, Equatable {
     }
 }
 
+/// One enemy in a (possibly multi-enemy) encounter. The targeted enemy mirrors
+/// into `mobHP`/`enemyMaxHP` so the existing single-enemy combat choreography
+/// keeps working unchanged; the rest render as flanking foes you can tap to aim.
+struct EnemyUnit: Identifiable, Equatable {
+    let id = UUID()
+    var asset: String
+    var name: String
+    var rarityLabel: String?
+    var hp: Int
+    var maxHP: Int
+    var alive: Bool { hp > 0 }
+}
+
 struct BattleScreen: View {
     @Binding var atp: Int
     @Binding var gold: Int
@@ -104,6 +117,12 @@ struct BattleScreen: View {
     /// Per-character HP for Campaign (keyed by hero id). Endless has no player HP.
     @State private var heroHP: [String: Int] = [:]
     @State private var enemyMaxHP = 132
+    /// All enemies in the current encounter. `enemies[targetIndex]` is the one
+    /// mirrored into mobHP/enemyMaxHP and shown front-and-centre; the others are
+    /// flanking foes. Campaign is always a single boss (count 1); endless waves
+    /// can field up to three so AoE/single-target choices matter.
+    @State private var enemies: [EnemyUnit] = []
+    @State private var targetIndex = 0
     @State private var wave = 1
     @State private var currentCard = 0
     @State private var showingAnswer = false
@@ -280,11 +299,12 @@ struct BattleScreen: View {
         if !didUITestJump, ProcessInfo.processInfo.arguments.contains("-uitestCampaign") {
             didUITestJump = true
             battleMode = .campaign
-            enemyMaxHP = BattleScaling.campaignEnemyHP(
+            let utHP = BattleScaling.campaignEnemyHP(
                 stageIndex: selectedStage.id,
                 tierMultiplier: selectedStage.tierMultiplier
             )
-            mobHP = enemyMaxHP
+            let utID = campaignEnemyIdentity()
+            spawnSingleEnemy(asset: utID.asset, name: utID.name, maxHP: utHP, rarity: utID.rarity)
             heroHP = Dictionary(uniqueKeysWithValues: activeTeam.map { ($0.id, $0.hp) })
             resetCombatFlow()
             showingAnswer = ProcessInfo.processInfo.arguments.contains("-uitestReveal")
@@ -297,15 +317,13 @@ struct BattleScreen: View {
         didUITestJump = true
         battleMode = .endless
         wave = 1
-        enemyMaxHP = BattleScaling.endlessEnemyHP(teamLevel: teamLevel, wave: 1)
-        mobHP = enemyMaxHP
+        spawnEndlessWave()
         resetCombatFlow()
         session.start(deckIDs: [])
         if ProcessInfo.processInfo.arguments.contains("-uitestFinalStand") {
             finishingWithoutCards = true
             choosingAbility = true
-            enemyMaxHP = 40
-            mobHP = 40
+            spawnSingleEnemy(asset: "wild-mutagem-hop", name: "Mutagem", maxHP: 40, rarity: "EPIC")
         }
         // UI-test: force an answer mode, e.g. -uitestAnswerMode=multipleChoice
         if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-uitestAnswerMode=") }),
@@ -392,7 +410,7 @@ struct BattleScreen: View {
                 VStack(spacing: 3) {
                     Text("BATTLE")
                         .pixelText(size: 22, color: Color(hex: "F4E6C0"))
-                    Text("Study freely - your team fights alongside you.")
+                    Text("Study freely. Your team fights alongside you.")
                         .font(.custom(MitoFont.regular, size: 12))
                         .foregroundStyle(Color(hex: "F4E6C0"))
                 }
@@ -451,8 +469,7 @@ struct BattleScreen: View {
             onStart: {
                 battleMode = .endless
                 wave = 1
-                enemyMaxHP = BattleScaling.endlessEnemyHP(teamLevel: teamLevel, wave: 1)
-                mobHP = enemyMaxHP
+                spawnEndlessWave()
                 resetCombatFlow()
                 session.start(deckIDs: selectedDecks, tags: selectedTags)
                 prepareAnswerMode()
@@ -526,11 +543,12 @@ struct BattleScreen: View {
                 guard !selectedDecks.isEmpty else { return }
                 battleMode = .campaign
                 wave = 1
-                enemyMaxHP = BattleScaling.campaignEnemyHP(
+                let stageHP = BattleScaling.campaignEnemyHP(
                     stageIndex: selectedStage.id,
                     tierMultiplier: selectedStage.tierMultiplier
                 )
-                mobHP = enemyMaxHP
+                let stageID = campaignEnemyIdentity()
+                spawnSingleEnemy(asset: stageID.asset, name: stageID.name, maxHP: stageHP, rarity: stageID.rarity)
                 heroHP = Dictionary(uniqueKeysWithValues: activeTeam.map { ($0.id, $0.hp) })
                 resetCombatFlow()
                 session.start(deckIDs: selectedDecks, tags: selectedTags)
@@ -550,7 +568,7 @@ struct BattleScreen: View {
             streak: streak,
             currentCard: currentCard,
             showingAnswer: showingAnswer,
-            questionText: session.current?.front ?? "No cards due — add a deck to keep studying.",
+            questionText: session.current?.front ?? "No cards due. Add a deck to keep studying.",
             answerText: session.current?.back ?? "",
             cardTag: session.current?.tags.first?.uppercased() ?? "REVIEW",
             activeHeroIndex: activeHeroIndex,
@@ -825,6 +843,82 @@ struct BattleScreen: View {
         heroHP[target.id] = min(target.hp, (heroHP[target.id] ?? target.hp) + amount)
     }
 
+    // MARK: - Enemy encounter spawning (multi-enemy)
+
+    /// Keep mobHP/enemyMaxHP pointed at the targeted enemy so the existing
+    /// single-enemy choreography (strike, flash, HP bar) keeps working.
+    private func syncTargetMirror() {
+        guard enemies.indices.contains(targetIndex) else { return }
+        mobHP = enemies[targetIndex].hp
+        enemyMaxHP = enemies[targetIndex].maxHP
+    }
+
+    private var allEnemiesDefeated: Bool { !enemies.isEmpty && enemies.allSatisfy { !$0.alive } }
+
+    private var livingEnemyCount: Int { enemies.filter { $0.alive }.count }
+
+    /// After the targeted enemy dies, aim at the next living one (if any).
+    private func retargetToLivingEnemy() {
+        if let next = enemies.firstIndex(where: { $0.alive }) {
+            targetIndex = next
+            syncTargetMirror()
+        }
+    }
+
+    /// A single-boss encounter (campaign, UI tests). Array of one.
+    private func spawnSingleEnemy(asset: String, name: String, maxHP: Int, rarity: String?) {
+        enemies = [EnemyUnit(asset: asset, name: name, rarityLabel: rarity, hp: maxHP, maxHP: maxHP)]
+        targetIndex = 0
+        syncTargetMirror()
+    }
+
+    /// Sprite/name shown for the current campaign stage's boss.
+    private func campaignEnemyIdentity() -> (asset: String, name: String, rarity: String?) {
+        if let id = campaignBossHeroID, let hero = DataSet.anyHero(id: id) {
+            return (hero.asset, hero.name, "BOSS")
+        }
+        let fallback = DataSet.anyHero(id: "wild-spikevyrus")
+        return (fallback?.asset ?? "wild-spikevyrus-hop", fallback?.name ?? "Spikevyrus", nil)
+    }
+
+    /// How many foes an endless wave fields. Boss waves (every 4th) stay solo and
+    /// beefy; otherwise the crowd grows as the run goes on, up to three.
+    private func endlessEnemyCount(wave: Int) -> Int {
+        if wave % 4 == 0 { return 1 }
+        if wave >= 6 { return 3 }
+        if wave >= 3 { return 2 }
+        return 1
+    }
+
+    private func endlessEnemyIdentity(wave: Int, slot: Int) -> (asset: String, name: String) {
+        let pool: [(id: String, fallback: String)] = [
+            ("wild-mutagem", "Mutagem"),
+            ("wild-cytocrawler", "Cytocrawler"),
+            ("wild-spikevyrus", "Spikevyrus")
+        ]
+        let pick = pool[(wave + slot) % pool.count]
+        let hero = DataSet.anyHero(id: pick.id)
+        return (hero?.asset ?? "\(pick.id)-hop", hero?.name ?? pick.fallback)
+    }
+
+    /// Build the current endless wave's foes and aim at the first.
+    private func spawnEndlessWave() {
+        let count = endlessEnemyCount(wave: wave)
+        let perHP = BattleScaling.endlessEnemyHP(teamLevel: teamLevel, wave: wave)
+        enemies = (0..<count).map { slot in
+            let identity = endlessEnemyIdentity(wave: wave, slot: slot)
+            return EnemyUnit(
+                asset: identity.asset,
+                name: identity.name,
+                rarityLabel: count == 1 ? "EPIC" : nil,
+                hp: perHP,
+                maxHP: perHP
+            )
+        }
+        targetIndex = 0
+        syncTargetMirror()
+    }
+
     private func resetCombatFlow() {
         currentCard = battleMode == .campaign ? 1 : 0
         reviewedCards = 0
@@ -951,7 +1045,6 @@ struct BattleScreen: View {
             actor: actor,
             combatBuffs: combatBuffs
         )
-        let enemyDefeated = ability.dealsDamage && (mobHP - damage <= 0)
         // End of turn: existing buffs tick down, then this ability's grants apply.
         combatBuffs.tickAll()
         applyGrants(ability)
@@ -989,7 +1082,7 @@ struct BattleScreen: View {
             visualAbility = nil
         }
         attackToken += 1
-        mobHP = max(0, mobHP - damage)
+        let enemyDefeated = applyAbilityDamage(ability, baseDamage: damage)
         if !isFreeFinisher {
             reviewedCards += 1
             streak = battleMode == .endless ? streak + 1 : (rating == .again ? 0 : streak + 1)
@@ -1083,8 +1176,7 @@ struct BattleScreen: View {
         switch continuation {
         case .nextWave:
             wave += 1
-            enemyMaxHP = BattleScaling.endlessEnemyHP(teamLevel: teamLevel, wave: wave)
-            mobHP = enemyMaxHP
+            spawnEndlessWave()
             choosingAbility = false
         case .finishRun:
             endlessRunComplete = true

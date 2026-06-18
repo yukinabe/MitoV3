@@ -89,7 +89,7 @@ struct CardsScreen: View {
             .alert("Deck limit reached", isPresented: $showDeckLimit) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("Free accounts keep up to \(DeckLimits.free) decks. Unlock Mito+ for unlimited decks — every deck stays available offline either way.")
+                Text("Free accounts keep up to \(DeckLimits.free) decks. Unlock Mito+ for unlimited decks. Every deck stays available offline either way.")
             }
             .onAppear {
                 #if DEBUG
@@ -141,6 +141,7 @@ struct CardsScreen: View {
                             .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     }
                     .buttonStyle(.plain)
+                    .tutorialAnchor("cards.import")
                     Button {
                         guard DeckLimits.canCreate(currentCount: decks.count) else {
                             showDeckLimit = true; return
@@ -156,6 +157,7 @@ struct CardsScreen: View {
                             .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     }
                     .buttonStyle(.plain)
+                    .tutorialAnchor("cards.new")
                 }
                 .padding(.horizontal, 18)
                 .padding(.top, 12)
@@ -499,7 +501,7 @@ struct DeckDetailScreen: View {
                 }
 
                 if deckTags.isEmpty {
-                    Text("No tags yet — add tags when you create cards.")
+                    Text("No tags yet. Add tags when you create cards.")
                         .font(.custom(MitoFont.regular, size: 13))
                         .foregroundStyle(Color(hex: "8A6B42"))
                 } else {

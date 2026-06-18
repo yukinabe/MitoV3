@@ -316,7 +316,7 @@ private struct DevToolsSection: View {
                               "campaign.story.seen", "study.companion"] {
                         d.removeObject(forKey: k)
                     }
-                    note = "save reset — relaunch the app"
+                    note = "save reset. relaunch the app"
                 }
             }
 
