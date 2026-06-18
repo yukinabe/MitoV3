@@ -248,21 +248,21 @@ struct BattleAbility: Identifiable, Equatable {
     var buffReason: String {
         switch animationKey {
         case "mito-cristae-surge", "mito-powerhouse-burst":
-            return "Floods allies with ATP — +dmg on the next hits."
+            return "Floods allies with ATP for bonus damage on the next hits."
         case "neuro-myelin-guard":
-            return "Myelin shielding — softens incoming recoil."
+            return "Myelin shielding softens incoming recoil."
         case "bcell-affinity-shield", "bcell-memory-response":
-            return "Antibody priming — the team strikes harder."
+            return "Antibody priming makes the team strike harder."
         case "astro-synapse-buffer", "astro-glial-network":
-            return "Glial sync — sharpens the whole party's focus."
+            return "Glial sync sharpens the whole party's focus."
         case "dendri-immune-rally":
-            return "Immune rally — momentum boosts team damage."
+            return "Immune rally boosts team damage."
         case "prion-chain-conformation", "prion-cascade":
-            return "Misfolded structure — the enemy takes heavier hits."
+            return "Misfolded structure makes the enemy take heavier hits."
         case "t4-genome-injection":
-            return "Injected genome — charges the whole team."
+            return "Injected genome charges the whole team."
         case "t4-lytic-burst":
-            return "Lytic burst — speeds up the next turns."
+            return "Lytic burst speeds up the next turns."
         default:
             return "Energizes the team."
         }
@@ -525,7 +525,7 @@ enum BattleAbilityBook {
         case "mito":
             return [
                 BattleAbility(id: "mito-atp-tap", name: "ATP Tap", kind: .basic, damage: 18, detail: "A free ATP spark keeps pressure on the enemy while Mito saves energy for support turns.", theme: "ATP / energy", animationKey: "spark", color: Color(hex: "F48FB1"), energyCost: nil, ultimateChargeRequired: nil),
-                BattleAbility(id: "mito-cristae-surge", name: "Cristae Surge", kind: .skill, damage: 0, detail: "Pure support — no attack. Shields the whole team and restores a little HP.", theme: "ATP support / shield", animationKey: "mito-cristae-surge", color: Color(hex: "FFD24D"), energyCost: 2, ultimateChargeRequired: nil),
+                BattleAbility(id: "mito-cristae-surge", name: "Cristae Surge", kind: .skill, damage: 0, detail: "Pure support, no attack. Shields the whole team and restores a little HP.", theme: "ATP support / shield", animationKey: "mito-cristae-surge", color: Color(hex: "FFD24D"), energyCost: 2, ultimateChargeRequired: nil),
                 BattleAbility(id: "mito-powerhouse-burst", name: "Powerhouse Burst", kind: .ultimate, damage: 34, detail: "Mito floods the field with ATP, stabilizing the whole team and turning stored focus into one safe burst.", theme: "ATP support / team sustain", animationKey: "mito-powerhouse-burst", color: Color(hex: "E77878"), energyCost: nil, ultimateChargeRequired: 4)
             ]
         case "cloro":
@@ -543,7 +543,7 @@ enum BattleAbilityBook {
         case "dendri":
             return [
                 BattleAbility(id: "dendri-scout-prick", name: "Scout Prick", kind: .basic, damage: 16, detail: "A quick immune scout jab marks the enemy's position visually.", theme: "Immune scouting / antigen", animationKey: "jab", color: Color(hex: "E8C64A"), energyCost: nil, ultimateChargeRequired: nil),
-                BattleAbility(id: "dendri-present-antigen", name: "Present Antigen", kind: .skill, damage: 0, detail: "No attack — marks the enemy so the whole team hits it harder.", theme: "Immune scouting / antigen", animationKey: "dendri-present-antigen", color: Color(hex: "F2D85B"), energyCost: 2, ultimateChargeRequired: nil),
+                BattleAbility(id: "dendri-present-antigen", name: "Present Antigen", kind: .skill, damage: 0, detail: "No attack. Marks the enemy so the whole team hits it harder.", theme: "Immune scouting / antigen", animationKey: "dendri-present-antigen", color: Color(hex: "F2D85B"), energyCost: 2, ultimateChargeRequired: nil),
                 BattleAbility(id: "dendri-immune-rally", name: "Immune Rally", kind: .ultimate, damage: 42, detail: "A focused immune call turns one spotted target into team momentum.", theme: "Immune scouting / antigen", animationKey: "dendri-immune-rally", color: Color(hex: "D7A72F"), energyCost: nil, ultimateChargeRequired: 4)
             ]
         case "neuro":
