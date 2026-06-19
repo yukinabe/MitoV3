@@ -89,6 +89,11 @@ struct EnemyUnit: Identifiable, Equatable {
     var rarityLabel: String?
     var hp: Int
     var maxHP: Int
+    /// Hero/creature id used to look up this enemy's ability kit so it can act on
+    /// its turn like a player would.
+    var kitID: String = ""
+    var skillCD: Int = 0
+    var ultCharge: Int = 0
     var alive: Bool { hp > 0 }
 }
 
@@ -123,6 +128,8 @@ struct BattleScreen: View {
     /// can field up to three so AoE/single-target choices matter.
     @State private var enemies: [EnemyUnit] = []
     @State private var targetIndex = 0
+    /// Rotates through living enemies so each takes a turn (campaign only).
+    @State private var enemyTurnIndex = 0
     @State private var wave = 1
     @State private var currentCard = 0
     @State private var showingAnswer = false
@@ -299,12 +306,7 @@ struct BattleScreen: View {
         if !didUITestJump, ProcessInfo.processInfo.arguments.contains("-uitestCampaign") {
             didUITestJump = true
             battleMode = .campaign
-            let utHP = BattleScaling.campaignEnemyHP(
-                stageIndex: selectedStage.id,
-                tierMultiplier: selectedStage.tierMultiplier
-            )
-            let utID = campaignEnemyIdentity()
-            spawnSingleEnemy(asset: utID.asset, name: utID.name, maxHP: utHP, rarity: utID.rarity)
+            spawnCampaignEncounter()
             heroHP = Dictionary(uniqueKeysWithValues: activeTeam.map { ($0.id, $0.hp) })
             resetCombatFlow()
             showingAnswer = ProcessInfo.processInfo.arguments.contains("-uitestReveal")
@@ -543,12 +545,7 @@ struct BattleScreen: View {
                 guard !selectedDecks.isEmpty else { return }
                 battleMode = .campaign
                 wave = 1
-                let stageHP = BattleScaling.campaignEnemyHP(
-                    stageIndex: selectedStage.id,
-                    tierMultiplier: selectedStage.tierMultiplier
-                )
-                let stageID = campaignEnemyIdentity()
-                spawnSingleEnemy(asset: stageID.asset, name: stageID.name, maxHP: stageHP, rarity: stageID.rarity)
+                spawnCampaignEncounter()
                 heroHP = Dictionary(uniqueKeysWithValues: activeTeam.map { ($0.id, $0.hp) })
                 resetCombatFlow()
                 session.start(deckIDs: selectedDecks, tags: selectedTags)
@@ -911,20 +908,105 @@ struct BattleScreen: View {
         Haptics.tap()
     }
 
-    /// A single-boss encounter (campaign, UI tests). Array of one.
-    private func spawnSingleEnemy(asset: String, name: String, maxHP: Int, rarity: String?) {
-        enemies = [EnemyUnit(asset: asset, name: name, rarityLabel: rarity, hp: maxHP, maxHP: maxHP)]
+    // MARK: - Enemy turn (campaign)
+
+    /// One living enemy (rotating) takes its turn. Mirrors the player's auto-mode:
+    /// ultimate when charged, otherwise the skill if it is off cooldown, otherwise
+    /// the basic. Damaging moves hit the lowest-HP hero; support moves heal the foe.
+    private func runCampaignEnemyTurn() {
+        let living = enemies.indices.filter { enemies[$0].alive }
+        guard !living.isEmpty else { return }
+        let slot = living[enemyTurnIndex % living.count]
+        enemyTurnIndex += 1
+
+        let ability = enemyAbilityChoice(enemies[slot])
+
+        // Every enemy's cooldown ticks down; this one then spends its resources.
+        for i in enemies.indices { enemies[i].skillCD = max(0, enemies[i].skillCD - 1) }
+        if ability.kind == .ultimate {
+            enemies[slot].ultCharge = 0
+        } else {
+            enemies[slot].ultCharge = min(ability.ultimateChargeRequired ?? 4, enemies[slot].ultCharge + 1)
+        }
+        if ability.kind == .skill { enemies[slot].skillCD = ability.cooldownTurns }
+
+        if ability.dealsDamage {
+            // Scale the ability's power down for the enemy side and cap it so a
+            // boss ultimate threatens a hero without one-shotting the team. Early
+            // stages only have two heroes, so keep enemy hits modest.
+            var dmg = min(26, Int(Double(ability.damage) * selectedStage.tierMultiplier * 0.30) + 2)
+            dmg = Int(Double(dmg) * combatBuffs.recoilMultiplier)   // a team DEF buff softens it
+            if combatBuffs.shield > 0, dmg > 0 {                    // a team SHIELD soaks first
+                let absorbed = min(combatBuffs.shield, dmg)
+                combatBuffs.shield -= absorbed
+                dmg -= absorbed
+            }
+            if dmg > 0, let targetID = lowestHPHeroID() {
+                heroHP[targetID] = max(0, (heroHP[targetID] ?? 0) - dmg)
+            }
+        } else {
+            // A support move: the creature steadies itself instead of striking.
+            let slotMax = enemies[slot].maxHP
+            enemies[slot].hp = min(slotMax, enemies[slot].hp + max(6, slotMax / 8))
+            syncTargetMirror()
+        }
+        Haptics.tap()
+    }
+
+    private func enemyAbilityChoice(_ enemy: EnemyUnit) -> BattleAbility {
+        let kit = DataSet.anyHero(id: enemy.kitID).map { BattleAbilityBook.abilities(for: $0) } ?? []
+        if let ult = kit.first(where: { $0.kind == .ultimate }),
+           enemy.ultCharge >= (ult.ultimateChargeRequired ?? 4) {
+            return ult
+        }
+        if let skill = kit.first(where: { $0.kind == .skill }), enemy.skillCD == 0 {
+            return skill
+        }
+        if let basic = kit.first(where: { $0.kind == .basic }) ?? kit.first {
+            return basic
+        }
+        return BattleAbility(id: "enemy-strike", name: "Strike", kind: .basic, damage: 16, detail: "", theme: "", animationKey: "tap", color: Color(hex: "C4452F"), energyCost: nil, ultimateChargeRequired: nil)
+    }
+
+    private func lowestHPHeroID() -> String? {
+        activeTeam
+            .filter { (heroHP[$0.id] ?? 0) > 0 }
+            .min(by: { (heroHP[$0.id] ?? 0) < (heroHP[$1.id] ?? 0) })?.id
+    }
+
+    /// A single-boss encounter (UI tests, final stand). Array of one.
+    private func spawnSingleEnemy(asset: String, name: String, maxHP: Int, rarity: String?, kitID: String = "") {
+        enemies = [EnemyUnit(asset: asset, name: name, rarityLabel: rarity, hp: maxHP, maxHP: maxHP, kitID: kitID)]
         targetIndex = 0
+        enemyTurnIndex = 0
         syncTargetMirror()
     }
 
-    /// Sprite/name shown for the current campaign stage's boss.
-    private func campaignEnemyIdentity() -> (asset: String, name: String, rarity: String?) {
-        if let id = campaignBossHeroID, let hero = DataSet.anyHero(id: id) {
-            return (hero.asset, hero.name, "BOSS")
+    /// Build the current campaign stage's enemies. Recruit stages (every third)
+    /// are a single boss who IS the ally you free; the stages between are filler
+    /// fights against a couple of common Fading creatures.
+    private func spawnCampaignEncounter() {
+        let bossHP = BattleScaling.campaignEnemyHP(
+            stageIndex: selectedStage.id,
+            tierMultiplier: selectedStage.tierMultiplier
+        )
+        if let bossID = campaignBossHeroID, let hero = DataSet.anyHero(id: bossID) {
+            enemies = [EnemyUnit(asset: hero.asset, name: hero.name, rarityLabel: "BOSS", hp: bossHP, maxHP: bossHP, kitID: bossID)]
+        } else {
+            let perHP = max(20, Int(Double(bossHP) * 0.6))
+            let commons: [(asset: String, name: String, kit: String)] = [
+                ("wild-spikevyrus-hop", "Spikevyrus", "wild-spikevyrus"),
+                ("wild-mutagem-hop", "Mutagem", "wild-mutagem")
+            ]
+            // Early stages ease the player in with a single foe.
+            let count = selectedStage.id <= 2 ? 1 : 2
+            enemies = commons.prefix(count).map {
+                EnemyUnit(asset: $0.asset, name: $0.name, rarityLabel: nil, hp: perHP, maxHP: perHP, kitID: $0.kit)
+            }
         }
-        let fallback = DataSet.anyHero(id: "wild-spikevyrus")
-        return (fallback?.asset ?? "wild-spikevyrus-hop", fallback?.name ?? "Spikevyrus", nil)
+        targetIndex = 0
+        enemyTurnIndex = 0
+        syncTargetMirror()
     }
 
     /// How many foes an endless wave fields. Boss waves (every 4th) stay solo and
@@ -958,10 +1040,12 @@ struct BattleScreen: View {
                 name: identity.name,
                 rarityLabel: count == 1 ? "EPIC" : nil,
                 hp: perHP,
-                maxHP: perHP
+                maxHP: perHP,
+                kitID: String(identity.asset.dropLast(4))   // "<id>-hop" -> "<id>"
             )
         }
         targetIndex = 0
+        enemyTurnIndex = 0
         syncTargetMirror()
     }
 
@@ -1142,23 +1226,9 @@ struct BattleScreen: View {
         // all three are down. Endless has no player HP and never fails.
         var teamDefeated = false
         if battleMode == .campaign {
-            // DEF buff reduces recoil; a team SHIELD absorbs the rest first.
-            var recoil = Int(
-                Double(BattleScaling.campaignRecoil(
-                    stageIndex: selectedStage.id,
-                    tierMultiplier: selectedStage.tierMultiplier,
-                    rating: rating
-                )) * combatBuffs.recoilMultiplier
-            )
-            if combatBuffs.shield > 0, recoil > 0 {
-                let absorbed = min(combatBuffs.shield, recoil)
-                combatBuffs.shield -= absorbed
-                recoil -= absorbed
-            }
-            if recoil > 0, activeTeam.indices.contains(boundedIndex) {
-                let id = activeTeam[boundedIndex].id
-                heroHP[id] = max(0, (heroHP[id] ?? 0) - recoil)
-            }
+            // The enemy line answers back: one living foe acts with the same
+            // auto-mode logic the player can use (best ability available).
+            runCampaignEnemyTurn()
             advanceTurn(after: boundedIndex)
             teamDefeated = activeTeam.allSatisfy { (heroHP[$0.id] ?? 0) <= 0 }
         } else {

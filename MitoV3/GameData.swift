@@ -644,15 +644,15 @@ enum DataSet {
     ]
 
     static let stages: [Stage] = [
-        Stage(id: 1, name: "Chloroplast Cove", status: .cleared, x: 0.50, y: 0.84, difficulty: "EASY"),
-        Stage(id: 2, name: "Membrane Marsh", status: .cleared, x: 0.40, y: 0.775, difficulty: "EASY"),
-        Stage(id: 3, name: "Neuron Hollow", status: .cleared, x: 0.55, y: 0.71, difficulty: "NORMAL"),
-        Stage(id: 4, name: "Astrocyte Cave", status: .active, x: 0.45, y: 0.645, difficulty: "NORMAL"),
+        Stage(id: 1, name: "Membrane Marsh", status: .active, x: 0.50, y: 0.84, difficulty: "EASY"),
+        Stage(id: 2, name: "Spore Flats", status: .locked, x: 0.40, y: 0.775, difficulty: "EASY"),
+        Stage(id: 3, name: "Chloroplast Cove", status: .locked, x: 0.55, y: 0.71, difficulty: "NORMAL"),
+        Stage(id: 4, name: "Astrocyte Cave", status: .locked, x: 0.45, y: 0.645, difficulty: "NORMAL"),
         Stage(id: 5, name: "Dendrite Ridge", status: .locked, x: 0.58, y: 0.58, difficulty: "NORMAL"),
-        Stage(id: 6, name: "Antibody Gorge", status: .locked, x: 0.42, y: 0.515, difficulty: "HARD"),
+        Stage(id: 6, name: "Neuron Hollow", status: .locked, x: 0.42, y: 0.515, difficulty: "HARD"),
         Stage(id: 7, name: "Lysosome Lair", status: .locked, x: 0.56, y: 0.45, difficulty: "HARD"),
-        Stage(id: 8, name: "Vacuole Vale", status: .locked, x: 0.44, y: 0.385, difficulty: "BOSS"),
-        Stage(id: 9, name: "Cytoskel Span", status: .locked, x: 0.57, y: 0.32, difficulty: "HARD"),
+        Stage(id: 8, name: "Vacuole Vale", status: .locked, x: 0.44, y: 0.385, difficulty: "HARD"),
+        Stage(id: 9, name: "Antibody Gorge", status: .locked, x: 0.57, y: 0.32, difficulty: "HARD"),
         Stage(id: 10, name: "Plastid Pass", status: .locked, x: 0.43, y: 0.255, difficulty: "HARD"),
         Stage(id: 11, name: "Vesicle Vault", status: .locked, x: 0.54, y: 0.19, difficulty: "HARD"),
         Stage(id: 12, name: "Spike Citadel", status: .locked, x: 0.47, y: 0.125, difficulty: "BOSS")
@@ -814,16 +814,15 @@ extension DataSet {
 /// them. Mito is the starter; the rest join one per campaign, in this order.
 /// Stages without an entry are generic (Spikevyrus) fights.
 enum CampaignRecruits {
-    /// stage.id → recruited hero id. Stage 2 is a no-recruit story/mechanic beat
-    /// (a wild Spikevyrus scout that teaches capturing), so Neuro lands on
-    /// campaign 3 and the rest follow.
+    /// stage.id → recruited hero id. The player frees one ally every third stage
+    /// (the boss of that stage IS the ally you recruit); the stages in between
+    /// are filler fights against common Fading creatures with no recruit.
+    /// Astro and Dendri are not campaign recruits; they hatch from study eggs.
     static let byStage: [Int: String] = [
-        1: "cloro",    // Chloro    — DPS
-        3: "neuro",    // Neuro     — Tank
-        4: "t4phage",  // T4 Phage  — Legendary boss recruit (the bacteriophage)
-        5: "dendri",   // Dendri    — Support
-        6: "bcell",    // B Cell    — Support
-        7: "astro"     // Astro     — Support (moved from stage 4)
+        3: "cloro",    // Chloro    DPS
+        6: "neuro",    // Neuro     Tank
+        9: "bcell",    // B Cell    Support
+        12: "t4phage"  // T4 Phage  Legendary final-boss recruit
     ]
 
     static func heroID(forStage id: Int) -> String? { byStage[id] }
@@ -1067,7 +1066,9 @@ final class TrustStore: ObservableObject {
 /// new collectible art is added — that's the only change needed to grow it.
 enum GachaPool {
     static let ids: [String] = [
-        "wild-mutagem", "wild-spikevyrus", "wild-cytocrawler"
+        "wild-mutagem", "wild-spikevyrus", "wild-cytocrawler",
+        // Astro and Dendri are not campaign recruits, so they hatch from eggs.
+        "astro", "dendri"
     ] + DataSet.expansionBiobuds.map(\.id)
     static var pool: [Hero] { ids.compactMap { DataSet.anyHero(id: $0) } }
 }
