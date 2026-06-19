@@ -473,6 +473,11 @@ struct BattleCombatView: View {
     let activeHeroAbilities: [BattleAbility]
     let activeHeroUltCharge: Int
     let enemyMaxHP: Int
+    /// All foes in the encounter; `enemies[targetIndex]` is the one shown centre
+    /// stage (mirrored into mobHP/enemyMaxHP). The rest flank it and are tappable.
+    var enemies: [EnemyUnit] = []
+    var targetIndex: Int = 0
+    var onSelectTarget: (Int) -> Void = { _ in }
     let combatBuffs: CombatBuffs
     let upcomingTurns: [Int]
     let skillCooldownTurns: Int
@@ -544,9 +549,29 @@ struct BattleCombatView: View {
 
     private var currentEnemy: Hero? { DataSet.anyHero(id: currentWildEnemyID) }
 
-    private var enemyName: String { L(currentEnemy?.name ?? (mode == .endless ? "Mutagem" : "Spikevyrus")) }
+    /// The foe shown centre stage (the one you're aimed at).
+    private var targetedEnemy: EnemyUnit? {
+        enemies.indices.contains(targetIndex) ? enemies[targetIndex] : nil
+    }
+
+    /// Sprite for the centred foe, preferring the live encounter data.
+    private var primaryAsset: String {
+        targetedEnemy?.asset ?? currentEnemy?.asset ?? "wild-spikevyrus-hop"
+    }
+
+    /// The other (flanking) foes, with their original indices so taps can re-aim.
+    private var sideEnemies: [(index: Int, unit: EnemyUnit)] {
+        enemies.enumerated()
+            .filter { $0.offset != targetIndex }
+            .map { (index: $0.offset, unit: $0.element) }
+    }
+
+    private var enemyName: String {
+        L(targetedEnemy?.name ?? currentEnemy?.name ?? (mode == .endless ? "Mutagem" : "Spikevyrus"))
+    }
 
     private var enemyRarity: String? {
+        if let label = targetedEnemy?.rarityLabel { return label }
         if bossOverrideID != nil { return "BOSS" }
         return mode == .endless ? "EPIC" : nil
     }
@@ -576,6 +601,10 @@ struct BattleCombatView: View {
                         .padding(.top, 8)
 
                     Spacer().frame(height: mode == .endless ? 24 : 24)
+
+                    sideEnemiesRow
+                        .padding(.horizontal, 24)
+                        .padding(.bottom, sideEnemies.isEmpty ? 0 : 6)
 
                     enemyBlock
                         .padding(.horizontal, 46)
@@ -1294,6 +1323,38 @@ struct BattleCombatView: View {
         }
     }
 
+    /// The flanking foes (everything except the one you're aimed at). Tap one to
+    /// re-aim single-target abilities at it; AoE hits the whole line regardless.
+    @ViewBuilder
+    private var sideEnemiesRow: some View {
+        if !sideEnemies.isEmpty {
+            HStack(spacing: 18) {
+                ForEach(sideEnemies, id: \.unit.id) { entry in
+                    Button { onSelectTarget(entry.index) } label: {
+                        VStack(spacing: 3) {
+                            SpriteView(asset: entry.unit.asset, size: 54)
+                                .opacity(entry.unit.alive ? 0.96 : 0.26)
+                                .saturation(entry.unit.alive ? 1 : 0)
+                            GeometryReader { proxy in
+                                let denom = CGFloat(Swift.max(entry.unit.maxHP, 1))
+                                ZStack(alignment: .leading) {
+                                    Capsule().fill(Color(hex: "1E140C").opacity(0.8))
+                                    Capsule()
+                                        .fill(Color(hex: "58C054"))
+                                        .frame(width: max(2, proxy.size.width * CGFloat(entry.unit.hp) / denom))
+                                }
+                            }
+                            .frame(width: 48, height: 4)
+                        }
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(!entry.unit.alive)
+                }
+            }
+            .frame(maxWidth: .infinity)
+        }
+    }
+
     private var enemyBlock: some View {
         VStack(spacing: 5) {
             HStack(alignment: .center, spacing: 8) {
@@ -1326,10 +1387,10 @@ struct BattleCombatView: View {
             .padding(.horizontal, 2)
 
             ZStack {
-                SpriteView(asset: currentEnemy?.asset ?? "wild-spikevyrus-hop", size: mode == .endless ? 124 : 118)
+                SpriteView(asset: primaryAsset, size: mode == .endless ? 124 : 118)
                     .shadow(color: .black.opacity(0.34), radius: 0, x: 4, y: 5)
                     .overlay(
-                        SpriteView(asset: currentEnemy?.asset ?? "wild-spikevyrus-hop", size: mode == .endless ? 124 : 118)
+                        SpriteView(asset: primaryAsset, size: mode == .endless ? 124 : 118)
                             .colorMultiply(enemyFlashColor)
                             .opacity(enemyFlash)
                             .blendMode(.plusLighter)

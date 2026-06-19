@@ -91,6 +91,7 @@ struct ModePickerPanel: View {
 
             ForEach(StudyMode.allCases) { mode in
                 Button {
+                    TutorialManager.shared.complete("study.mode.\(mode.rawValue)")
                     start(mode)
                 } label: {
                     HStack(spacing: 10) {
@@ -114,6 +115,7 @@ struct ModePickerPanel: View {
                     .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
                 }
                 .buttonStyle(.plain)
+                .tutorialAnchor("study.mode.\(mode.rawValue)")
             }
         }
         .padding(16)
@@ -135,7 +137,9 @@ struct ModePickerPanel: View {
                             CompanionChip(hero: hero, selected: trust.companionID == hero.id) {
                                 trust.chooseCompanion(trust.companionID == hero.id ? nil : hero.id)
                                 Haptics.select()
+                                TutorialManager.shared.complete("study.companion.\(hero.id)")
                             }
+                            .tutorialAnchor("study.companion.\(hero.id)")
                         }
                     }
                     .padding(.bottom, 2)
@@ -196,14 +200,16 @@ private struct CompanionChip: View {
 
 struct FocusSession: View {
     let mode: StudyMode
+    let tutorialMode: Bool
     @Binding var presented: StudyMode?
-    let onEnd: (_ reward: Int, _ studiedSeconds: Int, _ completed: Bool) -> Void
+    let onEnd: (_ reward: Int, _ studiedSeconds: Int, _ completed: Bool, _ tutorialMode: Bool) -> Void
 
     @State private var elapsed = 0          // seconds actually studied
     @State private var finished = false
     @State private var earned = 0
     @State private var shareImage: Image?
     @State private var bailed = false       // left the app mid-session (soft lock)
+    @State private var tutorialPromptPulse = false
     @Environment(\.scenePhase) private var scenePhase
     @ObservedObject private var lock = FocusLockManager.shared
 
@@ -249,6 +255,38 @@ struct FocusSession: View {
 
                     Spacer()
 
+                    if tutorialMode {
+                        VStack(spacing: 7) {
+                            Text("▼  TAP HERE TO CONTINUE  ▼")
+                                .pixelText(size: 9, color: Color(hex: "FFF3C4"))
+                                .padding(.horizontal, 12)
+                                .padding(.vertical, 7)
+                                .background(Color(hex: "18100A").opacity(0.88))
+                                .offset(y: tutorialPromptPulse ? 4 : 0)
+
+                            Button {
+                                completeTutorialSession()
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Text("SKIP 25 MINUTES")
+                                        .pixelText(size: 14, color: Color(hex: "18100A"))
+                                    Text("Tutorial only · instantly receive the full reward")
+                                        .font(.custom(MitoFont.regular, size: 11))
+                                        .foregroundStyle(Color(hex: "3A2A18"))
+                                }
+                                .padding(.horizontal, 22)
+                                .padding(.vertical, 14)
+                                .background(Color(hex: "FFD24D"))
+                                .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 4))
+                            }
+                            .buttonStyle(.plain)
+                            .scaleEffect(tutorialPromptPulse ? 1.04 : 0.98)
+                            .shadow(color: Color(hex: "FFD24D").opacity(0.8), radius: tutorialPromptPulse ? 12 : 3)
+                            .accessibilityLabel("Skip 25 minute tutorial session")
+                        }
+                        .padding(.bottom, 10)
+                    }
+
                     Button {
                         finish()
                     } label: {
@@ -274,6 +312,19 @@ struct FocusSession: View {
         .onAppear {
             lock.beginSession()
             MitoFocusActivityController.start(mode: mode)
+            if tutorialMode {
+                withAnimation(.easeInOut(duration: 0.65).repeatForever(autoreverses: true)) {
+                    tutorialPromptPulse = true
+                }
+            }
+            #if DEBUG
+            if tutorialMode,
+               ProcessInfo.processInfo.arguments.contains("-uitestTutorialFocusComplete") {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                    completeTutorialSession()
+                }
+            }
+            #endif
         }
         .onDisappear {
             lock.endSession()
@@ -305,6 +356,14 @@ struct FocusSession: View {
                     .foregroundStyle(Color(hex: "6B4324"))
                 Text(earned > 0 ? "+\(earned) ATP" : (bailed ? "No reward. You left the app" : "No reward (study 5+ min)"))
                     .pixelText(size: 15, color: earned > 0 ? Color(hex: "C8881A") : Color(hex: "8A6A40"))
+                if tutorialMode && earned > 0 {
+                    VStack(spacing: 5) {
+                        Text("+1 EGG  •  +100 GOLD")
+                            .pixelText(size: 10, color: Color(hex: "6B4324"))
+                        Text("+6 BIOMASS  •  +25 MIN CHLORO TRUST")
+                            .pixelText(size: 8, color: Color(hex: "4A8A3C"))
+                    }
+                }
                 if let shareImage, earned > 0 {
                     ShareLink(
                         item: shareImage,
@@ -320,7 +379,8 @@ struct FocusSession: View {
                     .buttonStyle(.plain)
                 }
                 Button {
-                    onEnd(earned, elapsed, !mode.isCountUp && elapsed >= mode.durationSeconds)
+                    onEnd(earned, elapsed, !mode.isCountUp && elapsed >= mode.durationSeconds, tutorialMode)
+                    TutorialManager.shared.complete("study.tutorialComplete")
                     presented = nil
                 } label: {
                     Text("DONE")
@@ -369,6 +429,13 @@ struct FocusSession: View {
             modeLabel: mode.label
         )
         finished = true
+    }
+
+    private func completeTutorialSession() {
+        guard tutorialMode, !finished else { return }
+        elapsed = mode.durationSeconds
+        bailed = false
+        finish()
     }
 
     /// Big timer readout: remaining for countdowns, elapsed for count-up.

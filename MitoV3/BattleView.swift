@@ -583,6 +583,9 @@ struct BattleScreen: View {
             activeHeroAbilities: activeHeroAbilities,
             activeHeroUltCharge: activeHeroUltCharge,
             enemyMaxHP: enemyMaxHP,
+            enemies: enemies,
+            targetIndex: targetIndex,
+            onSelectTarget: selectTarget,
             combatBuffs: combatBuffs,
             upcomingTurns: upcomingTurnIndices(5),
             skillCooldownTurns: activeSkillCooldown,
@@ -863,6 +866,49 @@ struct BattleScreen: View {
             targetIndex = next
             syncTargetMirror()
         }
+    }
+
+    /// Apply an ability's damage across the enemy line per its target mode, then
+    /// re-aim if the targeted enemy fell. Returns true once the whole line is down.
+    /// AoE deals ~60% of single-target; splash hits the aimed foe full and the
+    /// rest for ~40%; execute hits harder the lower the target's HP.
+    private func applyAbilityDamage(_ ability: BattleAbility, baseDamage: Int) -> Bool {
+        guard ability.dealsDamage, !enemies.isEmpty else { return allEnemiesDefeated }
+        switch ability.target {
+        case .single:
+            if enemies.indices.contains(targetIndex) {
+                enemies[targetIndex].hp = max(0, enemies[targetIndex].hp - baseDamage)
+            }
+        case .execute:
+            if enemies.indices.contains(targetIndex) {
+                let frac = Double(enemies[targetIndex].hp) / Double(max(enemies[targetIndex].maxHP, 1))
+                let dmg = frac < 0.5 ? Int(Double(baseDamage) * 1.6) : baseDamage
+                enemies[targetIndex].hp = max(0, enemies[targetIndex].hp - dmg)
+            }
+        case .all:
+            let aoe = Int(Double(baseDamage) * 0.6)
+            for i in enemies.indices where enemies[i].alive {
+                enemies[i].hp = max(0, enemies[i].hp - aoe)
+            }
+        case .splash:
+            for i in enemies.indices where enemies[i].alive {
+                let d = i == targetIndex ? baseDamage : Int(Double(baseDamage) * 0.4)
+                enemies[i].hp = max(0, enemies[i].hp - d)
+            }
+        }
+        syncTargetMirror()
+        if enemies.indices.contains(targetIndex), !enemies[targetIndex].alive {
+            retargetToLivingEnemy()
+        }
+        return allEnemiesDefeated
+    }
+
+    /// Tap-to-aim from the combat view; only living foes can be targeted.
+    private func selectTarget(_ index: Int) {
+        guard enemies.indices.contains(index), enemies[index].alive else { return }
+        targetIndex = index
+        syncTargetMirror()
+        Haptics.tap()
     }
 
     /// A single-boss encounter (campaign, UI tests). Array of one.

@@ -4,10 +4,12 @@ struct HomeScreen: View {
     @Binding var atp: Int
     @Binding var gold: Int
     @Binding var gems: Int
+    @Binding var biomass: Int
     @ObservedObject var backend: MitoBackend
-    var selectedTab: AppTab = .home
+    @Binding var selectedTab: AppTab
     @State private var showPicker = false
     @State private var sessionMode: StudyMode?
+    @State private var tutorialFocus = false
     @State private var showingSettings = false
     @State private var showingAuth = false
     @State private var showingFriends = false
@@ -89,6 +91,7 @@ struct HomeScreen: View {
                         .accessibilityLabel("Daily quests: \(quests.completedCount) of 3 done")
 
                         Button {
+                            TutorialManager.shared.complete("home.eggs")
                             showingHatch = true
                         } label: {
                             HStack(spacing: 4) {
@@ -160,6 +163,7 @@ struct HomeScreen: View {
                                 withAnimation(.easeOut(duration: 0.18)) { showPicker = false }
                             },
                             start: { mode in
+                                tutorialFocus = TutorialManager.shared.isWaiting(for: "study.tutorialComplete")
                                 showPicker = false
                                 sessionMode = mode
                                 Task { await backend.logEvent("study_start", props: ["mode": mode.rawValue]) }
@@ -209,6 +213,16 @@ struct HomeScreen: View {
                         showAuth: {
                             showingSettings = false
                             showingAuth = true
+                        },
+                        replayTutorial: {
+                            let defaults = UserDefaults.standard
+                            defaults.set(true, forKey: "mito.onboarded")
+                            showingSettings = false
+                            showPicker = false
+                            selectedTab = .home
+                            TutorialManager.shared.replay(
+                                goal: defaults.string(forKey: "mito.goal") ?? ""
+                            )
                         }
                     )
                     .frame(width: min(proxy.size.width * 0.86, 360),
@@ -263,7 +277,7 @@ struct HomeScreen: View {
                 }
             }
             .fullScreenCover(item: $sessionMode) { mode in
-                FocusSession(mode: mode, presented: $sessionMode) { reward, seconds, completed in
+                FocusSession(mode: mode, tutorialMode: tutorialFocus, presented: $sessionMode) { reward, seconds, completed, wasTutorial in
                     atp += reward
                     let minutes = max(0, seconds / 60)
                     let legit = completed || (mode.isCountUp && minutes >= 5)
@@ -278,6 +292,10 @@ struct HomeScreen: View {
                         } else {
                             TrustStore.shared.penalizeCancel(companion)
                         }
+                    }
+                    if wasTutorial, TutorialManager.shared.claimFocusBonus() {
+                        gold += 100
+                        biomass += 6
                     }
                     Task {
                         try? await backend.recordStudySession(
@@ -294,6 +312,7 @@ struct HomeScreen: View {
                             "atp": "\(reward)"
                         ])
                     }
+                    tutorialFocus = false
                 }
             }
             .fullScreenCover(isPresented: $showingHatch) {
@@ -311,6 +330,17 @@ struct HomeScreen: View {
                     showingStreak = false
                     showingQuests = false
                 }
+            }
+            .onAppear {
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("-uitestStudyPicker") {
+                    showPicker = true
+                }
+                if ProcessInfo.processInfo.arguments.contains("-uitestTutorialFocusSession") {
+                    tutorialFocus = true
+                    sessionMode = .focus
+                }
+                #endif
             }
         }
     }
@@ -503,4 +533,3 @@ struct DailyQuestSheet: View {
         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 2))
     }
 }
-

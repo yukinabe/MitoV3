@@ -8,6 +8,7 @@ struct GeneralSettingsSheet: View {
     @ObservedObject var backend: MitoBackend
     @Binding var isPresented: Bool
     let showAuth: () -> Void
+    let replayTutorial: () -> Void
 
     @AppStorage("audio.sfx") private var soundEnabled = true
     @AppStorage("audio.music") private var musicEnabled = true
@@ -84,7 +85,10 @@ struct GeneralSettingsSheet: View {
                 #endif
 
                 #if DEBUG
-                DevToolsSection(isPresented: $isPresented)
+                DevToolsSection(
+                    isPresented: $isPresented,
+                    replayTutorial: replayTutorial
+                )
                 #endif
             }
             }
@@ -263,6 +267,7 @@ private struct SettingsToggleRow: View {
 /// of the Settings sheet.
 private struct DevToolsSection: View {
     @Binding var isPresented: Bool
+    let replayTutorial: () -> Void
     @State private var note = ""
 
     var body: some View {
@@ -298,11 +303,7 @@ private struct DevToolsSection: View {
                     note = "+30 eggs"
                 }
                 devButton("REPLAY TUTORIAL") {
-                    let d = UserDefaults.standard
-                    d.set(true, forKey: "mito.onboarded")
-                    d.set(false, forKey: "mito.tutorialSeen")
-                    isPresented = false
-                    TutorialManager.shared.start(goal: d.string(forKey: "mito.goal") ?? "")
+                    replayTutorial()
                 }
                 devButton("RESET SAVE") {
                     RosterStore.shared.reset()

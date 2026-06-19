@@ -68,8 +68,30 @@ final class TutorialManager: ObservableObject {
     func start(goal: String) {
         guard !active else { return }
         script = TutorialScript.session1(goal: goal)
+        #if DEBUG
+        if let arg = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("-uitestTutorialStep=") }),
+           let requested = Int(arg.dropFirst("-uitestTutorialStep=".count)) {
+            index = min(max(0, requested), max(0, script.count - 1))
+        } else {
+            index = 0
+        }
+        #else
         index = 0
+        #endif
         withAnimation(.easeOut(duration: 0.25)) { active = true }
+    }
+
+    /// Start the tutorial again from a clean tutorial-only state without
+    /// deleting the player's real roster, campaign, decks, or currencies.
+    func replay(goal: String) {
+        withAnimation(.easeOut(duration: 0.15)) { active = false }
+        index = 0
+        script = []
+        let defaults = UserDefaults.standard
+        defaults.set(false, forKey: "mito.tutorialSeen")
+        defaults.removeObject(forKey: "mito.tutorialFocusBonusClaimed")
+        CampaignStoryManager.shared.prepareTutorialReplay()
+        start(goal: goal)
     }
 
     /// Advance from a dialogue tap or a finished spotlight.
@@ -83,6 +105,17 @@ final class TutorialManager: ObservableObject {
     func complete(_ target: String) {
         guard active, current?.advanceTarget == target else { return }
         advance()
+    }
+
+    func isWaiting(for target: String) -> Bool {
+        active && current?.advanceTarget == target
+    }
+
+    func claimFocusBonus() -> Bool {
+        let key = "mito.tutorialFocusBonusClaimed"
+        guard !UserDefaults.standard.bool(forKey: key) else { return false }
+        UserDefaults.standard.set(true, forKey: key)
+        return true
     }
 
     func skip() { finish() }
@@ -100,7 +133,6 @@ enum TutorialScript {
         let g = goal.trimmingCharacters(in: .whitespacesAndNewlines)
         let mito = "hero-mito-hop"
         return [
-            // — Hook
             .say(speaker: mito, name: L("Mito"),
                  text: L("oh, you're here. good, 'cause we've got a situation.")),
             .say(speaker: mito, name: L("Mito"),
@@ -110,51 +142,40 @@ enum TutorialScript {
                  text: L("here's the deal. answer a flashcard right and we hit it. your brain is the weapon. kinda poetic, right?")),
             .say(speaker: mito, name: L("Mito"),
                  text: g.isEmpty
-                    ? L("let's get you into a real fight. follow me.")
-                    : Lf("i loaded you up with some %@ cards. let's put 'em to work.", L(g))),
-            // — Into the first battle
+                    ? L("let's start with the Campaign. that's where the story moves forward and new BioBuds join you.")
+                    : Lf("i loaded you up with some %@ cards. let's use them to rescue our first teammate.", L(g))),
             .spotlight(target: "tab.battle", caption: L("head over to Battle ⚔")),
-            .spotlight(target: "battle.endless", caption: L("start with Endless Review, no pressure")),
-            .spotlight(target: "battle.pickDeck", caption: L("pick a deck, tap any one")),
-            .spotlight(target: "battle.startEndless", caption: L("now hit Start (it's free)")),
-            // — The core loop (real combat)
+            .spotlight(target: "battle.campaign", caption: L("open the Campaign map")),
+            .spotlight(target: "campaign.stage1", caption: L("tap Stage 1 to meet Chloro")),
+            .spotlight(target: "campaign.pickDeck", caption: L("pick the flashcard deck you want to fight with")),
+            .spotlight(target: "campaign.start", caption: L("enter the dungeon")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("okay. one card, one hit. let's see what you've got.")),
+                 text: L("one card becomes one combat turn. Recall the answer, grade yourself honestly, then choose the BioBud's move.")),
             .spotlight(target: "battle.showAnswer", caption: L("try to recall it… then reveal the answer")),
             .spotlight(target: "battle.grade", caption: L("rate how well you knew it, be honest")),
-            .spotlight(target: "battle.ability", caption: L("now hit it, pick a move")),
+            .spotlight(target: "battle.ability", caption: L("choose a move to attack")),
+            .wait(target: "campaign.cleared.1", caption: L("keep reviewing until Chloro is free")),
+            .wait(target: "campaign.return", caption: L("add Chloro to your roster, collect the stage rewards, then continue")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("let's go! that's the whole loop. answer, hit, repeat. you've basically got it.")),
-            // — Bridge to study / ATP
-            .say(speaker: mito, name: L("Mito"),
-                 text: L("battles train your memory. real focus sessions earn ATP, eggs, and time with the BioBud studying beside you.")),
+                 text: L("Chloro joined the roster, but Campaign recruits cannot fight immediately. First you earn their Trust by studying together."),
+                 partner: "hero-chloroplast-hop", partnerName: L("Chloro")),
             .spotlight(target: "tab.home", caption: L("back to your meadow")),
             .spotlight(target: "study", caption: L("open the study menu")),
-            .coach(target: "study.companion",
-                   caption: L("Choose a BioBud under STUDY WITH. Completed focus time builds that character's Trust.")),
-            .coach(target: "home.eggs",
-                   caption: L("Completed study sessions also earn eggs. Tap this counter later to draw a crack and hatch a new BioBud.")),
-            // — Point them at the campaign / first recruit
+            .wait(target: "study.companion.cloro", caption: L("select Chloro under STUDY WITH")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("one more thing. we don't have to fight solo forever.")),
-            .say(speaker: mito, name: L("Mito"),
-                 text: L("clear a Campaign boss and they join your roster. first up is Chloro, a chloroplast who hits HARD."),
+                 text: L("Every completed minute fills Chloro's Trust bar. Once it reaches full, Chloro unlocks for your battle team. Leaving early can damage unfinished Trust."),
                  partner: "hero-chloroplast-hop", partnerName: L("Chloro")),
-            // — Forced campaign: stage 1 (recruit Chloro)
-            .spotlight(target: "tab.battle", caption: L("head to Battle ⚔")),
-            .spotlight(target: "battle.campaign", caption: L("open the Campaign map")),
-            .spotlight(target: "campaign.stage1", caption: L("tap Stage 1")),
-            .spotlight(target: "campaign.pickDeck", caption: L("pick a deck to fight with")),
-            .spotlight(target: "campaign.start", caption: L("start the fight")),
-            .wait(target: "campaign.cleared.1", caption: L("defeat the boss to free Chloro!")),
-            .wait(target: "campaign.return", caption: L("nice! head back when you're done")),
-            // — Explain collection + Trust without forcing another full battle
+            .spotlight(target: "study.mode.focus", caption: L("start a 25-minute Focus session")),
+            .wait(target: "study.tutorialComplete", caption: L("tap the glowing SKIP 25 MINUTES button to continue instantly")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("Chloro joined your roster, but campaign recruits need to trust you before they can fight. Pick Chloro under STUDY WITH and finish sessions together to fully unlock them."),
-                 partner: "hero-chloroplast-hop", partnerName: L("Chloro")),
+                 text: L("Study sessions can give you all kinds of rewards, including ATP, Gold, Biomass, upgrade materials, and even eggs. This session gave you your first egg!")),
+            .spotlight(target: "home.eggs", caption: L("open your egg inventory")),
+            .wait(target: "egg.hatched", caption: L("tap HATCH ×1, draw one continuous crack, then release")),
+            .wait(target: "egg.return", caption: L("meet your new BioBud, then tap CONTINUE")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("you can capture wild BioBuds after certain fights too. Recruits and captures build Trust; BioBuds hatched from study eggs arrive ready to fight.")),
-            // — Cards: create manually or bring an existing Anki collection
+                 text: L("yay, you got a new BioBud! Eggs can hatch BioBuds of different rarities—the rarer they are, the harder they are to find.")),
+            .say(speaker: mito, name: L("Mito"),
+                 text: L("If you hatch a BioBud you already own, the duplicate becomes Shards. Use those Shards to upgrade that BioBud and make it stronger.")),
             .spotlight(target: "tab.cards", caption: L("last stop: your flashcard library")),
             .say(speaker: mito, name: L("Mito"),
                  text: L("decks power every review battle. Make a deck, open it, then add cards with a front, back, and optional tags. Saved cards are immediately available in Battle.")),
@@ -163,7 +184,7 @@ enum TutorialScript {
             .coach(target: "cards.import",
                    caption: L("Already use Anki? Tap IMPORT, then IMPORT ANKI DECK and choose the .apkg file exported from Anki.")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("that's Mito: make or import cards, review them in battle, clear Campaign bosses, and turn real study time into ATP, Trust, eggs, and new BioBuds. 🫡")),
+                 text: L("that's the full loop: make or import cards, rescue BioBuds in Campaign, earn their Trust through real focus, hatch study eggs, and grow the team. 🫡")),
         ]
     }
 }
@@ -171,6 +192,7 @@ enum TutorialScript {
 /// Resolves anchor frames and renders whichever overlay the current beat needs.
 struct TutorialHost: View {
     @ObservedObject private var manager = TutorialManager.shared
+    @ObservedObject private var story = CampaignStoryManager.shared
     let anchors: [String: CGRect]
     let size: CGSize
 
@@ -188,9 +210,11 @@ struct TutorialHost: View {
                                   onSkip: { manager.skip() })
                     .zIndex(60)
             case let .wait(_, caption):
-                TutorialWaitBanner(caption: caption, onSkip: { manager.skip() })
-                    .transition(.opacity)
-                    .zIndex(60)
+                if !story.isSaying {
+                    TutorialWaitBanner(caption: caption, onSkip: { manager.skip() })
+                        .transition(.opacity)
+                        .zIndex(60)
+                }
             case let .coach(target, caption):
                 TutorialSpotlight(
                     rect: anchors[target],
@@ -220,6 +244,9 @@ private struct TutorialWaitBanner: View {
                     Text(caption)
                         .pixelText(size: 11, color: .white)
                         .multilineTextAlignment(.leading)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: 250, alignment: .leading)
                         .padding(.horizontal, 12).padding(.vertical, 8)
                         .background(Color(hex: "18100A").opacity(0.85))
                         .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 2))
@@ -342,31 +369,47 @@ private struct TutorialSpotlight: View {
                 dim(0, r.minY, max(0, r.minX), r.height)                                 // left
                 dim(r.maxX, r.minY, max(0, size.width - r.maxX), r.height)               // right
 
-                RoundedRectangle(cornerRadius: 16)
-                    .stroke(Color(hex: "FFD24D"), lineWidth: 4)
-                    .frame(width: r.width + 18, height: r.height + 18)
-                    // Scale BEFORE positioning so the ring pulses around its own
-                    // center (big → small in place), instead of drifting toward
-                    // the screen center the way scaling a positioned view does.
-                    .scaleEffect(pulse ? 1.18 : 0.9)
-                    .position(x: r.midX, y: r.midY)
-                    .opacity(pulse ? 0.6 : 1)
-                    .allowsHitTesting(false)
+                // Required-action spotlights circle the real control. Coach
+                // beats keep that control illuminated for context, but circle
+                // the tutorial's Next button instead so it is clear what to tap.
+                if onAdvance == nil {
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(Color(hex: "FFD24D"), lineWidth: 4)
+                        .frame(width: r.width + 18, height: r.height + 18)
+                        // Scale BEFORE positioning so the ring pulses around its own
+                        // center (big → small in place), instead of drifting toward
+                        // the screen center the way scaling a positioned view does.
+                        .scaleEffect(pulse ? 1.18 : 0.9)
+                        .position(x: r.midX, y: r.midY)
+                        .opacity(pulse ? 0.6 : 1)
+                        .allowsHitTesting(false)
+                }
 
                 if let caption {
                     Text(caption)
                         .pixelText(size: 12, color: .white)
                         .multilineTextAlignment(.center)
+                        .lineLimit(nil)
+                        .minimumScaleFactor(0.75)
                         .padding(.horizontal, 14).padding(.vertical, 9)
                         .background(Color(hex: "18100A").opacity(0.85))
                         .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 2))
-                        .fixedSize()
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(width: max(180, size.width - 44))
                         .position(x: size.width / 2,
-                                  y: r.minY > 120 ? r.minY - 34 : r.maxY + 40)
+                                  y: captionY(for: r))
                         .allowsHitTesting(false)
                 }
 
                 if let onAdvance {
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(Color(hex: "FFD24D"), lineWidth: 5)
+                        .frame(width: 116, height: 62)
+                        .scaleEffect(pulse ? 1.14 : 0.94)
+                        .position(x: size.width / 2, y: nextButtonY(for: r))
+                        .opacity(pulse ? 0.65 : 1)
+                        .allowsHitTesting(false)
+
                     Color.clear
                         .frame(width: r.width, height: r.height)
                         .contentShape(Rectangle())
@@ -382,7 +425,7 @@ private struct TutorialSpotlight: View {
                             .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
                     }
                     .buttonStyle(.plain)
-                    .position(x: size.width / 2, y: min(size.height - 72, r.maxY + 92))
+                    .position(x: size.width / 2, y: nextButtonY(for: r))
                 }
             } else {
                 // Target not on-screen yet: dim + caption + wait (advance comes from `complete`).
@@ -394,6 +437,9 @@ private struct TutorialSpotlight: View {
                     Text(caption)
                         .pixelText(size: 12, color: .white)
                         .multilineTextAlignment(.center)
+                        .lineLimit(nil)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(width: max(180, size.width - 44))
                         .padding(.horizontal, 14).padding(.vertical, 9)
                         .background(Color(hex: "18100A").opacity(0.85))
                         .overlay(Rectangle().stroke(Color(hex: "FFD24D"), lineWidth: 2))
@@ -448,6 +494,23 @@ private struct TutorialSpotlight: View {
             .onTapGesture { }   // swallow taps only within this dim panel, not the hole
             .position(x: x + w / 2, y: y + h / 2)
     }
+
+    private func captionY(for rect: CGRect) -> CGFloat {
+        let proposed = rect.minY > size.height * 0.34 ? rect.minY - 64 : rect.maxY + 64
+        return min(max(proposed, 92), size.height - 132)
+    }
+
+    /// Coach beats render both explanatory copy and a Next button. Keep the
+    /// button on the opposite side of the caption so wrapped copy can never
+    /// be covered by it.
+    private func nextButtonY(for rect: CGRect) -> CGFloat {
+        let caption = captionY(for: rect)
+        let separation: CGFloat = 112
+        if caption < size.height / 2 {
+            return min(size.height - 72, caption + separation)
+        }
+        return max(92, caption - separation)
+    }
 }
 
 // MARK: - Campaign story (inter-character dialogue around campaign stages)
@@ -501,6 +564,18 @@ final class CampaignStoryManager: ObservableObject {
 
     /// Skip the rest of the current scene (still marks it seen + fires completion).
     func skip() { finish() }
+
+    /// Replay only the Stage 1 story used by onboarding. Other campaign story
+    /// progress remains untouched.
+    func prepareTutorialReplay() {
+        currentID = nil
+        onFinish = nil
+        script = []
+        index = 0
+        seen.remove("intro.1")
+        seen.remove("outro.1")
+        UserDefaults.standard.set(Array(seen), forKey: seenKey)
+    }
 
     private func finish() {
         if let id = currentID { markSeen(id) }
@@ -634,4 +709,3 @@ enum CampaignStoryScript {
         }
     }
 }
-

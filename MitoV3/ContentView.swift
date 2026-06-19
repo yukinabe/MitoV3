@@ -12,6 +12,7 @@ struct ContentView: View {
         if ProcessInfo.processInfo.arguments.contains("-uitestMap") { return .battle }
         if ProcessInfo.processInfo.arguments.contains("-uitestStage") { return .battle }
         if ProcessInfo.processInfo.arguments.contains("-uitestCampaign") { return .battle }
+        if ProcessInfo.processInfo.arguments.contains("-uitestBattleLanding") { return .battle }
         if ProcessInfo.processInfo.arguments.contains("-uitestShop") { return .shop }
         if ProcessInfo.processInfo.arguments.contains("-uitestTeam") { return .team }
         if ProcessInfo.processInfo.arguments.contains("-uitestCards") { return .cards }
@@ -144,7 +145,14 @@ struct ContentView: View {
                             .tag(AppTab.shop)
                         TeamScreen(atp: $atp, gold: $gold, biomass: $biomass, selectedTab: selectedTab)
                             .tag(AppTab.team)
-                        HomeScreen(atp: $atp, gold: $gold, gems: $gems, backend: backend, selectedTab: selectedTab)
+                        HomeScreen(
+                            atp: $atp,
+                            gold: $gold,
+                            gems: $gems,
+                            biomass: $biomass,
+                            backend: backend,
+                            selectedTab: $selectedTab
+                        )
                             .tag(AppTab.home)
                         BattleScreen(atp: $atp, gold: $gold, biomass: $biomass, selectedTab: selectedTab)
                             .tag(AppTab.battle)

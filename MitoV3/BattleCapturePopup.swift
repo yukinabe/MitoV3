@@ -804,6 +804,7 @@ struct HatchView: View {
         if count == 1 {
             single = results[0]
             shareImage = BioBudShareCard.render(hero: results[0].hero)
+            TutorialManager.shared.complete("egg.hatched")
         } else {
             multi = results
         }
@@ -828,7 +829,7 @@ struct HatchView: View {
                 if let shareImage {
                     BioBudShareButton(image: shareImage, hero: result.hero)
                 }
-                Button { single = nil } label: {
+                Button { finishTutorialHatchIfNeeded() } label: {
                     RevealActionLabel(title: L("CONTINUE"), color: Color(hex: "4A8A3C"))
                 }
                 .buttonStyle(.plain)
@@ -845,7 +846,7 @@ struct HatchView: View {
                         .pixelText(size: 8, color: Color(hex: "E9D8B6"))
                     Text("✦ +\(result.shardsGained) SHARDS")
                         .pixelText(size: 12, color: Color(hex: "C7A6F2"))
-                    Button { single = nil } label: {
+                    Button { finishTutorialHatchIfNeeded() } label: {
                         RevealActionLabel(title: L("CONTINUE"), color: Color(hex: "4A8A3C"))
                     }
                     .buttonStyle(.plain)
@@ -853,6 +854,14 @@ struct HatchView: View {
                     .padding(.top, 8)
                 }
             }
+        }
+    }
+
+    private func finishTutorialHatchIfNeeded() {
+        single = nil
+        if TutorialManager.shared.isWaiting(for: "egg.return") {
+            TutorialManager.shared.complete("egg.return")
+            isPresented = false
         }
     }
 
