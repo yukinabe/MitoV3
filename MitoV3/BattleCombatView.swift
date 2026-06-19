@@ -602,12 +602,8 @@ struct BattleCombatView: View {
 
                     Spacer().frame(height: mode == .endless ? 24 : 24)
 
-                    sideEnemiesRow
-                        .padding(.horizontal, 24)
-                        .padding(.bottom, sideEnemies.isEmpty ? 0 : 6)
-
                     enemyBlock
-                        .padding(.horizontal, 46)
+                        .padding(.horizontal, sideEnemies.isEmpty ? 46 : 14)
 
                     Spacer().frame(height: mode == .endless ? 11 : 14)
 
@@ -1323,35 +1319,68 @@ struct BattleCombatView: View {
         }
     }
 
-    /// The flanking foes (everything except the one you're aimed at). Tap one to
-    /// re-aim single-target abilities at it; AoE hits the whole line regardless.
+    /// Flanking foes split to either side of the aimed one. Two foes sit one
+    /// left, one right; a lone extra foe sits on the right.
+    private var leftFlank: [(index: Int, unit: EnemyUnit)] {
+        sideEnemies.count >= 2 ? [sideEnemies[0]] : []
+    }
+    private var rightFlank: [(index: Int, unit: EnemyUnit)] {
+        sideEnemies.count >= 2 ? Array(sideEnemies[1...]) : sideEnemies
+    }
+
+    /// Sprite size of the aimed foe — shrinks when foes flank it so all three fit.
+    private var primarySize: CGFloat {
+        sideEnemies.isEmpty ? (mode == .endless ? 124 : 118) : 92
+    }
+
+    /// A flanking foe: a smaller sprite (mini HP bar above) you can tap to re-aim.
+    /// Bottom-aligned so it stands on the same ground line as the aimed foe.
     @ViewBuilder
-    private var sideEnemiesRow: some View {
-        if !sideEnemies.isEmpty {
-            HStack(spacing: 18) {
-                ForEach(sideEnemies, id: \.unit.id) { entry in
-                    Button { onSelectTarget(entry.index) } label: {
-                        VStack(spacing: 3) {
-                            SpriteView(asset: entry.unit.asset, size: 54)
-                                .opacity(entry.unit.alive ? 0.96 : 0.26)
-                                .saturation(entry.unit.alive ? 1 : 0)
-                            GeometryReader { proxy in
-                                let denom = CGFloat(Swift.max(entry.unit.maxHP, 1))
-                                ZStack(alignment: .leading) {
-                                    Capsule().fill(Color(hex: "1E140C").opacity(0.8))
-                                    Capsule()
-                                        .fill(Color(hex: "58C054"))
-                                        .frame(width: max(2, proxy.size.width * CGFloat(entry.unit.hp) / denom))
-                                }
-                            }
-                            .frame(width: 48, height: 4)
-                        }
+    private func flankEnemyView(_ entry: (index: Int, unit: EnemyUnit)) -> some View {
+        Button { onSelectTarget(entry.index) } label: {
+            VStack(spacing: 4) {
+                GeometryReader { proxy in
+                    let denom = CGFloat(Swift.max(entry.unit.maxHP, 1))
+                    ZStack(alignment: .leading) {
+                        Capsule().fill(Color(hex: "1E140C").opacity(0.8))
+                        Capsule()
+                            .fill(Color(hex: "58C054"))
+                            .frame(width: max(2, proxy.size.width * CGFloat(entry.unit.hp) / denom))
                     }
-                    .buttonStyle(.plain)
-                    .disabled(!entry.unit.alive)
                 }
+                .frame(width: 50, height: 4)
+
+                SpriteView(asset: entry.unit.asset, size: 66)
+                    .shadow(color: .black.opacity(0.32), radius: 0, x: 3, y: 4)
+                    .opacity(entry.unit.alive ? 0.97 : 0.24)
+                    .saturation(entry.unit.alive ? 1 : 0)
             }
-            .frame(maxWidth: .infinity)
+        }
+        .buttonStyle(.plain)
+        .disabled(!entry.unit.alive)
+    }
+
+    /// The aimed foe: full strike/flash/death choreography, scaled per encounter.
+    private var primaryEnemySprite: some View {
+        ZStack {
+            SpriteView(asset: primaryAsset, size: primarySize)
+                .shadow(color: .black.opacity(0.34), radius: 0, x: 4, y: 5)
+                .overlay(
+                    SpriteView(asset: primaryAsset, size: primarySize)
+                        .colorMultiply(enemyFlashColor)
+                        .opacity(enemyFlash)
+                        .blendMode(.plusLighter)
+                )
+                .scaleEffect(enemyHitScale * enemyBreath * enemyDeathScale)
+                .rotationEffect(.degrees(enemyDeathSpin))
+                .opacity(enemyEnterOpacity)
+                .offset(x: enemyShakeX, y: enemyEnterY)
+
+            ForEach(floatingDamages) { dmg in
+                DamageNumberView(damage: dmg)
+                    .offset(x: 34)
+                    .allowsHitTesting(false)
+            }
         }
     }
 
@@ -1386,26 +1415,13 @@ struct BattleCombatView: View {
             .frame(height: 6)
             .padding(.horizontal, 2)
 
-            ZStack {
-                SpriteView(asset: primaryAsset, size: mode == .endless ? 124 : 118)
-                    .shadow(color: .black.opacity(0.34), radius: 0, x: 4, y: 5)
-                    .overlay(
-                        SpriteView(asset: primaryAsset, size: mode == .endless ? 124 : 118)
-                            .colorMultiply(enemyFlashColor)
-                            .opacity(enemyFlash)
-                            .blendMode(.plusLighter)
-                    )
-                    .scaleEffect(enemyHitScale * enemyBreath * enemyDeathScale)
-                    .rotationEffect(.degrees(enemyDeathSpin))
-                    .opacity(enemyEnterOpacity)
-                    .offset(x: enemyShakeX, y: enemyEnterY)
-
-                ForEach(floatingDamages) { dmg in
-                    DamageNumberView(damage: dmg)
-                        .offset(x: 34)
-                        .allowsHitTesting(false)
-                }
+            // The enemy line: aimed foe centred, others flanking on the ground line.
+            HStack(alignment: .bottom, spacing: 12) {
+                ForEach(leftFlank, id: \.unit.id) { flankEnemyView($0) }
+                primaryEnemySprite
+                ForEach(rightFlank, id: \.unit.id) { flankEnemyView($0) }
             }
+            .frame(maxWidth: .infinity)
         }
     }
 
