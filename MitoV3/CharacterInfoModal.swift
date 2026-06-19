@@ -11,8 +11,12 @@ struct CharacterInfoModal: View {
     let bioCost: Int
     let ownedBio: Int
     let canUpgrade: Bool
+    /// Whether the party has an open slot (so a trusted reserve can be added).
+    var canAddToParty: Bool = false
     let onClose: () -> Void
     let onUpgrade: () -> Void
+    /// Add or remove this biobud from the active team. No-op if not provided.
+    var onToggleParty: () -> Void = {}
 
     @ObservedObject private var trust = TrustStore.shared
 
@@ -80,6 +84,8 @@ struct CharacterInfoModal: View {
                     ModalStat(label: "ATK", value: hero.attack, color: Color(hex: "D4873A"))
                     ModalStat(label: "DEF", value: hero.defense, color: Color(hex: "4277D9"))
                 }
+
+                teamActionButton
 
                 if trust.isMaxed(hero) {
                     HStack {
@@ -149,6 +155,38 @@ struct CharacterInfoModal: View {
         .frame(maxHeight: 690)
         .background(Color(hex: "EAD4A4"))
         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+    }
+
+    /// Add this biobud to the team, or pull them out. Trusted reserves can join
+    /// when there is an open slot; untrusted ones show no action (the Trust meter
+    /// above already explains how to unlock them).
+    @ViewBuilder
+    private var teamActionButton: some View {
+        if inParty {
+            Button(action: onToggleParty) {
+                teamActionLabel(L("REMOVE FROM TEAM"), bg: Color(hex: "B0492F"), fg: Color(hex: "F4E6C0"))
+            }
+            .buttonStyle(.plain)
+        } else if trust.isMaxed(hero) {
+            Button(action: onToggleParty) {
+                teamActionLabel(
+                    canAddToParty ? L("ADD TO TEAM") : L("TEAM FULL"),
+                    bg: canAddToParty ? Color(hex: "4A8A3C") : Color(hex: "8A6B42"),
+                    fg: canAddToParty ? Color(hex: "F4E6C0") : Color(hex: "EAD4A4")
+                )
+            }
+            .buttonStyle(.plain)
+            .disabled(!canAddToParty)
+        }
+    }
+
+    private func teamActionLabel(_ title: String, bg: Color, fg: Color) -> some View {
+        Text(title)
+            .pixelText(size: 12, color: fg)
+            .frame(maxWidth: .infinity)
+            .frame(height: 44)
+            .background(bg)
+            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
     }
 
     private var partyBadge: String {

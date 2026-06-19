@@ -69,10 +69,6 @@ struct TeamScreen: View {
         }
     }
 
-    private var reserveHeroes: [Hero] {
-        heroes.filter { !activePartyIDs.contains($0.id) }
-    }
-
     private var partyHP: Int {
         partyHeroes.reduce(0) { $0 + $1.hp }
     }
@@ -157,37 +153,6 @@ struct TeamScreen: View {
                         .padding(.horizontal, 12)
                         .padding(.top, 0)
 
-                        VStack(alignment: .leading, spacing: 5) {
-                            Text("RESERVES  \(reserveHeroes.count)")
-                                .pixelText(size: 12, color: Color(hex: "F4E6C0"))
-                                .padding(.horizontal, 12)
-
-                            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 8, alignment: .top), count: 3), alignment: .center, spacing: 8) {
-                                ForEach(reserveHeroes) { hero in
-                                    let isSelected = selectedHeroID == hero.id
-
-                                    Button {
-                                        selectedHeroID = isSelected ? nil : hero.id
-                                    } label: {
-                                        TeamRosterCard(
-                                            hero: hero,
-                                            isInParty: false,
-                                            isSelected: isSelected,
-                                            compact: true
-                                        )
-                                    }
-                                    .buttonStyle(.plain)
-                                    .contentShape(Rectangle())
-                                    .accessibilityElement(children: .ignore)
-                                    .accessibilityLabel("\(hero.name), reserve")
-                                    .accessibilityIdentifier("team-reserve-\(hero.id)")
-                                    .anchorPreference(key: TeamCardBoundsKey.self, value: .bounds) { [hero.id: $0] }
-                                    .zIndex(isSelected ? 10 : 0)
-                                }
-                            }
-                            .padding(.horizontal, 12)
-                        }
-
                         biodex
                             .padding(.bottom, 104)
                     }
@@ -236,12 +201,16 @@ struct TeamScreen: View {
                         bioCost: bioCost(for: infoHero),
                         ownedBio: biomass,
                         canUpgrade: canUpgrade(infoHero),
+                        canAddToParty: activePartyIDs.count < maxPartySize,
                         onClose: {
                             self.infoHero = nil
                             selectedHeroID = nil
                         },
                         onUpgrade: {
                             upgrade(hero: infoHero)
+                        },
+                        onToggleParty: {
+                            togglePartyMembership(for: infoHero)
                         }
                     )
                     .padding(.horizontal, 18)
@@ -311,7 +280,7 @@ struct TeamScreen: View {
                         selectedHeroID = nil
                         infoHero = hero
                     } label: {
-                        BiodexCell(hero: hero, owned: owned)
+                        BiodexCell(hero: hero, owned: owned, inParty: activePartyIDs.contains(hero.id))
                     }
                     .buttonStyle(.plain)
                     .contentShape(Rectangle())
@@ -389,10 +358,11 @@ struct TeamScreen: View {
 private struct BiodexCell: View {
     let hero: Hero
     let owned: Bool
+    var inParty: Bool = false
 
     var body: some View {
         VStack(spacing: 0) {
-            ZStack {
+            ZStack(alignment: .top) {
                 LinearGradient(
                     colors: owned
                         ? [hero.rarity.color.opacity(0.46), Color(hex: "2A1B0E")]
@@ -408,6 +378,15 @@ private struct BiodexCell: View {
                 if !owned {
                     Text("?")
                         .pixelText(size: 24, color: Color(hex: "F4E6C0").opacity(0.86))
+                }
+
+                if inParty {
+                    Text(L("IN PARTY"))
+                        .pixelText(size: 6, color: Color(hex: "18100A"))
+                        .padding(.horizontal, 4)
+                        .padding(.vertical, 2)
+                        .background(Color(hex: "6FD16B"))
+                        .frame(maxWidth: .infinity, alignment: .leading)
                 }
             }
             .frame(height: 68)
@@ -425,7 +404,7 @@ private struct BiodexCell: View {
             .padding(.vertical, 5)
             .background(owned ? Color(hex: "EAD4A4") : Color(hex: "B5A487"))
         }
-        .overlay(Rectangle().stroke(owned ? hero.rarity.color : Color(hex: "40372F"), lineWidth: 3))
+        .overlay(Rectangle().stroke(inParty ? Color(hex: "6FD16B") : (owned ? hero.rarity.color : Color(hex: "40372F")), lineWidth: 3))
         .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 1).padding(3))
     }
 }
