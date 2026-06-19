@@ -173,7 +173,7 @@ enum TutorialScript {
             .wait(target: "egg.hatched", caption: L("tap HATCH ×1, draw one continuous crack, then release")),
             .wait(target: "egg.return", caption: L("meet your new BioBud, then tap CONTINUE")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("yay, you got a new BioBud! Eggs can hatch BioBuds of different rarities—the rarer they are, the harder they are to find.")),
+                 text: L("yay, you got a new BioBud! Eggs can hatch BioBuds of different rarities. The rarer they are, the harder they are to find.")),
             .say(speaker: mito, name: L("Mito"),
                  text: L("If you hatch a BioBud you already own, the duplicate becomes Shards. Use those Shards to upgrade that BioBud and make it stronger.")),
             .spotlight(target: "tab.cards", caption: L("last stop: your flashcard library")),
