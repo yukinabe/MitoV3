@@ -136,17 +136,17 @@ enum TutorialScript {
             .say(speaker: mito, name: L("Mito"),
                  text: L("oh, you're here. good, 'cause we've got a situation.")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("see that? a Mutagem. it eats the stuff you forget. right now it's just you and me against it."),
-                 partner: "wild-mutagem-hop", partnerName: L("Mutagem")),
+                 text: L("see that spiky thing? a Spikevyrus. it's the first of an outbreak, and right now it's just you and me against it."),
+                 partner: "wild-spikevyrus-hop", partnerName: L("Spikevyrus")),
             .say(speaker: mito, name: L("Mito"),
                  text: L("here's the deal. answer a flashcard right and we hit it. your brain is the weapon. kinda poetic, right?")),
             .say(speaker: mito, name: L("Mito"),
                  text: g.isEmpty
-                    ? L("let's start with the Campaign. that's where the story moves forward and new BioBuds join you.")
-                    : Lf("i loaded you up with some %@ cards. let's use them to rescue our first teammate.", L(g))),
+                    ? L("let's start with the Campaign. that's where we hunt the outbreak and catch the pathogens behind it.")
+                    : Lf("i loaded you up with some %@ cards. let's use them to catch our first specimen.", L(g))),
             .spotlight(target: "tab.battle", caption: L("head over to Battle ⚔")),
             .spotlight(target: "battle.campaign", caption: L("open the Campaign map")),
-            .spotlight(target: "campaign.stage1", caption: L("tap Stage 1 to meet Chloro")),
+            .spotlight(target: "campaign.stage1", caption: L("tap Stage 1, our first target")),
             .spotlight(target: "campaign.pickDeck", caption: L("pick the flashcard deck you want to fight with")),
             .spotlight(target: "campaign.start", caption: L("enter the dungeon")),
             .say(speaker: mito, name: L("Mito"),
@@ -154,17 +154,17 @@ enum TutorialScript {
             .spotlight(target: "battle.showAnswer", caption: L("try to recall it… then reveal the answer")),
             .spotlight(target: "battle.grade", caption: L("rate how well you knew it, be honest")),
             .spotlight(target: "battle.ability", caption: L("choose a move to attack")),
-            .wait(target: "campaign.cleared.1", caption: L("keep reviewing until Chloro is free")),
-            .wait(target: "campaign.return", caption: L("add Chloro to your roster, collect the stage rewards, then continue")),
+            .wait(target: "campaign.cleared.1", caption: L("keep reviewing until the Spikevyrus drops")),
+            .wait(target: "campaign.return", caption: L("capture the Spikevyrus, collect the stage rewards, then continue")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("Chloro joined the roster, but Campaign recruits cannot fight immediately. First you earn their Trust by studying together."),
-                 partner: "hero-chloroplast-hop", partnerName: L("Chloro")),
+                 text: L("nice, you caught it. captured pathogens cannot fight right away though. first you earn their Trust by studying together."),
+                 partner: "wild-spikevyrus-hop", partnerName: L("Spikevyrus")),
             .spotlight(target: "tab.home", caption: L("back to your meadow")),
             .spotlight(target: "study", caption: L("open the study menu")),
-            .wait(target: "study.companion.cloro", caption: L("select Chloro under STUDY WITH")),
+            .wait(target: "study.companion.wild-spikevyrus", caption: L("select the Spikevyrus under STUDY WITH")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("Every completed minute fills Chloro's Trust bar. Once it reaches full, Chloro unlocks for your battle team. Leaving early can damage unfinished Trust."),
-                 partner: "hero-chloroplast-hop", partnerName: L("Chloro")),
+                 text: L("Every completed minute fills its Trust bar. Once it reaches full, the Spikevyrus unlocks for your battle team. Leaving early can damage unfinished Trust."),
+                 partner: "wild-spikevyrus-hop", partnerName: L("Spikevyrus")),
             .spotlight(target: "study.mode.focus", caption: L("start a 25-minute Focus session")),
             .wait(target: "study.tutorialComplete", caption: L("tap the glowing SKIP 25 MINUTES button to continue instantly")),
             .say(speaker: mito, name: L("Mito"),
@@ -173,7 +173,7 @@ enum TutorialScript {
             .wait(target: "egg.hatched", caption: L("tap HATCH ×1, draw one continuous crack, then release")),
             .wait(target: "egg.return", caption: L("meet your new BioBud, then tap CONTINUE")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("yay, you got a new BioBud! Eggs can hatch BioBuds of different rarities. The rarer they are, the harder they are to find.")),
+                 text: L("yay, you got a new BioBud! and a hatched one is ready to fight right away, no Trust grind. Eggs hatch BioBuds of different rarities, and the rarer they are, the harder they are to find.")),
             .say(speaker: mito, name: L("Mito"),
                  text: L("If you hatch a BioBud you already own, the duplicate becomes Shards. Use those Shards to upgrade that BioBud and make it stronger.")),
             .spotlight(target: "tab.cards", caption: L("last stop: your flashcard library")),
@@ -184,7 +184,7 @@ enum TutorialScript {
             .coach(target: "cards.import",
                    caption: L("Already use Anki? Tap IMPORT, then IMPORT ANKI DECK and choose the .apkg file exported from Anki.")),
             .say(speaker: mito, name: L("Mito"),
-                 text: L("that's the full loop: make or import cards, rescue BioBuds in Campaign, earn their Trust through real focus, hatch study eggs, and grow the team. 🫡")),
+                 text: L("that's the full loop: make or import cards, capture pathogens in Campaign, earn their Trust through real focus, hatch study eggs for new allies, and grow the team. 🫡")),
         ]
     }
 }
@@ -624,9 +624,7 @@ struct CampaignStoryHost: View {
 /// solo fight, the Spikevyrus scout, and Neuro's rescue.
 enum CampaignStoryScript {
     private static let mito = "hero-mito-hop"
-    private static let chloro = "hero-chloroplast-hop"
-    private static let neuro = "hero-neuron-hop"
-    private static let bcell = "hero-b-cell-hop"
+    private static let prion = "hero-prion-hop"
     private static let t4 = "hero-t4-phage-hop"
 
     static func intro(stage: Int) -> [TutorialBeat] {
@@ -634,110 +632,80 @@ enum CampaignStoryScript {
         case 1:
             return [
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("first patrol. the marsh used to hum. now it's grey and quiet, and quiet is the Fading talking.")),
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("something is draining these cells of themselves. recall them clean and they hold. let's clear a path."))
+                     text: L("the outbreak's already here. that spiky one is a Spikevyrus, textbook bacteria. wear it down and we can take it in.")),
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("tame it, you mean. trust me, i know the type. i used to BE the type."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         case 2:
             return [
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("more of them. spores carrying the grey from cell to cell. that spiky one is a Spikevyrus scout.")),
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("so the Fading isn't just happening. something is spreading it on purpose. clear these and we keep moving north."))
+                     text: L("more spikevyrus, drifting in on the spores. nothing new here, just thin them out."))
             ]
         case 3:
             return [
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("there. a chloroplast, or it was one. the Fading's got it deep. see how the light went out?")),
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("it won't hear words, only remembering. recall it sharp and we pull it back to itself."))
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("the water's gone septic. classic early outbreak. keep moving before it sticks to us."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         case 4:
             return [
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("ugh, it's darker down here. and sticky. why is it always sticky."),
-                     partner: mito, partnerName: L("Mito")),
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("stay close. the grey pools in caves like this. clear the crawlers and we move."),
-                     partner: chloro, partnerName: L("Chloro"))
+                     text: L("new one. a Mutagem, a mutated spore. it rewrites whatever it touches. and it brought an escort.")),
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("two bacteria on its flanks. cute. drop the Mutagem and it's ours."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         case 5:
             return [
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("the ridge branches forever. easy to lose the trail up here.")),
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("good thing one of us glows. me. i'm the one that glows. you're welcome."),
-                     partner: mito, partnerName: L("Mito"))
+                     text: L("spikevyrus and mutagems both now. the outbreak's branching. hold the line."))
             ]
         case 6:
             return [
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("feel that static? a neuron. Neuro. its signals are scrambled. the Fading hits memory hardest here.")),
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("it's twitching like it forgot how to think."),
-                     partner: mito, partnerName: L("Mito")),
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("because it did. same as you were. recall it steady and we straighten its wires out."),
-                     partner: chloro, partnerName: L("Chloro"))
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("ugh. do not slip in that. i am not fishing you out of a pus pool."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         case 7:
             return [
-                .say(speaker: neuro, name: L("Neuro"),
-                     text: L("acid pools ahead. tactical note: do not fall in."),
-                     partner: mito, partnerName: L("Mito")),
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("wow. thank you. so brave. so wise."),
-                     partner: neuro, partnerName: L("Neuro"))
+                .say(speaker: mito, name: L("Mito"),
+                     text: L("the rot runs deeper here. whatever's seeding this is close. push through."))
             ]
         case 8:
             return [
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("the vale stores whatever the cell forgets. lately that's a lot. the grey is thick here.")),
-                .say(speaker: neuro, name: L("Neuro"),
-                     text: L("hold formation. i take the front."),
+                     text: L("a Cytocrawler. fast, mean, and it nests. clear its guards and pin the crawler itself.")),
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("i hate the fast ones. catch it before it bolts."),
                      partner: mito, partnerName: L("Mito"))
             ]
         case 9:
             return [
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("a b cell. it keeps the body's memory of every fight it ever won. the Fading wants that gone first.")),
-                .say(speaker: neuro, name: L("Neuro"),
-                     text: L("if it falls, we lose our defenses with it."),
-                     partner: mito, partnerName: L("Mito")),
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("then we don't let it fall. recall it whole."),
-                     partner: neuro, partnerName: L("Neuro"))
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("everything down here is trying to dissolve everything else. delightful."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         case 10:
             return [
-                .say(speaker: bcell, name: L("B Cell"),
-                     text: L("the air up here remembers being sick. i can feel the old infections in it."),
-                     partner: mito, partnerName: L("Mito")),
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("then we're close. the source is uphill. shields up and keep climbing."),
-                     partner: bcell, partnerName: L("B Cell"))
+                     text: L("last marsh before the source. all three species at once. stay sharp."))
             ]
         case 11:
             return [
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("last stretch before the citadel. whatever is spreading the Fading shipped it from here.")),
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("okay i'm officially nervous. say something leader-y."),
-                     partner: mito, partnerName: L("Mito")),
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("we go up. we get them back. all of them. that's it."),
-                     partner: chloro, partnerName: L("Chloro"))
+                     text: L("the vault is where it all shipped from. one more stretch to the top.")),
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("and then the thing that started it. i can feel it from here. it's big."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         case 12:
             return [
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("the Spike Citadel. every grey thread runs back here. and that thing on the throne is the one pulling them.")),
-                .say(speaker: bcell, name: L("B Cell"),
-                     text: L("that's a t4 phage. a warden. it was built to protect. the Fading turned it into the thing it guarded against."),
-                     partner: mito, partnerName: L("Mito")),
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("then it's the biggest recall we've ever done. one more, team. bring it home."),
-                     partner: bcell, partnerName: L("B Cell"))
+                     text: L("the Spike Citadel. that's a T4 Phage on the throne, a bacteriophage. the warden that turned. it's the source.")),
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("it's the strongest thing we'll ever catch. break it down and it's the crown of the collection. let's bring it in."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         default:
             return []
@@ -749,114 +717,89 @@ enum CampaignStoryScript {
         case 1:
             return [
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("marsh is humming again. faint, but it's there. good start."))
+                     text: L("got it. one Spikevyrus, contained and on our side now. that's how we do this.")),
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("welcome to the team, little plague. behave."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         case 2:
             return [
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("that's the spores done. the grey crawls slower now. keep north."))
+                     text: L("spores cleared. keep north."))
             ]
         case 3:
             return [
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("oh. OH. the light's back. how long was i out?"),
-                     partner: mito, partnerName: L("Mito")),
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("long enough. welcome back, Chloro."),
-                     partner: chloro, partnerName: L("Chloro")),
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("i had a dream i was a feral lamp. we don't talk about it. let's move."),
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("shallows are clean. for now."),
                      partner: mito, partnerName: L("Mito"))
             ]
         case 4:
             return [
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("cave's clear. can we go somewhere with less sticky next time."),
+                .say(speaker: mito, name: L("Mito"),
+                     text: L("Mutagem's down and tagged. nice catch.")),
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("two species in the bag. the collection grows."),
                      partner: mito, partnerName: L("Mito"))
             ]
         case 5:
             return [
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("ridge is ours. the trail holds north."),
-                     partner: chloro, partnerName: L("Chloro"))
+                     text: L("flats held. onward."))
             ]
         case 6:
             return [
-                .say(speaker: neuro, name: L("Neuro"),
-                     text: L("signal restored. systems nominal. who pulled me back?"),
-                     partner: mito, partnerName: L("Mito")),
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("team effort. you're one of us now, if you want in."),
-                     partner: neuro, partnerName: L("Neuro")),
-                .say(speaker: neuro, name: L("Neuro"),
-                     text: L("i hold the line. nothing gets past me twice."),
-                     partner: mito, partnerName: L("Mito")),
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("oh good. a wall with opinions. this'll be fun."),
-                     partner: neuro, partnerName: L("Neuro"))
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("see? nobody slipped. i'm a great influence."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         case 7:
             return [
-                .say(speaker: neuro, name: L("Neuro"),
-                     text: L("lair cleared. i did warn you about the acid."),
-                     partner: chloro, partnerName: L("Chloro")),
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("nobody fell in, did they. exactly. teamwork."),
-                     partner: neuro, partnerName: L("Neuro"))
+                .say(speaker: mito, name: L("Mito"),
+                     text: L("notch is clear. the source is just ahead."))
             ]
         case 8:
             return [
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("vale's quiet. the grey thins the higher we climb. almost there."),
-                     partner: neuro, partnerName: L("Neuro"))
+                     text: L("pinned it. Cytocrawler's ours, twitch and all.")),
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("three down. one throne left."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         case 9:
             return [
-                .say(speaker: bcell, name: L("B Cell"),
-                     text: L("i remember. every fight, every cure. it's all still here. thank you."),
-                     partner: mito, partnerName: L("Mito")),
-                .say(speaker: mito, name: L("Mito"),
-                     text: L("keep it safe. that memory is the whole point."),
-                     partner: bcell, partnerName: L("B Cell")),
-                .say(speaker: bcell, name: L("B Cell"),
-                     text: L("then i'll guard all of you. nothing gets through me."),
-                     partner: mito, partnerName: L("Mito")),
-                .say(speaker: neuro, name: L("Neuro"),
-                     text: L("good. a second wall. i approve."),
-                     partner: bcell, partnerName: L("B Cell"))
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("lowlands done. nothing dissolved that shouldn't have."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         case 10:
             return [
-                .say(speaker: bcell, name: L("B Cell"),
-                     text: L("pass is clear. shields held the whole way."),
-                     partner: mito, partnerName: L("Mito"))
+                .say(speaker: mito, name: L("Mito"),
+                     text: L("marsh cleared. all three species beaten on their own turf. the source is right above us."))
             ]
         case 11:
             return [
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("vault's empty. that's the last of it before the top. okay. deep breath."),
-                     partner: mito, partnerName: L("Mito")),
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("deep breath. then up."),
-                     partner: chloro, partnerName: L("Chloro"))
+                     text: L("vault's empty. this is it. top of the citadel.")),
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("deep breath, bean. then we go meet the boss."),
+                     partner: mito, partnerName: L("Mito"))
             ]
         case 12:
             return [
                 .say(speaker: t4, name: L("T4 Phage"),
-                     text: L("the orders are gone. the grey that rode me. who silenced it?"),
+                     text: L("the grey that drove me is gone. who pulled the orders out of me?"),
                      partner: mito, partnerName: L("Mito")),
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("we did. you were a warden once. you can be one again. with us."),
+                     text: L("we did. you were a warden before the outbreak took you. you can be one again, with us."),
                      partner: t4, partnerName: L("T4 Phage")),
                 .say(speaker: t4, name: L("T4 Phage"),
-                     text: L("i was built to protect a wall. i will protect yours instead."),
+                     text: L("then i guard your wall now. i was always meant to protect something."),
                      partner: mito, partnerName: L("Mito")),
-                .say(speaker: chloro, name: L("Chloro"),
-                     text: L("we recruited the final boss. we RECRUITED the final boss."),
+                .say(speaker: prion, name: L("Prion"),
+                     text: L("the strongest pathogen in the body, and it's ours. outbreak contained."),
                      partner: t4, partnerName: L("T4 Phage")),
                 .say(speaker: mito, name: L("Mito"),
-                     text: L("the Citadel's quiet. the Fading's source is out. the cell remembers itself again. go rest, team. we earned it."),
-                     partner: chloro, partnerName: L("Chloro"))
+                     text: L("every species caught. the source is quiet. the cell can heal now. good work, team."))
             ]
         default:
             return []

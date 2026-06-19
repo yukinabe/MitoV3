@@ -32,16 +32,15 @@ struct CampaignStageSetup: View {
         !selectedDecks.isEmpty
     }
 
-    /// The boss shown for this stage: the recruitable hero (until owned), else the
-    /// generic Spikevyrus — kept in sync with what actually appears in combat.
+    /// The foe shown for this stage: the boss pathogen on a boss stage, otherwise
+    /// the latest common species you have met — kept in sync with combat.
     private var bossPreview: Hero {
-        if let id = CampaignRecruits.heroID(forStage: stage.id),
-           !RosterStore.shared.isOwned(id),
+        if let id = CampaignBosses.boss(forStage: stage.id),
            let hero = DataSet.anyHero(id: id) {
             return hero
         }
-        return DataSet.anyHero(id: "wild-spikevyrus")
-            ?? DataSet.heroes[0]
+        let met = CampaignBosses.metSpecies(upToStage: stage.id).last ?? "wild-spikevyrus"
+        return DataSet.anyHero(id: met) ?? DataSet.heroes[0]
     }
 
     var body: some View {

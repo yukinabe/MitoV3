@@ -632,8 +632,7 @@ enum DataSet {
         Hero(id: "dendri", asset: "hero-dendritic-cell-hop", name: "Dendri", role: "Support", level: 1, hp: 38, attack: 16, defense: 12, speed: 108, color: Color(hex: "E8C64A"), lore: "A branching dendritic-cell scout who keeps the team alert and turns small wins into streaks.", rarity: .rare),
         Hero(id: "neuro", asset: "hero-neuron-hop", name: "Neuro", role: "Tank", level: 1, hp: 56, attack: 14, defense: 22, speed: 88, color: Color(hex: "5FA3D4"), lore: "A sturdy neuron buffer with branching signals. Soaks pressure while fragile allies line up the next answer.", rarity: .rare),
         Hero(id: "bcell", asset: "hero-b-cell-hop", name: "B Cell", role: "Support", level: 1, hp: 34, attack: 17, defense: 10, speed: 94, color: Color(hex: "F4C6B8"), lore: "A careful immune support who turns repeated exposure into stronger responses. Antibody-themed moves make B Cell feel defensive without extra combat math.", rarity: .rare),
-        Hero(id: "prion", asset: "hero-prion-hop", name: "Prion", role: "DPS", level: 1, hp: 44, attack: 27, defense: 12, speed: 116, color: Color(hex: "C78CFF"), lore: "A sassy misfolded-protein BioBud with a dangerous little smile. Prion turns one correct fold into a chain reaction of pressure.", rarity: .legendary),
-        Hero(id: "t4phage", asset: "hero-t4-phage-hop", name: "T4 Phage", role: "DPS", level: 1, hp: 46, attack: 26, defense: 13, speed: 114, color: Color(hex: "4FDFF2"), lore: "A boss-tier bacteriophage BioBud with an iconic capsid and tail fibers. It latches on, injects focus, and makes review feel like a raid.", rarity: .legendary)
+        Hero(id: "prion", asset: "hero-prion-hop", name: "Prion", role: "DPS", level: 1, hp: 44, attack: 27, defense: 12, speed: 116, color: Color(hex: "C78CFF"), lore: "A sassy misfolded-protein BioBud with a dangerous little smile. Prion turns one correct fold into a chain reaction of pressure.", rarity: .legendary)
     ]
 
     static let decks: [Deck] = [
@@ -644,17 +643,17 @@ enum DataSet {
     ]
 
     static let stages: [Stage] = [
-        Stage(id: 1, name: "Membrane Marsh", status: .active, x: 0.50, y: 0.84, difficulty: "EASY"),
-        Stage(id: 2, name: "Spore Flats", status: .locked, x: 0.40, y: 0.775, difficulty: "EASY"),
-        Stage(id: 3, name: "Chloroplast Cove", status: .locked, x: 0.55, y: 0.71, difficulty: "NORMAL"),
-        Stage(id: 4, name: "Astrocyte Cave", status: .locked, x: 0.45, y: 0.645, difficulty: "NORMAL"),
-        Stage(id: 5, name: "Dendrite Ridge", status: .locked, x: 0.58, y: 0.58, difficulty: "NORMAL"),
-        Stage(id: 6, name: "Neuron Hollow", status: .locked, x: 0.42, y: 0.515, difficulty: "HARD"),
-        Stage(id: 7, name: "Lysosome Lair", status: .locked, x: 0.56, y: 0.45, difficulty: "HARD"),
-        Stage(id: 8, name: "Vacuole Vale", status: .locked, x: 0.44, y: 0.385, difficulty: "HARD"),
-        Stage(id: 9, name: "Antibody Gorge", status: .locked, x: 0.57, y: 0.32, difficulty: "HARD"),
-        Stage(id: 10, name: "Plastid Pass", status: .locked, x: 0.43, y: 0.255, difficulty: "HARD"),
-        Stage(id: 11, name: "Vesicle Vault", status: .locked, x: 0.54, y: 0.19, difficulty: "HARD"),
+        Stage(id: 1, name: "Bacteria Bloom", status: .active, x: 0.50, y: 0.84, difficulty: "EASY"),
+        Stage(id: 2, name: "Spore Drift", status: .locked, x: 0.40, y: 0.775, difficulty: "EASY"),
+        Stage(id: 3, name: "Stagnant Shallows", status: .locked, x: 0.55, y: 0.71, difficulty: "NORMAL"),
+        Stage(id: 4, name: "Mutagem Hollow", status: .locked, x: 0.45, y: 0.645, difficulty: "NORMAL"),
+        Stage(id: 5, name: "Festering Flats", status: .locked, x: 0.58, y: 0.58, difficulty: "NORMAL"),
+        Stage(id: 6, name: "Pus Pools", status: .locked, x: 0.42, y: 0.515, difficulty: "HARD"),
+        Stage(id: 7, name: "Necrotic Notch", status: .locked, x: 0.56, y: 0.45, difficulty: "HARD"),
+        Stage(id: 8, name: "Crawler Warren", status: .locked, x: 0.44, y: 0.385, difficulty: "HARD"),
+        Stage(id: 9, name: "Lysis Lowlands", status: .locked, x: 0.57, y: 0.32, difficulty: "HARD"),
+        Stage(id: 10, name: "Plaguemarsh", status: .locked, x: 0.43, y: 0.255, difficulty: "HARD"),
+        Stage(id: 11, name: "Viral Vault", status: .locked, x: 0.54, y: 0.19, difficulty: "HARD"),
         Stage(id: 12, name: "Spike Citadel", status: .locked, x: 0.47, y: 0.125, difficulty: "BOSS")
     ]
 }
@@ -799,7 +798,8 @@ extension DataSet {
     static let capturables: [Hero] = [
         Hero(id: "wild-mutagem", asset: "wild-mutagem-hop", name: "Mutagem", role: "DPS", level: 1, hp: 40, attack: 21, defense: 10, speed: 105, color: Color(hex: "A98FD0"), lore: "A mutated gem-spore that drifts through endless review. Capturing one binds its restless energy to your team.", rarity: .rare),
         Hero(id: "wild-spikevyrus", asset: "wild-spikevyrus-hop", name: "Spikevyrus", role: "Tank", level: 1, hp: 54, attack: 15, defense: 20, speed: 90, color: Color(hex: "5FA3D4"), lore: "A spike-shelled virus boss from the campaign depths. Stubborn, sturdy, and surprisingly loyal once captured.", rarity: .epic),
-        Hero(id: "wild-cytocrawler", asset: "wild-cytocrawler-hop", name: "Cytocrawler", role: "DPS", level: 1, hp: 36, attack: 23, defense: 8, speed: 118, color: Color(hex: "E8C64A"), lore: "A fast cytoplasmic crawler that skitters between waves. Rare, twitchy, and a brutal attacker.", rarity: .epic)
+        Hero(id: "wild-cytocrawler", asset: "wild-cytocrawler-hop", name: "Cytocrawler", role: "DPS", level: 1, hp: 36, attack: 23, defense: 8, speed: 118, color: Color(hex: "E8C64A"), lore: "A fast cytoplasmic crawler that skitters between waves. Rare, twitchy, and a brutal attacker.", rarity: .epic),
+        Hero(id: "t4phage", asset: "hero-t4-phage-hop", name: "T4 Phage", role: "DPS", level: 1, hp: 46, attack: 26, defense: 13, speed: 114, color: Color(hex: "4FDFF2"), lore: "A boss-tier bacteriophage with an iconic capsid and tail fibers. It latches on, injects focus, and makes review feel like a raid. The Citadel's warden, caught at last.", rarity: .legendary)
     ] + expansionBiobuds
 
     static func capturable(id: String) -> Hero? { capturables.first { $0.id == id } }
@@ -813,19 +813,26 @@ extension DataSet {
 /// Which base hero each campaign stage's boss is — clear the stage to recruit
 /// them. Mito is the starter; the rest join one per campaign, in this order.
 /// Stages without an entry are generic (Spikevyrus) fights.
-enum CampaignRecruits {
-    /// stage.id → recruited hero id. The player frees one ally every third stage
-    /// (the boss of that stage IS the ally you recruit); the stages in between
-    /// are filler fights against common Fading creatures with no recruit.
-    /// Astro and Dendri are not campaign recruits; they hatch from study eggs.
+enum CampaignBosses {
+    /// stage.id → the pathogen species that headlines (and can be captured on)
+    /// that stage. Each new species debuts as a boss you catch; the stages in
+    /// between reuse pathogens you have already met, so nothing new to unlock.
+    /// Capturing works like everywhere else (CaptureStore), so the mobs you kill
+    /// in campaign are collectible too. T4 Phage is the legendary final catch.
     static let byStage: [Int: String] = [
-        3: "cloro",    // Chloro    DPS
-        6: "neuro",    // Neuro     Tank
-        9: "bcell",    // B Cell    Support
-        12: "t4phage"  // T4 Phage  Legendary final-boss recruit
+        1: "wild-spikevyrus",   // bacteria  (first catch, immediate hook)
+        4: "wild-mutagem",      // mutated spore
+        8: "wild-cytocrawler",  // fast crawler
+        12: "t4phage"           // bacteriophage  (legendary finale)
     ]
 
-    static func heroID(forStage id: Int) -> String? { byStage[id] }
+    static func boss(forStage id: Int) -> String? { byStage[id] }
+
+    /// Every pathogen introduced on or before stage `id`, in debut order. Used to
+    /// stock filler fights and boss "add" enemies from species already seen.
+    static func metSpecies(upToStage id: Int) -> [String] {
+        byStage.filter { $0.key <= id }.sorted { $0.key < $1.key }.map(\.value)
+    }
 }
 
 /// Persistent set of OWNED base heroes. The beta build grants the starter plus
@@ -1067,8 +1074,9 @@ final class TrustStore: ObservableObject {
 enum GachaPool {
     static let ids: [String] = [
         "wild-mutagem", "wild-spikevyrus", "wild-cytocrawler",
-        // Astro and Dendri are not campaign recruits, so they hatch from eggs.
-        "astro", "dendri"
+        // The cell-heroes are not campaign recruits anymore; they hatch from eggs.
+        // (The tutorial's first hatch is forced to one of cloro/neuro/bcell.)
+        "astro", "dendri", "cloro", "neuro", "bcell"
     ] + DataSet.expansionBiobuds.map(\.id)
     static var pool: [Hero] { ids.compactMap { DataSet.anyHero(id: $0) } }
 }
@@ -1091,7 +1099,12 @@ final class EggStore: ObservableObject {
     nonisolated static let eggKey = "gacha.eggs"
     nonisolated static let shardKey = "gacha.shards"
     nonisolated static let pityKey = "gacha.pity"
+    nonisolated static let firstHatchKey = "gacha.firstHatchDone"
     nonisolated static let pityThreshold = 10
+    /// The very first egg the player ever hatches (the tutorial hatch) is forced
+    /// to one of these starter cell-heroes so everyone leaves the tutorial with a
+    /// usable ally. All three are the same (rare) rarity, so it stays fair.
+    nonisolated static let starterHatchPool = ["cloro", "neuro", "bcell"]
 
     @Published private(set) var eggs: Int
     @Published private(set) var shards: Int
@@ -1124,7 +1137,15 @@ final class EggStore: ObservableObject {
         for i in 0..<n {
             let forceRare = pity + 1 >= Self.pityThreshold
                 || (count >= 10 && i == n - 1 && !gotRarePlus)
-            let hero = rollHero(forceRarePlus: forceRare)
+            let hero: Hero
+            if i == 0, !UserDefaults.standard.bool(forKey: Self.firstHatchKey) {
+                // First hatch ever (the tutorial): hand out a starter cell-hero.
+                UserDefaults.standard.set(true, forKey: Self.firstHatchKey)
+                hero = Self.starterHatchPool.randomElement()
+                    .flatMap { DataSet.anyHero(id: $0) } ?? rollHero(forceRarePlus: forceRare)
+            } else {
+                hero = rollHero(forceRarePlus: forceRare)
+            }
             if hero.rarity >= .rare { gotRarePlus = true; pity = 0 } else { pity += 1 }
 
             if ownedIDs().contains(hero.id) {
@@ -1146,6 +1167,7 @@ final class EggStore: ObservableObject {
         d.removeObject(forKey: Self.eggKey)
         d.removeObject(forKey: Self.shardKey)
         d.removeObject(forKey: Self.pityKey)
+        d.removeObject(forKey: Self.firstHatchKey)
     }
 
     private func rollHero(forceRarePlus: Bool) -> Hero {

@@ -229,22 +229,11 @@ struct BattleScreen: View {
         }
     }
 
-    /// The base hero recruited by clearing the selected campaign stage, if it's a
-    /// recruit stage and the player hasn't already unlocked them.
-    private var campaignRecruitHero: Hero? {
-        guard let id = CampaignRecruits.heroID(forStage: selectedStage.id),
-              !RosterStore.shared.isOwned(id) else { return nil }
-        return DataSet.anyHero(id: id)
-    }
-
-    /// The boss hero a campaign stage is fought against (drives the enemy sprite/
-    /// name). Recruit stages show the joinable hero until they're recruited; after
-    /// that the stage reverts to a generic Spikevyrus fight so the enemy you see
-    /// matches the capture you're offered on a replay.
+    /// The pathogen this campaign stage headlines, if it's a boss stage. Drives
+    /// the boss sprite/name and the capture offer. Filler stages return nil (you
+    /// fight common species you have already met, with no new capture).
     private var campaignBossHeroID: String? {
-        guard let id = CampaignRecruits.heroID(forStage: selectedStage.id),
-              !RosterStore.shared.isOwned(id) else { return nil }
-        return id
+        CampaignBosses.boss(forStage: selectedStage.id)
     }
 
     /// Play the stage's story intro the first time the player opens its combat
@@ -263,7 +252,8 @@ struct BattleScreen: View {
         if battleMode == .endless {
             return (wave % 4 == 0) ? "wild-cytocrawler" : "wild-mutagem"
         } else {
-            return "wild-spikevyrus"
+            // Campaign: the catch is the stage's boss species (empty on filler).
+            return CampaignBosses.boss(forStage: selectedStage.id) ?? ""
         }
     }
 
@@ -982,27 +972,43 @@ struct BattleScreen: View {
         syncTargetMirror()
     }
 
-    /// Build the current campaign stage's enemies. Recruit stages (every third)
-    /// are a single boss who IS the ally you free; the stages between are filler
-    /// fights against a couple of common Fading creatures.
+    /// Build the current campaign stage's enemies. A boss stage is the debut of a
+    /// new pathogen (the catch), flanked after stage 1 by a couple of weaker adds
+    /// from species met earlier. Filler stages are a small pack of common
+    /// pathogens you have already encountered.
     private func spawnCampaignEncounter() {
+        let stage = selectedStage.id
         let bossHP = BattleScaling.campaignEnemyHP(
-            stageIndex: selectedStage.id,
+            stageIndex: stage,
             tierMultiplier: selectedStage.tierMultiplier
         )
-        if let bossID = campaignBossHeroID, let hero = DataSet.anyHero(id: bossID) {
-            enemies = [EnemyUnit(asset: hero.asset, name: hero.name, rarityLabel: "BOSS", hp: bossHP, maxHP: bossHP, kitID: bossID)]
-        } else {
-            let perHP = max(20, Int(Double(bossHP) * 0.6))
-            let commons: [(asset: String, name: String, kit: String)] = [
-                ("wild-spikevyrus-hop", "Spikevyrus", "wild-spikevyrus"),
-                ("wild-mutagem-hop", "Mutagem", "wild-mutagem")
-            ]
-            // Early stages ease the player in with a single foe.
-            let count = selectedStage.id <= 2 ? 1 : 2
-            enemies = commons.prefix(count).map {
-                EnemyUnit(asset: $0.asset, name: $0.name, rarityLabel: nil, hp: perHP, maxHP: perHP, kitID: $0.kit)
+
+        func unit(_ id: String, hp: Int, boss: Bool) -> EnemyUnit {
+            let hero = DataSet.anyHero(id: id)
+            return EnemyUnit(
+                asset: hero?.asset ?? "wild-spikevyrus-hop",
+                name: hero?.name ?? "Pathogen",
+                rarityLabel: boss ? "BOSS" : nil,
+                hp: hp, maxHP: hp, kitID: id
+            )
+        }
+
+        if let bossID = CampaignBosses.boss(forStage: stage) {
+            var line = [unit(bossID, hp: bossHP, boss: true)]
+            // Boss stages after the first bring two adds from earlier species.
+            let earlier = CampaignBosses.metSpecies(upToStage: stage - 1)
+            if let addID = earlier.last {
+                let addHP = max(18, Int(Double(bossHP) * 0.4))
+                line.append(unit(addID, hp: addHP, boss: false))
+                line.append(unit(addID, hp: addHP, boss: false))
             }
+            enemies = line
+        } else {
+            let pool = CampaignBosses.metSpecies(upToStage: stage)
+            let species = pool.isEmpty ? ["wild-spikevyrus"] : pool
+            let perHP = max(20, Int(Double(bossHP) * 0.6))
+            let count = stage <= 2 ? 1 : 2
+            enemies = (0..<count).map { unit(species[$0 % species.count], hp: perHP, boss: false) }
         }
         targetIndex = 0
         enemyTurnIndex = 0
@@ -1325,15 +1331,11 @@ struct BattleScreen: View {
                 DailyQuests.shared.noteBattleWon()
                 clearedStage = max(clearedStage, selectedStage.id)
                 TutorialManager.shared.complete("campaign.cleared.\(selectedStage.id)")
-                let recruit = campaignRecruitHero
                 CampaignStoryManager.shared.playOnce(
                     "outro.\(stageID)", CampaignStoryScript.outro(stage: stageID)
                 ) {
-                    if let recruit {
-                        recruitOffer = recruit
-                    } else {
-                        offerCaptureIfWild()
-                    }
+                    // Boss stages offer the pathogen catch; filler stages don't.
+                    offerCaptureIfWild()
                 }
             }
             route = .result
