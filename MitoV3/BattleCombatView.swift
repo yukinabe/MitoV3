@@ -301,6 +301,66 @@ private struct PiercingLine: View {
     }
 }
 
+private struct DirectedAbilityStrikeView: View {
+    let ability: BattleAbility
+    let start: CGPoint
+    let end: CGPoint
+    let progress: CGFloat
+
+    private var current: CGPoint {
+        CGPoint(
+            x: start.x + (end.x - start.x) * progress,
+            y: start.y + (end.y - start.y) * progress
+        )
+    }
+
+    var body: some View {
+        ZStack {
+            if ExpansionAbilityVisuals.beamKeys.contains(ability.animationKey) {
+                PiercingLine(start: start, end: current, color: ability.color)
+                PiercingLine(start: start, end: current, color: Color.white.opacity(0.72))
+                    .scaleEffect(y: 0.42)
+                if ability.animationKey == "nk-execute" {
+                    ExpandingHexPulse(center: current, color: ability.color, progress: progress)
+                }
+            } else if ability.animationKey == "aa-poly" {
+                PiercingLine(start: start, end: current, color: ability.color)
+                ForEach(0..<5, id: \.self) { index in
+                    Circle()
+                        .fill(index.isMultiple(of: 2) ? ability.color : Color.white.opacity(0.86))
+                        .frame(width: 13, height: 13)
+                        .position(point(at: max(0, progress - CGFloat(index) * 0.08)))
+                }
+            } else {
+                PiercingLine(start: start, end: current, color: ability.color)
+                if ExpansionAbilityVisuals.poisonKeys.contains(ability.animationKey) {
+                    PixelSpark(color: Color(hex: "8FE35B"))
+                        .scaleEffect(0.48)
+                        .position(current)
+                } else if ability.animationKey == "ribo-pelt" {
+                    ForEach(0..<3, id: \.self) { index in
+                        Circle()
+                            .fill(index.isMultiple(of: 2) ? ability.color : Color.white.opacity(0.82))
+                            .frame(width: 12, height: 12)
+                            .position(point(at: max(0, progress - CGFloat(index) * 0.12)))
+                    }
+                } else {
+                    PixelSpark(color: ability.color)
+                        .scaleEffect(0.52 + progress * 0.28)
+                        .position(current)
+                }
+            }
+        }
+    }
+
+    private func point(at value: CGFloat) -> CGPoint {
+        CGPoint(
+            x: start.x + (end.x - start.x) * value,
+            y: start.y + (end.y - start.y) * value
+        )
+    }
+}
+
 private struct DnaTether: View {
     let start: CGPoint
     let end: CGPoint
@@ -647,7 +707,17 @@ struct BattleCombatView: View {
                 if let pa = projectileAbility {
                     let start = heroScreenPos(index: projectileFromIndex, in: proxy.size)
                     let end = enemyScreenPos(in: proxy.size)
-                    if isLegendaryDirectedAbility(pa) {
+                    if isExpansionAbility(pa) {
+                        DirectedAbilityStrikeView(
+                            ability: pa,
+                            start: start,
+                            end: end,
+                            progress: projectileProgress
+                        )
+                        .frame(width: proxy.size.width, height: proxy.size.height)
+                        .allowsHitTesting(false)
+                        .zIndex(7)
+                    } else if isLegendaryDirectedAbility(pa) {
                         LegendaryDirectedStrikeView(ability: pa, start: start, end: end, progress: projectileProgress)
                             .frame(width: proxy.size.width, height: proxy.size.height)
                             .allowsHitTesting(false)
@@ -668,7 +738,7 @@ struct BattleCombatView: View {
 
                 // 2) On arrival it bursts on the enemy (every damaging ability, so
                 //    buff-and-attack ultimates still land a visible hit).
-                if let burst = impactBurstAbility {
+                if let burst = impactBurstAbility, !usesPerEnemyImpact(burst) {
                     if isLegendaryDirectedAbility(burst) {
                         LegendaryImpactEffectView(ability: burst)
                             .id(impactBurstToken)
@@ -678,7 +748,7 @@ struct BattleCombatView: View {
                             .zIndex(8)
                     } else {
                         BattleAbilityEffectView(ability: burst,
-                                                scale: burst.kind == .ultimate ? 1.3 : 1.05,
+                                                scale: impactScale(for: burst),
                                                 opacity: 1, rotation: 0)
                             .id(impactBurstToken)
                             .frame(width: effectSize(for: burst).width, height: effectSize(for: burst).height)
@@ -774,6 +844,31 @@ struct BattleCombatView: View {
         Self.partyAuraAnimationKeys.contains(ability.animationKey)
     }
 
+    private func isExpansionAbility(_ ability: BattleAbility) -> Bool {
+        ExpansionAbilityVisuals.allKeys.contains(ability.animationKey)
+    }
+
+    private func usesPerEnemyImpact(_ ability: BattleAbility) -> Bool {
+        isExpansionAbility(ability)
+            && (ability.target == .all || ExpansionAbilityVisuals.areaKeys.contains(ability.animationKey))
+    }
+
+    private func impactScale(for ability: BattleAbility) -> CGFloat {
+        guard ability.animationKey == "nk-execute" else {
+            return ability.kind == .ultimate ? 1.3 : 1.05
+        }
+        let ratio = CGFloat(max(mobHP, 0)) / CGFloat(max(enemyMaxHP, 1))
+        return 1.25 + (1 - ratio) * 0.75
+    }
+
+    private func shouldShowAura(_ ability: BattleAbility, heroIndex: Int) -> Bool {
+        guard isPartyAuraAbility(ability) else { return false }
+        if Self.casterOnlyAuraAnimationKeys.contains(ability.animationKey) {
+            return heroIndex == lastActorIndex
+        }
+        return true
+    }
+
     private func isLegendaryDirectedAbility(_ ability: BattleAbility) -> Bool {
         Self.legendaryDirectedAnimationKeys.contains(ability.animationKey)
     }
@@ -817,7 +912,16 @@ struct BattleCombatView: View {
         "dendri-immune-rally",
         "neuro-myelin-guard",
         "bcell-affinity-shield",
-        "bcell-memory-response"
+        "bcell-memory-response",
+        "rbc-drop", "rbc-sat", "macro-phago", "stem-diff", "stem-bloom",
+        "plat-clot", "plat-cascade", "epi-wall", "epi-barrier",
+        "nuc-order", "nuc-express", "ribo-synth", "rer-factory", "rer-secrete",
+        "golgi-ship", "golgi-express", "dna-rep", "dna-unlock",
+        "mrna-trans", "mrna-translate", "enz-site", "atp-transfer", "atp-surge"
+    ]
+
+    private static let casterOnlyAuraAnimationKeys: Set<String> = [
+        "macro-phago", "epi-wall", "enz-site", "stem-diff", "golgi-ship"
     ]
 
     private static let legendaryDirectedAnimationKeys: Set<String> = [
@@ -925,7 +1029,7 @@ struct BattleCombatView: View {
         }
         DispatchQueue.main.asyncAfter(deadline: .now() + travelDuration + projectileHoldDuration) {
             projectileAbility = nil
-            guard ability.kind != .basic else { return }
+            guard ability.kind != .basic || isExpansionAbility(ability) else { return }
             impactBurstToken += 1
             let tok = impactBurstToken
             impactBurstAbility = ability
@@ -1350,10 +1454,27 @@ struct BattleCombatView: View {
                 }
                 .frame(width: 50, height: 4)
 
-                SpriteView(asset: entry.unit.asset, size: 66)
-                    .shadow(color: .black.opacity(0.32), radius: 0, x: 3, y: 4)
-                    .opacity(entry.unit.alive ? 0.97 : 0.24)
-                    .saturation(entry.unit.alive ? 1 : 0)
+                ZStack {
+                    SpriteView(asset: entry.unit.asset, size: 66)
+                        .shadow(color: .black.opacity(0.32), radius: 0, x: 3, y: 4)
+                        .overlay(
+                            SpriteView(asset: entry.unit.asset, size: 66)
+                                .colorMultiply(enemyFlashColor)
+                                .opacity(shouldFlashAllEnemies ? enemyFlash : 0)
+                                .blendMode(.plusLighter)
+                        )
+                        .scaleEffect(shouldFlashAllEnemies ? enemyHitScale : 1)
+                        .opacity(entry.unit.alive ? 0.97 : 0.24)
+                        .saturation(entry.unit.alive ? 1 : 0)
+
+                    if let ability = perEnemyImpactAbility, entry.unit.alive {
+                        ExpansionEnemyEffectView(ability: ability)
+                            .id("\(impactBurstToken)-\(entry.unit.id)")
+                            .frame(width: 104, height: 104)
+                            .scaleEffect(0.62)
+                            .allowsHitTesting(false)
+                    }
+                }
             }
         }
         .buttonStyle(.plain)
@@ -1375,6 +1496,14 @@ struct BattleCombatView: View {
                 .rotationEffect(.degrees(enemyDeathSpin))
                 .opacity(enemyEnterOpacity)
                 .offset(x: enemyShakeX, y: enemyEnterY)
+
+            if let ability = perEnemyImpactAbility, targetedEnemy?.alive ?? true {
+                ExpansionEnemyEffectView(ability: ability)
+                    .id("\(impactBurstToken)-primary")
+                    .frame(width: primarySize * 1.42, height: primarySize * 1.42)
+                    .scaleEffect(0.82)
+                    .allowsHitTesting(false)
+            }
 
             ForEach(floatingDamages) { dmg in
                 DamageNumberView(damage: dmg)
@@ -1430,6 +1559,16 @@ struct BattleCombatView: View {
         lastAbility?.color ?? .white
     }
 
+    private var perEnemyImpactAbility: BattleAbility? {
+        guard let ability = impactBurstAbility, usesPerEnemyImpact(ability) else { return nil }
+        return ability
+    }
+
+    private var shouldFlashAllEnemies: Bool {
+        guard let ability = lastAbility else { return false }
+        return ability.target == .all || ability.animationKey == "ab-opson"
+    }
+
     private func buffChipColor(_ kind: BuffKind) -> Color {
         switch kind {
         case .attack:    return Color(hex: "FFD24D")
@@ -1475,7 +1614,7 @@ struct BattleCombatView: View {
 
                         if
                             let effectAbility = activeVisualAbility,
-                            isPartyAuraAbility(effectAbility),
+                            shouldShowAura(effectAbility, heroIndex: index),
                             !down
                         {
                             Ellipse()
@@ -1490,14 +1629,24 @@ struct BattleCombatView: View {
                                 .allowsHitTesting(false)
                                 .zIndex(2)
 
-                            SpriteSheetAbilityEffect(
-                                asset: effectAbility.animationKey,
-                                frameCount: 8,
-                                frameSize: CGSize(width: 200, height: 128)
-                            )
-                            .id("\(visualEffectToken)-\(hero.id)")
+                            Group {
+                                if Self.spriteSheetAnimationKeys.contains(effectAbility.animationKey) {
+                                    SpriteSheetAbilityEffect(
+                                        asset: effectAbility.animationKey,
+                                        frameCount: 8,
+                                        frameSize: CGSize(width: 200, height: 128)
+                                    )
+                                } else {
+                                    BattleAbilityEffectView(
+                                        ability: effectAbility,
+                                        scale: effectAbility.kind == .ultimate ? 0.62 : 0.48,
+                                        opacity: effectAbility.kind == .ultimate ? 0.95 : 0.78,
+                                        rotation: 0
+                                    )
+                                }
+                            }
+                            .id("\(visualEffectToken)-\(attackToken)-\(hero.id)")
                             .frame(width: auraWidth * 1.12, height: auraHeight * 1.08)
-                            .opacity(effectAbility.kind == .ultimate ? 0.95 : 0.72)
                             .blendMode(.screen)
                             .offset(y: hop + bob + 4)
                             .allowsHitTesting(false)

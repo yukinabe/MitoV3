@@ -15,26 +15,30 @@ struct BattleAbilityEffectView: View {
                 SpriteSheetAbilityEffect(asset: ability.animationKey, frameCount: 8, frameSize: CGSize(width: 200, height: 128))
             } else {
                 switch ability.animationKey {
-            case "beam":
-                BeamEffect(color: ability.color)
-            case "bloom":
-                BloomEffect(color: ability.color)
-            case "network", "network-burst":
-                NetworkEffect(color: ability.color, intense: ability.kind == .ultimate)
-            case "mark":
-                MarkEffect(color: ability.color)
-            case "rally":
-                RallyEffect(color: ability.color)
-            case "shield":
-                ShieldEffect(color: ability.color)
-            case "storm":
-                StormEffect(color: ability.color)
-            case "burst":
-                BurstEffect(color: ability.color, intense: true)
-            case "pulse":
-                PulseEffect(color: ability.color)
-            default:
-                BurstEffect(color: ability.color, intense: ability.kind == .ultimate)
+                case "beam":
+                    BeamEffect(color: ability.color)
+                case "bloom":
+                    BloomEffect(color: ability.color)
+                case "network", "network-burst":
+                    NetworkEffect(color: ability.color, intense: ability.kind == .ultimate)
+                case "mark":
+                    MarkEffect(color: ability.color)
+                case "rally":
+                    RallyEffect(color: ability.color)
+                case "shield":
+                    ShieldEffect(color: ability.color)
+                case "storm":
+                    StormEffect(color: ability.color)
+                case "burst":
+                    BurstEffect(color: ability.color, intense: true)
+                case "pulse":
+                    PulseEffect(color: ability.color)
+                default:
+                    if ExpansionAbilityVisuals.allKeys.contains(ability.animationKey) {
+                        ExpansionAbilityEffectView(ability: ability)
+                    } else {
+                        BurstEffect(color: ability.color, intense: ability.kind == .ultimate)
+                    }
                 }
             }
         }
@@ -64,6 +68,236 @@ struct BattleAbilityEffectView: View {
         "t4-genome-injection",
         "t4-lytic-burst"
     ]
+}
+
+enum ExpansionAbilityVisuals {
+    static let strikeKeys: Set<String> = [
+        "rbc-tap", "macro-chomp", "macro-engulf", "stem-poke", "plat-jab",
+        "epi-slam", "nuc-signal", "ribo-pelt", "rer-fold", "golgi-toss",
+        "lyso-drip", "lyso-digest", "tc-recon", "tc-tag", "nk-slash",
+        "neu-bite", "ab-yjab", "ph-stab", "ph-inject", "dna-bolt",
+        "mrna-cut", "enz-cat", "enz-site", "atp-spark", "aa-block"
+    ]
+
+    static let beamKeys: Set<String> = [
+        "lyso-auto", "tc-assault", "nk-perforin", "nk-execute", "ph-lyse", "aa-bond"
+    ]
+
+    static let areaKeys: Set<String> = [
+        "macro-phago", "ribo-mass", "neu-swarm", "neu-burst",
+        "ab-opson", "mrna-translate", "enz-cascade"
+    ]
+
+    static let markKeys: Set<String> = [
+        "lyso-digest", "lyso-auto", "tc-tag", "neu-burst", "ab-tag", "ab-opson"
+    ]
+
+    static let shieldKeys: Set<String> = [
+        "macro-phago", "plat-clot", "plat-cascade", "epi-wall",
+        "epi-barrier", "rer-factory"
+    ]
+
+    static let healKeys: Set<String> = [
+        "rbc-drop", "rbc-sat", "plat-cascade", "rer-secrete",
+        "golgi-express", "dna-unlock"
+    ]
+
+    static let rallyKeys: Set<String> = [
+        "stem-bloom", "nuc-express", "rer-factory", "dna-unlock",
+        "enz-site", "atp-transfer", "atp-surge"
+    ]
+
+    static let networkKeys: Set<String> = [
+        "nuc-order", "nuc-express", "ribo-synth", "golgi-express",
+        "dna-rep", "dna-unlock", "mrna-trans", "mrna-translate",
+        "atp-transfer", "atp-surge"
+    ]
+
+    static let copyKeys: Set<String> = ["stem-diff", "golgi-ship"]
+    static let heavyBurstKeys: Set<String> = ["epi-slam", "lyso-auto", "tc-assault", "ph-lyse", "aa-poly"]
+    static let poisonKeys: Set<String> = ["ph-inject"]
+    static let lifeStealKeys: Set<String> = ["macro-engulf"]
+
+    static let auraKeys = shieldKeys
+        .union(healKeys)
+        .union(rallyKeys)
+        .union(networkKeys)
+        .union(copyKeys)
+
+    static let allKeys = strikeKeys
+        .union(beamKeys)
+        .union(areaKeys)
+        .union(markKeys)
+        .union(auraKeys)
+        .union(heavyBurstKeys)
+        .union(["aa-poly"])
+}
+
+struct ExpansionAbilityEffectView: View {
+    let ability: BattleAbility
+
+    private var key: String { ability.animationKey }
+    private var intense: Bool { ability.kind == .ultimate }
+
+    var body: some View {
+        ZStack {
+            if ExpansionAbilityVisuals.areaKeys.contains(key) {
+                StormEffect(color: ability.color)
+                    .scaleEffect(intense ? 1.18 : 0.94)
+            } else if key == "ab-tag" || key == "ab-opson" {
+                AntibodyMarkEffect(color: ability.color, intense: intense)
+            } else if key == "aa-poly" {
+                PolymerSlamEffect(color: ability.color)
+            } else if ExpansionAbilityVisuals.copyKeys.contains(key) {
+                CopyShimmerEffect(color: ability.color)
+            } else if ExpansionAbilityVisuals.shieldKeys.contains(key) {
+                ShieldEffect(color: ability.color)
+                    .scaleEffect(intense ? 1.12 : 0.88)
+            } else if ExpansionAbilityVisuals.healKeys.contains(key) {
+                BloomEffect(color: ability.color)
+                    .overlay(BloomEffect(color: Color(hex: "8FE388")).scaleEffect(0.62))
+            } else if ExpansionAbilityVisuals.networkKeys.contains(key) {
+                NetworkEffect(color: ability.color, intense: intense)
+            } else if ExpansionAbilityVisuals.rallyKeys.contains(key) {
+                RallyEffect(color: ability.color)
+            } else if ExpansionAbilityVisuals.beamKeys.contains(key) {
+                BeamEffect(color: ability.color)
+                    .scaleEffect(intense ? 1.18 : 1)
+            } else if ExpansionAbilityVisuals.markKeys.contains(key) {
+                MarkEffect(color: ability.color)
+            } else {
+                BurstEffect(
+                    color: ability.color,
+                    intense: intense || ExpansionAbilityVisuals.heavyBurstKeys.contains(key)
+                )
+            }
+
+            if ExpansionAbilityVisuals.markKeys.contains(key), key != "ab-tag", key != "ab-opson" {
+                MarkEffect(color: ability.color)
+                    .scaleEffect(intense ? 0.78 : 0.58)
+            }
+            if ExpansionAbilityVisuals.poisonKeys.contains(key) {
+                PoisonDripEffect(color: Color(hex: "8FE35B"))
+                    .offset(y: 36)
+            }
+            if ExpansionAbilityVisuals.lifeStealKeys.contains(key) {
+                PixelSpark(color: Color(hex: "8FE388"))
+                    .scaleEffect(0.72)
+                    .offset(x: -46, y: 34)
+            }
+            if key == "nuc-express" || key == "dna-unlock" {
+                RallyEffect(color: ability.color)
+                    .scaleEffect(0.58)
+            }
+            if key == "plat-cascade" || key == "golgi-express" {
+                BloomEffect(color: Color(hex: "8FE388"))
+                    .scaleEffect(0.54)
+            }
+            if key == "mrna-translate" {
+                NetworkEffect(color: ability.color, intense: true)
+                    .scaleEffect(0.58)
+            }
+        }
+    }
+}
+
+struct ExpansionEnemyEffectView: View {
+    let ability: BattleAbility
+
+    var body: some View {
+        ZStack {
+            if ExpansionAbilityVisuals.areaKeys.contains(ability.animationKey) {
+                StormEffect(color: ability.color)
+            }
+            if ExpansionAbilityVisuals.markKeys.contains(ability.animationKey) {
+                if ability.animationKey == "ab-opson" {
+                    AntibodyMarkEffect(color: ability.color, intense: true)
+                } else {
+                    MarkEffect(color: ability.color)
+                }
+            }
+            if ability.animationKey == "aa-poly" {
+                PolymerSlamEffect(color: ability.color)
+            }
+        }
+        .blendMode(.plusLighter)
+    }
+}
+
+private struct CopyShimmerEffect: View {
+    let color: Color
+
+    var body: some View {
+        ZStack {
+            PulseEffect(color: color)
+            ForEach(0..<3, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(index == 1 ? Color.white.opacity(0.82) : color.opacity(0.78), lineWidth: 4)
+                    .frame(width: 66, height: 84)
+                    .rotationEffect(.degrees(Double(index - 1) * 14))
+                    .offset(x: CGFloat(index - 1) * 18)
+            }
+        }
+    }
+}
+
+private struct PoisonDripEffect: View {
+    let color: Color
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 12) {
+            ForEach(0..<4, id: \.self) { index in
+                Capsule()
+                    .fill(index.isMultiple(of: 2) ? color : Color.white.opacity(0.72))
+                    .frame(width: 8, height: CGFloat(22 + index * 7))
+                    .offset(y: CGFloat(index % 2) * 12)
+            }
+        }
+    }
+}
+
+private struct AntibodyMarkEffect: View {
+    let color: Color
+    let intense: Bool
+
+    var body: some View {
+        ZStack {
+            MarkEffect(color: color)
+                .scaleEffect(intense ? 0.82 : 0.68)
+            ForEach(0..<(intense ? 5 : 3), id: \.self) { index in
+                Path { path in
+                    path.move(to: CGPoint(x: 40, y: 20))
+                    path.addLine(to: CGPoint(x: 50, y: 40))
+                    path.addLine(to: CGPoint(x: 60, y: 20))
+                    path.move(to: CGPoint(x: 50, y: 40))
+                    path.addLine(to: CGPoint(x: 50, y: 68))
+                }
+                .stroke(index.isMultiple(of: 2) ? color : Color.white.opacity(0.82),
+                        style: StrokeStyle(lineWidth: 6, lineCap: .square, lineJoin: .miter))
+                .frame(width: 100, height: 88)
+                .offset(y: -62)
+                .rotationEffect(.degrees(Double(index) * (intense ? 72 : 120)))
+            }
+        }
+    }
+}
+
+private struct PolymerSlamEffect: View {
+    let color: Color
+
+    var body: some View {
+        ZStack {
+            ForEach(0..<6, id: \.self) { index in
+                Circle()
+                    .fill(index.isMultiple(of: 2) ? color : Color.white.opacity(0.82))
+                    .frame(width: CGFloat(18 + index * 3), height: CGFloat(18 + index * 3))
+                    .offset(x: CGFloat(index - 3) * 24, y: CGFloat(abs(index - 3)) * -9)
+            }
+            BurstEffect(color: color, intense: true)
+                .scaleEffect(0.72)
+                .offset(y: 34)
+        }
+    }
 }
 
 struct SpriteSheetAbilityEffect: View {
