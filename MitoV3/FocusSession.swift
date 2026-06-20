@@ -312,6 +312,10 @@ struct FocusSession: View {
         .onAppear {
             lock.beginSession()
             MitoFocusActivityController.start(mode: mode)
+            if !tutorialMode {
+                let m = mode.rawValue
+                Task { await MitoBackend.shared.logEvent("focus_session_started", props: ["mode": m]) }
+            }
             if tutorialMode {
                 withAnimation(.easeInOut(duration: 0.65).repeatForever(autoreverses: true)) {
                     tutorialPromptPulse = true
@@ -428,6 +432,20 @@ struct FocusSession: View {
             streak: StreakStore.shared.count,
             modeLabel: mode.label
         )
+        if !tutorialMode {
+            let evMode = mode.rawValue
+            let evMinutes = elapsed / 60
+            let evAtp = earned
+            let evCompleted = !bailed
+            Task {
+                await MitoBackend.shared.logEvent("focus_session_completed", props: [
+                    "mode": evMode,
+                    "minutes": "\(evMinutes)",
+                    "atp": "\(evAtp)",
+                    "completed": "\(evCompleted)"
+                ])
+            }
+        }
         finished = true
     }
 

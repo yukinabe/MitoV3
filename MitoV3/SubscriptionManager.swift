@@ -107,6 +107,12 @@ final class SubscriptionManager: ObservableObject {
         do {
             let result = try await Purchases.shared.purchase(package: package)
             customerInfo = result.customerInfo
+            if isPro {
+                await MitoBackend.shared.logEvent("subscription_purchased", props: [
+                    "product": package.storeProduct.productIdentifier,
+                    "package": package.identifier
+                ])
+            }
             return isPro
         } catch {
             if (error as NSError).asErrorCode == .purchaseCancelledError {
@@ -176,46 +182,6 @@ final class SubscriptionManager: ObservableObject {
             return false
         }
         return true
-    }
-}
-
-struct MitoPaywallView: View {
-    @Environment(\.dismiss) private var dismiss
-    @ObservedObject private var subscriptions = SubscriptionManager.shared
-
-    var body: some View {
-        Group {
-            if subscriptions.isConfigured {
-                PaywallView(displayCloseButton: true)
-                    .onPurchaseCompleted { info in
-                        subscriptions.updateCustomerInfo(info)
-                        if subscriptions.isPro {
-                            Haptics.success()
-                            dismiss()
-                        }
-                    }
-                    .onRestoreCompleted { info in
-                        subscriptions.updateCustomerInfo(info)
-                        if subscriptions.isPro {
-                            Haptics.success()
-                            dismiss()
-                        }
-                    }
-                    .onPurchaseFailure { error in
-                        subscriptions.report(error)
-                    }
-                    .onRestoreFailure { error in
-                        subscriptions.report(error)
-                    }
-            } else {
-                ContentUnavailableView(
-                    "Subscriptions unavailable",
-                    systemImage: "exclamationmark.triangle",
-                    description: Text(subscriptions.errorMessage ?? "RevenueCat is not configured.")
-                )
-                .padding()
-            }
-        }
     }
 }
 

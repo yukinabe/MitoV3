@@ -35,6 +35,8 @@ struct CapturePopup: View {
 
                     Button {
                         onCapture()
+                        let hero = creature
+                        Task { await MitoBackend.shared.logEvent("creature_captured", props: ["creature": hero.name, "id": hero.id, "role": hero.role]) }
                         AudioManager.shared.play(.reward)
                         Haptics.success()
                         withAnimation(.spring(response: 0.42, dampingFraction: 0.58)) {
@@ -82,6 +84,8 @@ struct RecruitPopup: View {
             } else {
                 Button {
                     onJoin()
+                    let h = hero
+                    Task { await MitoBackend.shared.logEvent("creature_recruited", props: ["creature": h.name, "id": h.id, "role": h.role]) }
                     AudioManager.shared.play(.reward)
                     Haptics.success()
                     withAnimation(.spring(response: 0.42, dampingFraction: 0.58)) {
