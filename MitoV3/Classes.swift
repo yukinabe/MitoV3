@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Free-tier caps for classes. Mito+ removes them. Enforced client-side; the
+/// Free-tier caps for classes. Mito Pro removes them. Enforced client-side; the
 /// RPCs enforce membership + a 30-member hard cap server-side.
 enum ClassLimits {
     static let freeJoin = 3
@@ -21,7 +21,7 @@ private let cStroke = Color(hex: "18100A")
 
 // MARK: - Classes hub
 
-/// Study-group hub: see your classes, create one (Mito+ / first is free), join
+/// Study-group hub: see your classes, create one (Mito Pro / first is free), join
 /// by code (free up to 3), and open a class to share + copy decks. Joining is
 /// intentionally NOT premium-gated — that's the viral loop.
 struct ClassesView: View {
@@ -117,7 +117,7 @@ struct ClassesView: View {
                     pillLabel("NEW", bg: canCreate ? cGreen : cMuted)
                 }.buttonStyle(.plain).disabled(!canCreate)
             }
-            if !canCreate { gateNote("Free plan creates \(ClassLimits.freeCreate). Unlock Mito+ for unlimited.") }
+            if !canCreate { gateNote("Free plan creates \(ClassLimits.freeCreate). Unlock Mito Pro for unlimited.") }
         }
     }
 
@@ -133,7 +133,7 @@ struct ClassesView: View {
                     pillLabel("JOIN", bg: canJoin ? cBlue : cMuted)
                 }.buttonStyle(.plain).disabled(!canJoin)
             }
-            if !canJoin { gateNote("Free plan joins \(ClassLimits.freeJoin). Unlock Mito+ for unlimited.") }
+            if !canJoin { gateNote("Free plan joins \(ClassLimits.freeJoin). Unlock Mito Pro for unlimited.") }
         }
     }
 
@@ -350,7 +350,7 @@ struct ClassDetailView: View {
             await backend.logEvent("cap_would_block", props: ["cap": "deck", "count": "\(session.deckSummaries.count)"])
         }
         guard DeckLimits.canCreate(currentCount: session.deckSummaries.count) else {
-            message = "Deck limit reached (\(DeckLimits.free) free). Unlock Mito+ for unlimited decks."
+            message = "Deck limit reached (\(DeckLimits.free) free). Delete a deck to make room, or unlock Mito Pro for unlimited decks."
             return
         }
         guard let cards = try? await backend.fetchClassDeckCards(deck.id), !cards.isEmpty else {

@@ -16,7 +16,10 @@ struct GeneralSettingsSheet: View {
     @AppStorage(NotificationManager.cadenceKey) private var dueCadence = NotificationManager.DueCadence.daily.rawValue
     @ObservedObject private var lock = FocusLockManager.shared
     @ObservedObject private var loc = LocalizationManager.shared
+    @ObservedObject private var subscriptions = SubscriptionManager.shared
     @State private var showingAppPicker = false
+    @State private var showingPaywall = false
+    @State private var showingCustomerCenter = false
     #if os(iOS)
     @State private var pickerSelection = FocusBlockSelection.load()
     #endif
@@ -47,6 +50,21 @@ struct GeneralSettingsSheet: View {
                         : L("Sign in to sync decks and progress."),
                     value: backend.isLoggedIn ? L("MANAGE") : L("SIGN IN"),
                     action: showAuth
+                )
+
+                SettingsActionRow(
+                    title: "MITO PRO",
+                    detail: subscriptions.isPro
+                        ? "Active subscription. Manage your plan, billing, or restore purchases."
+                        : "Unlock unlimited decks, classes, friends, co-op, and more.",
+                    value: subscriptions.isPro ? "MANAGE" : "UPGRADE",
+                    action: {
+                        if subscriptions.isPro {
+                            showingCustomerCenter = true
+                        } else {
+                            showingPaywall = true
+                        }
+                    }
                 )
 
                 SettingsLanguageRow(language: $loc.language)
@@ -108,6 +126,28 @@ struct GeneralSettingsSheet: View {
         }
         .onChange(of: dueCadence) { _, _ in
             NotificationManager.shared.reschedule()
+        }
+        .task {
+            await subscriptions.refresh()
+        }
+        .sheet(isPresented: $showingPaywall) {
+            MitoPaywallView()
+        }
+        .sheet(isPresented: $showingCustomerCenter) {
+            MitoCustomerCenterView()
+        }
+        .alert(
+            "Subscription error",
+            isPresented: Binding(
+                get: { subscriptions.errorMessage != nil },
+                set: { if !$0 { subscriptions.clearError() } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                subscriptions.clearError()
+            }
+        } message: {
+            Text(subscriptions.errorMessage ?? "Please try again.")
         }
         .padding(16)
         .background(Color(hex: "EAD4A4"))

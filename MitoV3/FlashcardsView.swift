@@ -17,6 +17,7 @@ struct CardsScreen: View {
     @State private var showingImport = false
     @State private var importDeckID: String?   // nil = import into a new deck
     @State private var showDeckLimit = false
+    @State private var deckPendingDelete: Deck?
 
     var body: some View {
         GeometryReader { proxy in
@@ -89,7 +90,22 @@ struct CardsScreen: View {
             .alert("Deck limit reached", isPresented: $showDeckLimit) {
                 Button("OK", role: .cancel) {}
             } message: {
-                Text("Free accounts keep up to \(DeckLimits.free) decks. Unlock Mito+ for unlimited decks. Every deck stays available offline either way.")
+                Text("Free accounts keep up to \(DeckLimits.free) decks at once. Delete a deck to make room, or unlock Mito Pro for unlimited decks. Every deck stays offline either way.")
+            }
+            .confirmationDialog(
+                "Delete this deck and all its cards?",
+                isPresented: Binding(
+                    get: { deckPendingDelete != nil },
+                    set: { if !$0 { deckPendingDelete = nil } }
+                ),
+                titleVisibility: .visible,
+                presenting: deckPendingDelete
+            ) { deck in
+                Button("Delete \(deck.name)", role: .destructive) {
+                    Task { await deleteDeck(deckID: deck.id) }
+                    deckPendingDelete = nil
+                }
+                Button("Cancel", role: .cancel) { deckPendingDelete = nil }
             }
             .onAppear {
                 #if DEBUG
@@ -162,25 +178,40 @@ struct CardsScreen: View {
                 .padding(.horizontal, 18)
                 .padding(.top, 12)
 
-                ScrollView(showsIndicators: false) {
-                    VStack(spacing: 9) {
-                        ForEach(decks) { deck in
-                            Button {
-                                route = .detail(deckID: deck.id)
-                            } label: {
-                                DeckLibraryRow(deck: deck, progress: progress(for: deck.id))
-                            }
-                            .buttonStyle(.plain)
+                List {
+                    ForEach(decks) { deck in
+                        Button {
+                            route = .detail(deckID: deck.id)
+                        } label: {
+                            DeckLibraryRow(deck: deck, progress: progress(for: deck.id))
                         }
-
-                        Text("\(decks.count) decks · \(decks.reduce(0) { $0 + $1.cards }) cards")
-                            .font(.custom(MitoFont.regular, size: 13))
-                            .foregroundStyle(Color(hex: "EAD4A4"))
-                            .padding(.top, 8)
+                        .buttonStyle(.plain)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 4, leading: 0, bottom: 5, trailing: 0))
+                        // Swipe to delete; a full swipe still routes through the
+                        // confirm dialog so a whole deck is never dropped by accident.
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                deckPendingDelete = deck
+                            } label: {
+                                Label("Delete", systemImage: "trash")
+                            }
+                        }
                     }
-                    .padding(.vertical, 4)
-                    .padding(.bottom, 96)
+
+                    Text("\(decks.count) decks · \(decks.reduce(0) { $0 + $1.cards }) cards")
+                        .font(.custom(MitoFont.regular, size: 13))
+                        .foregroundStyle(Color(hex: "EAD4A4"))
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 8)
+                        .listRowBackground(Color.clear)
+                        .listRowSeparator(.hidden)
+                        .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 96, trailing: 0))
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
+                .scrollIndicators(.hidden)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         }

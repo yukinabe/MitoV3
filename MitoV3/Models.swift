@@ -473,13 +473,13 @@ public struct DeckSummary: Identifiable, Equatable, Sendable {
     public let tags: [String]
 }
 
-/// Free-tier deck cap. Mito+ removes it. Every deck stays fully offline — the
+/// Free-tier deck cap. Mito Pro removes it. Every deck stays fully offline — the
 /// gate is on how many decks you can keep, never on offline access (the app is
 /// deliberately offline-first for everyone).
 public enum DeckLimits {
-    public static let free = 10
+    public static let free = 5
 
-    /// Whether another deck can be created given the current count + Mito+.
+    /// Whether another deck can be created given the current count + Mito Pro.
     @MainActor public static func canCreate(currentCount: Int) -> Bool {
         BetaConfig.premiumActive || currentCount < free
     }

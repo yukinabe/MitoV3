@@ -8,7 +8,7 @@ struct FriendsView: View {
     @ObservedObject var backend: MitoBackend
     @Binding var isPresented: Bool
 
-    @AppStorage("premium.social") private var premium = false
+    @ObservedObject private var subscriptions = SubscriptionManager.shared
     @State private var myCode = "…"
     @State private var addCode = ""
     @State private var friends: [FriendEdge] = []
@@ -16,6 +16,7 @@ struct FriendsView: View {
     @State private var message = ""
     @State private var loading = false
     @State private var showingLobby = false
+    @State private var showingPaywall = false
 
     private var accepted: [FriendEdge] { friends.filter(\.isAccepted) }
     private var incoming: [FriendEdge] { friends.filter(\.isIncomingRequest) }
@@ -39,10 +40,8 @@ struct FriendsView: View {
                 }
                 .padding(.bottom, 10)
 
-                if !BetaConfig.premiumActive {
-                    paywall
-                } else if !backend.isReady {
-                    Text("Sign in (Settings → Login) to use friends and co-op.")
+                if !backend.isReady {
+                    Text("Sign in (Settings → Login) to add friends and study together.")
                         .font(.custom(MitoFont.regular, size: 14))
                         .foregroundStyle(Color(hex: "6B4324"))
                         .multilineTextAlignment(.center)
@@ -61,41 +60,54 @@ struct FriendsView: View {
             }
         }
         .task { await load() }
+        .sheet(isPresented: $showingPaywall) {
+            MitoPaywallView()
+        }
+        .alert(
+            "Subscription error",
+            isPresented: Binding(
+                get: { subscriptions.errorMessage != nil },
+                set: { if !$0 { subscriptions.clearError() } }
+            )
+        ) {
+            Button("OK", role: .cancel) {
+                subscriptions.clearError()
+            }
+        } message: {
+            Text(subscriptions.errorMessage ?? "Please try again.")
+        }
     }
 
-    private var paywall: some View {
-        VStack(spacing: 12) {
-            Text("✦ MITO+ ✦").pixelText(size: 16, color: Color(hex: "B8860B"))
-            Text("Study with friends. Unlock co-op focus sessions, shared endless runs, and head-to-head deck duels.")
-                .font(.custom(MitoFont.regular, size: 14))
+    // Friends are free; the live lobby (co-op study + deck duels) is the Mito Pro line.
+    private var coopVersusUpsell: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("✦ MITO PRO ✦").pixelText(size: 13, color: Color(hex: "B8860B"))
+            Text("Adding friends is free. Studying together is Mito Pro.")
+                .font(.custom(MitoFont.regular, size: 13))
                 .foregroundStyle(Color(hex: "4A2F1C"))
-                .multilineTextAlignment(.center)
-            VStack(spacing: 6) {
-                Label("Friends & lobbies", systemImage: "person.2.fill")
-                Label("Co-op focus + endless", systemImage: "bolt.heart.fill")
+            VStack(alignment: .leading, spacing: 6) {
+                Label("Co-op focus sessions", systemImage: "bolt.heart.fill")
+                Label("Shared endless runs", systemImage: "infinity")
                 Label("PvP deck duels", systemImage: "flag.checkered")
             }
             .font(.custom(MitoFont.regular, size: 13))
             .foregroundStyle(Color(hex: "4A2F1C"))
-            .frame(maxWidth: .infinity, alignment: .leading)
 
             Button {
-                // TODO: replace with RevenueCat purchase. Dev unlock for now.
-                premium = true
-                Haptics.success()
+                showingPaywall = true
             } label: {
-                Text("UNLOCK MITO+")
-                    .pixelText(size: 14, color: .white)
-                    .frame(maxWidth: .infinity).padding(.vertical, 13)
+                Text("UNLOCK CO-OP & PVP")
+                    .pixelText(size: 12, color: .white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 12)
                     .background(Color(hex: "B8860B"))
                     .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
             }
             .buttonStyle(.plain)
-            Text("Payments coming soon. This dev build unlocks instantly.")
-                .font(.custom(MitoFont.regular, size: 11))
-                .foregroundStyle(Color(hex: "6B4324"))
         }
-        .padding(.vertical, 6)
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(hex: "F4E6C0"))
+        .overlay(Rectangle().stroke(Color(hex: "C8A24A"), lineWidth: 2))
     }
 
     private var content: some View {
@@ -209,17 +221,22 @@ struct FriendsView: View {
                 }
 
                 // Co-op & versus entry point → lobby (realtime presence).
+                // Friends above are free; the live lobby is gated to Mito Pro.
                 sectionHeader("CO-OP & VERSUS")
-                Button { showingLobby = true } label: {
-                    Text("OPEN LOBBY").pixelText(size: 13, color: .white)
-                        .frame(maxWidth: .infinity).padding(.vertical, 12)
-                        .background(Color(hex: "4A7BA8"))
-                        .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                if BetaConfig.premiumActive {
+                    Button { showingLobby = true } label: {
+                        Text("OPEN LOBBY").pixelText(size: 13, color: .white)
+                            .frame(maxWidth: .infinity).padding(.vertical, 12)
+                            .background(Color(hex: "4A7BA8"))
+                            .overlay(Rectangle().stroke(Color(hex: "18100A"), lineWidth: 3))
+                    }
+                    .buttonStyle(.plain)
+                    Text("Study together (your friends' characters join your meadow) or duel a deck head-to-head. Needs migrations 0008/0009 deployed.")
+                        .font(.custom(MitoFont.regular, size: 11))
+                        .foregroundStyle(Color(hex: "6B4324"))
+                } else {
+                    coopVersusUpsell
                 }
-                .buttonStyle(.plain)
-                Text("Study together (your friends' characters join your meadow) or duel a deck head-to-head. Needs migrations 0008/0009 deployed.")
-                    .font(.custom(MitoFont.regular, size: 11))
-                    .foregroundStyle(Color(hex: "6B4324"))
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
@@ -244,7 +261,7 @@ struct FriendsView: View {
     }
 
     private func load() async {
-        guard BetaConfig.premiumActive, backend.isReady, !loading else { return }
+        guard backend.isReady, !loading else { return }
         loading = true; defer { loading = false }
         myCode = (try? await backend.myFriendCode()) ?? "..."
         friends = (try? await backend.fetchFriends()) ?? []
@@ -786,9 +803,6 @@ struct PvPDuelView: View {
         duel = nil
     }
 }
-
-
-
 
 
 

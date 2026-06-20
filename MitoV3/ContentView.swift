@@ -177,6 +177,9 @@ struct ContentView: View {
             guard !Self.didRunLaunchTasks else { return }
             Self.didRunLaunchTasks = true
             await backend.bootstrapExistingSession()
+            if let userID = backend.currentUserID {
+                await SubscriptionManager.shared.logIn(appUserID: userID.uuidString)
+            }
             // Load cloud decks/FSRS state and mirror future grades to Supabase.
             await backend.attachSync(to: .shared)
             await loadWallet()
@@ -206,6 +209,9 @@ struct ContentView: View {
             // decks. Signing out / deleting → drop the previous account's
             // currency from the UI so it isn't shown to the next (anon) user.
             Task {
+                if let userID = backend.currentUserID {
+                    await SubscriptionManager.shared.logIn(appUserID: userID.uuidString)
+                }
                 if new != nil {
                     await backend.attachSync(to: .shared)
                     await loadWallet()

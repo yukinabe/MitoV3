@@ -4,6 +4,7 @@ import CoreText
 @main
 struct MitoV3App: App {
     init() {
+        SubscriptionManager.shared.configure()
         FontRegistrar.registerFonts()
         AudioManager.shared.prepare()
         Haptics.warm()

@@ -279,5 +279,4 @@ struct OnboardingView: View {
 
 /// Premium social hub: share your friend code, add friends, accept requests, and
 /// (after the multiplayer update is deployed) start co-op and versus sessions.
-/// Gated behind a premium flag — payments (RevenueCat) are a later step, so a
-/// dev unlock is provided for now.
+/// Access is controlled by the RevenueCat Mito Pro entitlement.

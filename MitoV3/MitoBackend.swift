@@ -434,7 +434,7 @@ final class MitoBackend: ObservableObject {
     //
     // Backed by supabase/migrations/0013_classes.sql. Every call is a
     // security-definer RPC that enforces membership server-side; the free-tier
-    // caps (join 3 / create 1) are enforced client-side against Mito+.
+    // caps (join 3 / create 1) are enforced client-side against Mito Pro.
 
     /// All classes I'm a member of, with member counts.
     func fetchMyClasses() async throws -> [ClassRecord] {
