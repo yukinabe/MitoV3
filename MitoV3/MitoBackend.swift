@@ -286,6 +286,8 @@ final class MitoBackend: ObservableObject {
     /// Props are string-valued so call sites don't depend on the Supabase types.
     func logEvent(_ name: String, props: [String: String] = [:]) async {
         guard let session = try? await authenticatedSession() else { return }
+        PostHogManager.shared.identifyOnce(session.user.id.uuidString)
+        PostHogManager.shared.capture(name, props: props)
         let payload = EventInsert(userID: session.user.id, name: name, props: props)
         _ = try? await client.from("events").insert(payload).execute()
     }

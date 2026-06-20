@@ -26,7 +26,9 @@
 		100000000000000000000092 /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 100000000000000000000091 /* Supabase */; };
 		RC0000000000000000000001 /* RevenueCat in Frameworks */ = {isa = PBXBuildFile; productRef = RC0000000000000000000011 /* RevenueCat */; };
 		RC0000000000000000000002 /* RevenueCatUI in Frameworks */ = {isa = PBXBuildFile; productRef = RC0000000000000000000012 /* RevenueCatUI */; };
+		PH0000000000000000000002 /* PostHog in Frameworks */ = {isa = PBXBuildFile; productRef = PH0000000000000000000011 /* PostHog */; };
 		RC0000000000000000000003 /* SubscriptionManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = RC0000000000000000000013 /* SubscriptionManager.swift */; };
+		RC0000000000000000000004 /* MitoPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = RC0000000000000000000014 /* MitoPaywallView.swift */; };
 		100000000000000000000097 /* zstddeclib.c in Sources */ = {isa = PBXBuildFile; fileRef = 100000000000000000000096 /* zstddeclib.c */; };
 		1000000000000000000000A3 /* AudioManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A2 /* AudioManager.swift */; };
 		1000000000000000000000A5 /* Haptics.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1000000000000000000000A4 /* Haptics.swift */; };
@@ -118,6 +120,7 @@
 		1000000000000000000000C3 /* MitoWidget.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MitoWidget.entitlements; sourceTree = "<group>"; };
 		1000000000000000000000C4 /* MitoV3.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = MitoV3.entitlements; sourceTree = "<group>"; };
 		RC0000000000000000000013 /* SubscriptionManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SubscriptionManager.swift; sourceTree = "<group>"; };
+		RC0000000000000000000014 /* MitoPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoPaywallView.swift; sourceTree = "<group>"; };
 		AB1000000000000000000000 /* MitoFocusActivityAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoV3/MitoFocusActivityAttributes.swift; sourceTree = SOURCE_ROOT; };
 		AB1000000000000000000003 /* MitoFocusActivityController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoFocusActivityController.swift; sourceTree = "<group>"; };
 		AB1000000000000000000005 /* MitoWidgetReview.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MitoWidgetReview.swift; sourceTree = "<group>"; };
@@ -147,6 +150,7 @@
 				100000000000000000000092 /* Supabase in Frameworks */,
 				RC0000000000000000000001 /* RevenueCat in Frameworks */,
 				RC0000000000000000000002 /* RevenueCatUI in Frameworks */,
+				PH0000000000000000000002 /* PostHog in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -192,6 +196,7 @@
 				1000000000000000000000B6 /* Classes.swift */,
 				1000000000000000000000B8 /* BetaConfig.swift */,
 				RC0000000000000000000013 /* SubscriptionManager.swift */,
+				RC0000000000000000000014 /* MitoPaywallView.swift */,
 				AB1000000000000000000000 /* MitoFocusActivityAttributes.swift */,
 				AB1000000000000000000003 /* MitoFocusActivityController.swift */,
 				10000000000000000000001A /* Assets.xcassets */,
@@ -263,6 +268,7 @@
 				100000000000000000000091 /* Supabase */,
 				RC0000000000000000000011 /* RevenueCat */,
 				RC0000000000000000000012 /* RevenueCatUI */,
+				PH0000000000000000000011 /* PostHog */,
 			);
 			productName = MitoV3;
 			productReference = 10000000000000000000000B /* MitoV3.app */;
@@ -317,6 +323,7 @@
 			packageReferences = (
 				100000000000000000000090 /* XCRemoteSwiftPackageReference "supabase-swift" */,
 				RC0000000000000000000010 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */,
+				PH0000000000000000000010 /* XCRemoteSwiftPackageReference "posthog-ios" */,
 			);
 			productRefGroup = 100000000000000000000032 /* Products */;
 			projectDirPath = "";
@@ -377,6 +384,7 @@
 				1000000000000000000000B7 /* Classes.swift in Sources */,
 				1000000000000000000000B9 /* BetaConfig.swift in Sources */,
 				RC0000000000000000000003 /* SubscriptionManager.swift in Sources */,
+				RC0000000000000000000004 /* MitoPaywallView.swift in Sources */,
 				99376CAC626398DF8CB2F9E5 /* BackendModels.swift in Sources */,
 				DE23A9787963CB17A3CCA06F /* BattleAbilityEffects.swift in Sources */,
 				34F4826E0C6CF513AE64CC34 /* BattleFlashcardPanels.swift in Sources */,
@@ -713,6 +721,14 @@
 				minimumVersion = 5.0.0;
 			};
 		};
+		PH0000000000000000000010 /* XCRemoteSwiftPackageReference "posthog-ios" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/PostHog/posthog-ios.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 3.0.0;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -730,6 +746,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = RC0000000000000000000010 /* XCRemoteSwiftPackageReference "purchases-ios-spm" */;
 			productName = RevenueCatUI;
+		};
+		PH0000000000000000000011 /* PostHog */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = PH0000000000000000000010 /* XCRemoteSwiftPackageReference "posthog-ios" */;
+			productName = PostHog;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};
